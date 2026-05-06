@@ -204,6 +204,31 @@ Don't just apologize — fix the system.
 
 ---
 
+### 10. Multiple Request Organization
+
+**Pitch:** Allow user to batch up ideas and braindump quickly, but Claude to work through in an organized and diligent manner.
+
+Add to `CLAUDE.md`:
+```
+## Completing requests
+
+When the user gives multiple requests:
+1. Queue them mentally but complete ONE fully before starting the next
+2. "Complete" means: code written, built, deployed to Docker, tested with rodney, verified working
+3. If a request involves UI: screenshot the result and confirm it matches what was asked
+4. Never mark something done until you've verified it works end-to-end
+5. If you can't complete a request in one go (e.g., blocked by data issues), say so explicitly rather than half-doing it and moving on
+6. If multiple requests conflict or depend on each other, state the dependency and ask which to prioritize
+
+Anti-patterns to avoid:
+- Starting 4 things, finishing 0
+- Saying "let me commit this and move on to..." when the current thing isn't verified
+- Adding code that changes behavior without testing the behavior changed
+- Reacting to new user messages mid-task instead of finishing current work first
+- Saying "let me ignore X for now" — either fix it or explicitly tell the user it's queued
+```
+---
+
 ## Status Check
 
 When invoked with `status`, read the project's `CLAUDE.md` and check which of the above are already in place. Present a simple checklist:
@@ -220,8 +245,9 @@ Project setup status:
   [x] Keep README current — rule in CLAUDE.md
   [ ] Encode preferences — not mentioned
   [x] Mistake retrospectives — rule in CLAUDE.md
+  [ ] Multiple Request Organization - not mentioned
 
-6/9 adopted. Want to add any of the missing ones?
+6/10 adopted. Want to add any of the missing ones?
 ```
 
 ## Guidelines
