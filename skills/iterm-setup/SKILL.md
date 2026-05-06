@@ -63,13 +63,28 @@ The actual work is done by `~/.claude/scripts/iterm-setup.py`. This skill is a t
    - If no alias name yet, ask: *"Want a shell alias too? Default would be `<profile>`. Type a different name, ENTER to accept, or 'no' to skip."*
    - If they skip, pass `--no-alias` in step 4.
 
-4. **Create the profile (and alias).** Run:
+4. **Confirm the title format (or skip / customize).** The script sets a Custom tab/window title that pairs with the Claude Code state hooks (`🟢` / `❓` / `☑️`). Default format:
+
+   ```
+   \(user.claudeState)\(session.profileName) - \(session.name)
+   ```
+
+   When run interactively, the script prompts: *Accept default? [Y/n=skip/c=customize]*. The skill normally lets that interactive prompt do its job — only steer the user when they want a non-default for a specific project (uncommon).
+   - **Default (just hit ENTER):** title format is set on this profile.
+   - **`n` / skip:** profile inherits the Default profile's title (use this if the user has already configured a global Custom Title on the iTerm Default profile and doesn't want per-project overrides).
+   - **`c` / customize:** prompt for a different interpolated string.
+
+   **Non-interactive equivalents:**
+   - `--title-format '\(custom format)'` — explicit format.
+   - `--no-title` — don't set title keys at all (inherit).
+
+5. **Create the profile (and alias).** Run:
 
    ```
    ~/.claude/scripts/iterm-setup.py <profile> --color <N> --alias <alias>
    ```
 
-   Or with `--no-alias` to skip the alias. Add `--force` only if the user explicitly wants to overwrite an existing profile. Add `--pattern <PAT>` if they want a non-default APS rule (default is `/*/<profile>*`).
+   Or with `--no-alias` to skip the alias. Add `--force` only if the user explicitly wants to overwrite an existing profile. Add `--pattern <PAT>` if they want a non-default APS rule (default is `/*/<profile>*`). Add `--title-format` / `--no-title` if step 4 resolved non-interactively.
 
    The script will:
    - Write the iTerm2 profile JSON to `~/Library/Application Support/iTerm2/DynamicProfiles/`.
@@ -78,10 +93,15 @@ The actual work is done by `~/.claude/scripts/iterm-setup.py`. This skill is a t
    - Warn (not overwrite) if a different alias with the same name already exists.
    - **Refuse to add the alias** (without `--force-alias`) if a *different* alias in `~/.zshrc` already resolves to the current cwd. Prevents duplicates like adding `grootOS` when `gos='code;cd grootOS'` already exists. The skill should normally have already caught this in step 1, but this is the safety net.
 
-5. **Verify.**
+6. **Verify.**
    - For the profile: open a new tab and `cd` into the project — the background color should switch automatically.
    - For the alias: tell the user to `source ~/.zshrc` or open a new shell.
+   - For the title: a fresh shell with the new profile should show `<state> <project> - <topic>` once Claude Code's state hooks have fired at least once (the `claudeState` user variable is empty until the first hook runs, in which case the prefix is just blank).
    - The script warns if iTerm2 shell integration isn't detected (APS won't fire without it).
+
+## One-time iTerm Default profile setup
+
+The state-glyph behavior also works for sessions that *don't* have a per-project profile (i.e. running under iTerm's Default profile). To enable it: open iTerm Preferences → Profiles → **Default** → General, set the Title dropdown to **Custom**, and use the same format string as above. All Dynamic Profiles inherit this unless they explicitly override it (which is what `iterm-setup.py` does by default — you can opt out with `--no-title` to inherit instead).
 
 ## What this does NOT do
 
@@ -94,4 +114,6 @@ The actual work is done by `~/.claude/scripts/iterm-setup.py`. This skill is a t
 
 - Profile output dir: `~/Library/Application Support/iTerm2/DynamicProfiles/`
 - Color usage is read directly from on-disk profiles (matches background RGB to palette) — no separate state file to drift.
-- iTerm2 docs: https://iterm2.com/documentation-dynamic-profiles.html
+- iTerm2 Dynamic Profiles: https://iterm2.com/documentation-dynamic-profiles.html
+- iTerm2 names and titles (interpolated string variables like `\(session.name)`, `\(user.foo)`): https://iterm2.com/documentation-session-title.html
+- The `claudeState` user variable is set by `~/.claude/hooks/{stop,notify,submit}-status.py` via the iTerm `OSC 1337;SetUserVar` escape sequence.
