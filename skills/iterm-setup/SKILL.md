@@ -46,32 +46,50 @@ The actual work is done by `~/.claude/scripts/iterm-setup.py`. This skill is a t
    - **If the output is non-empty** (e.g. user is in `~/code/grootOS` and `gos` already targets it): tell the user, default to **reusing the existing alias** (skip the alias step), and only add a new alias if they explicitly want one (then pass `--force-alias`).
    - **If empty:** proceed with the alias suggestion as normal.
 
-2. **Show the palette and let them pick.** Run via Bash:
+2. **Present the palette via `AskUserQuestion` (AUQ).**
+
+   Gather palette data with two bash calls (can run in parallel):
 
    ```
    ~/.claude/scripts/iterm-setup.py <profile> --list-colors
-   ```
-
-   **Critical:** the script's stdout contains ANSI truecolor escape codes that the user's terminal renders as actual colored swatches. The user *needs* to see these to make a meaningful pick — that's the whole point.
-   - **DO NOT paraphrase, summarize, or reformat the output.** Don't write your own numbered list of color names.
-   - **DO NOT wrap the output in a markdown code block** when relaying — code blocks suppress ANSI rendering in many UIs.
-   - The natural Bash tool flow is fine: run the command, the user sees the raw stdout, you then prompt them.
-
-   The output annotates colors already used by other profiles (e.g. `Plum  used by: changer`). Steer the user toward an **unused** color so neighboring terminals stay visually distinct. Ask them to pick a number — the default palette runs **1–14** (stratified main: deep + lifted bands of each hue) plus **15–18** in a separate **"Vivid (highlight projects — brighter, harder to miss)"** section below. The vivid section's swatches are noticeably brighter and meant for projects that should be unmistakable at a glance (e.g. `~/.claude` itself). Mention the vivid section explicitly when the user is choosing — it's easy to overlook.
-
-   **Auto mode (only when invoked as `/iterm-setup auto`):** still run `--list-colors` so the agent can read the "used by" annotations, but skip the prompt. Pick the lowest-numbered swatch in the main palette (1–14) that has no `used by:` annotation. Proceed directly to step 3 with that pick. Mention the chosen color in the wrap-up so the user can override on a follow-up turn.
-
-   If the user wants more than 4 vivid choices, pass `--vivid` to swap the entire main palette for 14 fully-vivid swatches (no separate section in that mode):
-
-   ```
    ~/.claude/scripts/iterm-setup.py <profile> --list-colors --vivid
    ```
 
-   `--vivid` also applies on the create/change-color call (step 5) — the index they pick must come from a `--vivid` listing if they want a `--vivid` color.
+   Parse both outputs to extract:
+   - **Dark palette (1–14):** RGB tuples, names, and `used by:` annotations (from the first call).
+   - **Vivid palette (15–28):** RGB tuples and names (from the second call — the script numbers vivid 1–14 there; *re-number to 15–28* for continuous numbering in the AUQ).
+   - **Other existing profiles** (from the first call's footer): hex values from other projects that sit outside the palette — used for near-clash awareness when picking the suggested color.
 
-   **If a profile for `<profile>` already exists**, the output begins with a banner like `Existing profile 'changer': Plum (#4), APS=/*/changer*` and the current color is marked `★ current` in the palette (if it sits within the project-seeded palette; custom-hex colors won't get the marker). This is the **change-color** path:
-   - Frame the question accordingly: *"You're already on Plum. Which would you like to change to?"*
-   - Pass `--force` in step 4 (the script otherwise refuses to overwrite).
+   Pick a **suggested color** (the first AUQ option). From the dark palette, prefer:
+   - An unused color (no `used by:` annotation).
+   - A hue distinct from the "Other existing profiles" hexes (avoid near-clashes).
+   - A name/aesthetic that fits the project (warm/earthy for library-ish, cool/deep for systems, etc.).
+
+   Build the AUQ with **exactly 3 options**:
+
+   - **Option 1 — `"<Name> (#<n>) — use suggested"`:** Preview shows the color's swatch + 2–3 line rationale.
+   - **Option 2 — `"Browse dark palette (1–14)"`:** Preview shows all 14 dark swatches numbered 1–14 with their names, annotating `(used by ...)` on the used colors and marking the suggested one with `← suggested`.
+   - **Option 3 — `"Browse vivid palette (15–28)"`:** Preview shows all 14 vivid swatches numbered 15–28.
+
+   **AUQ formatting (learned the hard way — must follow):**
+   - **Preview truncates around ~17 lines.** Don't combine palettes into a single preview — it gets cut off with a "N lines hidden" indicator.
+   - **Do not add an explicit "Other" / "Type something" option.** AUQ has a built-in `Notes` field (user presses `n`) — that *is* the free-text path. Mention it explicitly in each option's description: *"Press 'n' to type your choice in Notes."* The hint is easy to miss otherwise.
+   - **ANSI swatches DO render in previews.** Use a 6-space colored block: `\u001b[48;2;R;G;Bm      \u001b[0m` (write the literal text `\u001b` in the JSON string for AUQ — the JSON parser turns it into a real ESC byte).
+   - Each browse-preview's first line should remind: *"Press 'n' to type your choice (e.g. '20', 'Teal', 'vivid Indigo')."*
+
+   **Interpreting the response:**
+   - **Option 1 selected, no notes** → use the suggested color.
+   - **Notes contain a number 1–14** → dark palette at that index.
+   - **Notes contain a number 15–28** → vivid palette; pass `--vivid --color <N−14>` to the script in step 5.
+   - **Notes contain a color name** (e.g. `Teal`, `Crimson 2`) → default to dark. Prefix `vivid ` or `v ` means vivid (e.g. `vivid Teal`).
+   - **Option 2 or 3 selected with no notes** → ask in a follow-up message for the specific number.
+
+   **Auto mode (only when invoked as `/iterm-setup auto`):** skip the AUQ. Still run the two bash calls to read the palette data, then pick the lowest-numbered swatch in the dark palette with no `used by:` annotation and no near-clash with "Other existing profiles." Proceed straight to step 3. Mention the chosen color in the wrap-up so the user can override on a follow-up turn.
+
+   **Change-color path (profile for `<profile>` already exists):** the first bash call's output begins with a banner like `Existing profile 'changer': Plum (#4), APS=/*/changer*` and the current color is marked `★ current` in the palette. In this case:
+   - Frame the AUQ question as *"You're already on Plum — change to?"*
+   - Pick a *different* unused color as the suggestion (don't suggest the current one).
+   - Pass `--force` in **step 5** (the script otherwise refuses to overwrite).
    - The alias is almost certainly already set up (step 1's `--cwd-aliases` will have caught it) — default to `--no-alias`.
    - The script preserves the existing APS pattern when `--force` is used without `--pattern`. You don't need to re-pass the binding.
 
