@@ -201,7 +201,7 @@ If a Makefile exists, check for the standard targets (`init`, `build`, `run`, `l
 
 ### Phase 7: iTerm profile
 
-Invoke `/iterm-setup` with the project basename. The iterm-setup skill handles its own interactive flow — color picker (with vivid section), alias prompt, title format. Don't second-guess it. In `--auto` mode, run with `--auto` (which iterm-setup will eventually support; until then, pass `--no-alias` only if there's no existing alias for cwd).
+Invoke `/iterm-setup` with the project basename. The iterm-setup skill handles its own interactive flow — color picker (with vivid section), alias prompt, title format. Don't second-guess it. In `--auto` mode, invoke `/iterm-setup auto` instead — iterm-setup's `auto` mode picks the lowest-numbered unused swatch from the main palette and uses the project basename as the alias, no prompts.
 
 ### Phase 8: GitHub remote
 
@@ -251,7 +251,7 @@ Next:
 `--auto` skips all prompts and picks sensible defaults:
 
 - **Language**: detect from existing files (`pyproject.toml` → Python, `package.json` → TypeScript, `Cargo.toml` → Rust, `go.mod` → Go). If ambiguous or none, skip language-specific scaffolding (no `.gitignore` patterns, Makefile bodies left as `# TODO`).
-- **iTerm**: invoke iterm-setup non-interactively (first unused color, alias = project basename, default title format).
+- **iTerm**: invoke `/iterm-setup auto` (iterm-setup's auto mode picks the first unused color and uses project basename as the alias).
 - **GitHub remote**: SKIPPED. Creating an external resource without explicit consent is too consequential for `--auto`.
 - **gbrain**: SKIPPED. Same reason.
 - **Office-hours import**: still imports if a doc is found (low risk, just file content).

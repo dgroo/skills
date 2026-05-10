@@ -1,7 +1,7 @@
 ---
 name: iterm-setup
 description: Create a uniquely-colored iTerm2 profile for a project with Automatic Profile Switching, plus an optional shell alias for quick `cd`. Use when starting a new project, asked to "set up iterm", "set terminal color", "iterm profile", "automatic profile switching", "color this terminal", "add a project alias", or when bootstrapping a new repo.
-argument-hint: [name-or-alias]
+argument-hint: [name-or-alias | auto]
 ---
 
 # iTerm2 Per-Project Profile Setup
@@ -16,18 +16,24 @@ The actual work is done by `~/.claude/scripts/iterm-setup.py`. This skill is a t
 /iterm-setup              # use cwd basename as the project name
 /iterm-setup myproject    # explicit profile name (e.g., for worktree dirs)
 /iterm-setup chgr         # if cwd basename is `changer`, this is the alias shorthand
+/iterm-setup auto         # let the agent pick color + alias autonomously (no prompts)
 ```
 
 ## Process
+
+> **Personal-preference rule (read first).** Color and alias are personal preference — the **user** picks them. This holds **even when the session is operating under a "work without stopping for clarifying questions" / "no clarifying questions" directive**. That directive applies to ambiguities the agent can resolve from context, not to taste choices that are inherently the user's call. The whole purpose of this skill is to surface those choices.
+>
+> **The only exception:** the user explicitly invoked `/iterm-setup auto`. In that mode, the agent picks color + alias without asking and proceeds end-to-end. Any other invocation form **must** prompt.
 
 1. **Determine the profile name and the alias name.**
    - **Profile name** (used for the iTerm2 profile + APS rule): defaults to `basename $(pwd)`.
    - **Alias name** (used for the `~/.zshrc` shell alias): defaults to the profile name.
    - If the user passed an arg, interpret as follows:
+     - **Arg is exactly `auto`** → enter auto mode (see step 2 / step 3). Profile name = cwd basename, alias = profile name. No further confirmation.
      - **Arg looks like an abbreviation** of cwd basename (shorter, often a substring or initials, e.g. `chgr` for `changer`, `gos` for `grootOS`) → treat arg as **alias**, profile name comes from cwd. Confirm.
      - **Arg differs from cwd basename in a non-abbreviation way** (e.g. you're in `myproject-feature-x` and they pass `myproject`) → treat arg as **profile name** (worktree case). Confirm.
      - **Arg matches cwd basename** → treat arg as profile name; ask separately whether they want a different alias.
-   - Confirm with the user when cwd is suspicious (`~`, `~/Downloads`, anywhere not obviously a project root).
+   - Confirm with the user when cwd is suspicious (`~`, `~/Downloads`, anywhere not obviously a project root) — this confirmation runs even in `auto` mode, since picking the wrong directory is a footgun, not a preference.
 
    **Then check for an existing alias for this directory** before suggesting a new one:
 
@@ -53,6 +59,8 @@ The actual work is done by `~/.claude/scripts/iterm-setup.py`. This skill is a t
 
    The output annotates colors already used by other profiles (e.g. `Plum  used by: changer`). Steer the user toward an **unused** color so neighboring terminals stay visually distinct. Ask them to pick a number — the default palette runs **1–14** (stratified main: deep + lifted bands of each hue) plus **15–18** in a separate **"Vivid (highlight projects — brighter, harder to miss)"** section below. The vivid section's swatches are noticeably brighter and meant for projects that should be unmistakable at a glance (e.g. `~/.claude` itself). Mention the vivid section explicitly when the user is choosing — it's easy to overlook.
 
+   **Auto mode (only when invoked as `/iterm-setup auto`):** still run `--list-colors` so the agent can read the "used by" annotations, but skip the prompt. Pick the lowest-numbered swatch in the main palette (1–14) that has no `used by:` annotation. Proceed directly to step 3 with that pick. Mention the chosen color in the wrap-up so the user can override on a follow-up turn.
+
    If the user wants more than 4 vivid choices, pass `--vivid` to swap the entire main palette for 14 fully-vivid swatches (no separate section in that mode):
 
    ```
@@ -71,6 +79,7 @@ The actual work is done by `~/.claude/scripts/iterm-setup.py`. This skill is a t
    - If the user already implied an alias name in step 1, confirm: *"Adding `alias <name>='cd ...'` to ~/.zshrc — sound good?"*
    - If no alias name yet, ask: *"Want a shell alias too? Default would be `<profile>`. Type a different name, ENTER to accept, or 'no' to skip."*
    - If they skip, pass `--no-alias` in step 4.
+   - **Auto mode:** use the profile name as the alias and proceed without confirmation. (If the alias name turns out to be awkward, the user can rename it later — `auto` is opt-in convenience, not perfection.)
 
 4. **Confirm the title format (or skip / customize).** The script sets a Custom tab/window title that pairs with the Claude Code state hooks (`🟢` / `❓` / `☑️`). Default format:
 
