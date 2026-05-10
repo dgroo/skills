@@ -51,12 +51,21 @@ The actual work is done by `~/.claude/scripts/iterm-setup.py`. This skill is a t
    - **DO NOT wrap the output in a markdown code block** when relaying — code blocks suppress ANSI rendering in many UIs.
    - The natural Bash tool flow is fine: run the command, the user sees the raw stdout, you then prompt them.
 
-   The output annotates colors already used by other profiles (e.g. `Plum  used by: changer`). Steer the user toward an **unused** color so neighboring terminals stay visually distinct. Ask them to pick a number (1-10).
+   The output annotates colors already used by other profiles (e.g. `Plum  used by: changer`). Steer the user toward an **unused** color so neighboring terminals stay visually distinct. Ask them to pick a number — the default palette runs **1–14** (stratified main: deep + lifted bands of each hue) plus **15–18** in a separate **"Vivid (highlight projects — brighter, harder to miss)"** section below. The vivid section's swatches are noticeably brighter and meant for projects that should be unmistakable at a glance (e.g. `~/.claude` itself). Mention the vivid section explicitly when the user is choosing — it's easy to overlook.
 
-   **If a profile for `<profile>` already exists**, the output begins with a banner like `Existing profile 'changer': Plum (#4), APS=/*/changer*` and the current color is marked `★ current` in the palette. This is the **change-color** path:
+   If the user wants more than 4 vivid choices, pass `--vivid` to swap the entire main palette for 14 fully-vivid swatches (no separate section in that mode):
+
+   ```
+   ~/.claude/scripts/iterm-setup.py <profile> --list-colors --vivid
+   ```
+
+   `--vivid` also applies on the create/change-color call (step 5) — the index they pick must come from a `--vivid` listing if they want a `--vivid` color.
+
+   **If a profile for `<profile>` already exists**, the output begins with a banner like `Existing profile 'changer': Plum (#4), APS=/*/changer*` and the current color is marked `★ current` in the palette (if it sits within the project-seeded palette; custom-hex colors won't get the marker). This is the **change-color** path:
    - Frame the question accordingly: *"You're already on Plum. Which would you like to change to?"*
    - Pass `--force` in step 4 (the script otherwise refuses to overwrite).
    - The alias is almost certainly already set up (step 1's `--cwd-aliases` will have caught it) — default to `--no-alias`.
+   - The script preserves the existing APS pattern when `--force` is used without `--pattern`. You don't need to re-pass the binding.
 
 3. **Confirm the alias (or skip).**
    - If the user already implied an alias name in step 1, confirm: *"Adding `alias <name>='cd ...'` to ~/.zshrc — sound good?"*
