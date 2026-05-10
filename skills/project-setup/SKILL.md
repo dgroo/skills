@@ -19,7 +19,9 @@ Interactive walkthrough that suggests improvements to make a project more effici
 
 Before starting, read the project's existing `CLAUDE.md`, `README.md`, `CONTRIBUTING.md`, and any config files to understand what's already in place. Don't suggest things the project already does.
 
-Present each suggestion as a short pitch: what it is, why it helps, and what you'll create/change. Wait for the user's response before moving on. If they accept, implement it immediately.
+Present **all** applicable suggestions at once as a numbered list with a one-line description each. Default all to **yes**. Tell the user to reply with the numbers they want to **skip**, or just confirm to accept all. Then implement everything that wasn't skipped in one pass.
+
+This is faster than going one-by-one — the user can scan the full list and opt out of what they don't want rather than answering ten separate questions.
 
 ---
 
