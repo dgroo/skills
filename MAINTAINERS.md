@@ -23,6 +23,7 @@ If the table drifts, the git output wins. Re-sync the table; don't touch git his
 | `iterm-setup` | 2026-05-05 | Has `auto` mode used by `/groot-project --auto` |
 | `prior-art` | 2026-05-05 | |
 | `skills-review` | 2026-05-10 | |
+| `walkthrough` | 2026-05-11 | |
 
 ## Upstream (from `joewalnes/skills`)
 

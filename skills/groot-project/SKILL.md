@@ -1,6 +1,6 @@
 ---
 name: groot-project
-description: Bootstrap a project the Derek way — git, design/ subtree (incl. trust-tiered stories/), CLAUDE.md skeleton with a shared-memory conventions block, Makefile, iTerm profile, optional GitHub remote and gbrain registration. Coexists with /project-setup and gstack; detects collisions and never clobbers. Re-runnable.
+description: Bootstrap a project the Derek way — git, design/ subtree (incl. stories/ with readiness-by-directory: drafts/ ready/ done/), CLAUDE.md skeleton with a shared-memory conventions block, Makefile, iTerm profile, optional GitHub remote and gbrain registration. Coexists with /project-setup and gstack; detects collisions and never clobbers. Re-runnable.
 argument-hint: [status|--auto|--public]
 ---
 
