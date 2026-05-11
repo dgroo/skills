@@ -21,7 +21,9 @@ Independent of `/project-setup` (which is Joe Walnes's upstream skill that retro
 
 `--auto` and `--public` can combine. `status` is standalone.
 
-**Aggressive mode via prompt language.** If the user invokes with phrasing like *"be aggressive"*, *"restructure"*, or *"reorganize existing files"* (e.g., `/groot-project — be aggressive about restructuring docs into design/`), expand scope to also offer structural moves: renaming non-standard directories, moving misplaced docs into `design/`, consolidating scattered design notes. Always confirm each structural move before acting; never silently restructure files. Conservative additive retrofit is the default.
+**Light migration inside `design/` is default.** When `design/` exists but has misplaced files at its root (e.g., a stray `*-plan.md` sitting beside `DESIGN.md`), Phase 2 *asks* about migrating them into the canonical subdirs (see Phase 2 → "Migrate misplaced files at `design/` root"). This is on by default — the user generally wants the cleanup — but is always a prompt, never silent.
+
+**Aggressive mode via prompt language.** If the user invokes with phrasing like *"be aggressive"*, *"restructure"*, or *"reorganize existing files"* (e.g., `/groot-project — be aggressive about restructuring docs into design/`), expand scope to the broader structural moves: renaming non-standard directories at the project root (e.g., `specs/` → `design/plans/`), moving top-level `docs/` into `design/`, consolidating scattered design notes from outside `design/`. Always confirm each structural move before acting; never silently restructure files. Conservative additive retrofit (plus the light `design/`-root migration above) is the default.
 
 ## Pre-flight (always runs first)
 
@@ -30,7 +32,8 @@ Gather state and print a summary before asking anything:
 - Is this a git repo? (`git rev-parse --is-inside-work-tree 2>/dev/null`)
 - Does a recent `/office-hours` design doc exist at `~/.gstack/projects/<basename>/*.md`? Take the most recent.
 - What language signals exist? Presence of `pyproject.toml`, `setup.py`, `package.json`, `Cargo.toml`, `go.mod`.
-- What standard files / directories are present? `README.md`, `Makefile`, `design/`, `design/DESIGN.md`, `design/helping-hands/`, `design/plans/`, `design/stories/`, `design/stories/llm_generated/`, `design/stories/user_updated/`, `design/stories/z.done/`, `design/stories/STORY_TEMPLATE.md`, `design/notes/`, `.gitignore`, `CLAUDE.md`.
+- What standard files / directories are present? `README.md`, `Makefile`, `design/`, `design/DESIGN.md`, `design/helping-hands/`, `design/plans/`, `design/stories/`, `design/stories/llm_generated/`, `design/stories/user_updated/`, `design/stories/z.done/`, `design/stories/STORY_TEMPLATE.md`, `design/notes/`, `.gitignore`, `CLAUDE.md`, `DIARY.md`, `TODO.md`.
+- **Misplaced files at `design/` root**: any markdown file directly in `design/` other than `README.md` and `DESIGN.md`. List them — Phase 2's migration step will offer to move them into the right subdir.
 - **Collision detection** (read but don't act yet — these inform later phases):
   - Joe-style artifacts: `TODO.md`, `DIARY.md`, `CHANGELOG.md` at the project root (indicates `/project-setup` has run or the user uses that convention).
   - gstack artifacts: `~/.gstack/projects/<basename>/`, gstack hooks in `.claude/settings.json`, gstack-specific CLAUDE.md sections (e.g., a `## gstack` heading).
@@ -48,7 +51,7 @@ Each phase has one of three modes: **auto-default-Y** (skill announces and proce
 |---|--------------------------------|---------------------|---------------------------------------------------------------------------|
 | 1 | Git init                       | auto-default-Y      | `git init` if not a repo. Skip otherwise.                                 |
 | 2 | `design/` subtree              | auto-default-Y      | Create missing pieces of the canonical subtree.                           |
-| 3 | CLAUDE.md skeleton             | auto-default-Y      | Generate skeleton if missing.                                             |
+| 3 | Project docs skeleton          | auto-default-Y      | Generate `CLAUDE.md`, `DIARY.md`, and `TODO.md` if missing.                |
 | 4 | Office-hours import            | auto-default-Y      | If a design doc exists, layer its content into DESIGN.md and CLAUDE.md.   |
 | 5 | Language detection + .gitignore | always-asks        | Ask Python / TypeScript / Rust / Go / Other / None.                       |
 | 6 | Makefile                       | auto-default-Y / drift-flag | Create if missing; flag drift if present but missing standard targets.   |
@@ -84,6 +87,31 @@ design/
 ```
 
 For each subdir or file: skip if it exists, create if it doesn't. Never overwrite.
+
+**Migrate misplaced files at `design/` root.** After ensuring the canonical subtree, scan `design/` for files at its root other than `README.md` and `DESIGN.md`. Classify each one and present a single batched prompt:
+
+- **Filename matches `*plan*.md` (e.g. `2026-05-05-foo-plan.md`)** → propose `design/plans/`.
+- **Frontmatter has `author:` or `priority:` fields, OR filename contains `story` / `spec` / `feature`** → propose `design/stories/ready/`. If frontmatter or body indicates a partial draft, propose `design/stories/drafts/` instead.
+- **Plan-companion** (e.g., `2026-05-05-foo.md` exists alongside `2026-05-05-foo-plan.md`) → propose `design/stories/ready/` (it's the spec the plan implements).
+- **Dated file with no plan/story signal** (`YYYY-MM-DD-*.md`) → propose `design/notes/` (keeps the date prefix per the notes/ snapshot convention).
+- **Anything that doesn't classify confidently** → list it but don't pre-classify; ask which subdir (or skip).
+
+Present as a single batched confirmation, e.g.:
+
+```
+Found 2 files at design/ root that look misplaced:
+  design/2026-05-05-foo-plan.md  →  design/plans/             (matches *-plan.md)
+  design/2026-05-05-foo.md       →  design/stories/ready/     (plan-companion: implements above)
+
+Migrate with `git mv` (preserves history)?
+  [Y] all   [n] none   [p] per-file walk-through
+```
+
+- **Y**: run `git mv` for every proposal.
+- **n**: leave files in place; surface "design/ root has unmigrated files: <list>" under "Drift" in the final summary so it's not forgotten.
+- **p**: walk one file at a time — confirm target subdir (with the classifier's suggestion as default) or skip.
+
+This step is **default behavior** — no aggressive flag required. It only touches files *inside* `design/`. Broader moves (top-level `docs/` → `design/`, renaming non-canonical sibling dirs) still require aggressive-mode opt-in (see top of file). `--auto` mode runs the classifier but, since the prompt would otherwise block, defaults to **n** (leave in place) and surfaces the list under Drift — never auto-moves without user input.
 
 **Canonical source for stories/ docs:** Pull `stories/README.md` and `stories/STORY_TEMPLATE.md` from `~/code/iDM/design/stories/` if available. iDM is the source of truth for the stories convention. If iDM isn't available (different machine), use the embedded fallback templates below.
 
@@ -289,9 +317,11 @@ The DESIGN.md skeleton (used when no office-hours doc exists):
 - <thing we haven't decided>
 ```
 
-### Phase 3: CLAUDE.md skeleton
+### Phase 3: Project docs skeleton
 
-If `CLAUDE.md` doesn't exist at the project root, generate:
+Creates three top-level docs if missing: `CLAUDE.md` (project-level rules + shared-memory conventions), `DIARY.md` (rolling narrative log of decisions), and `TODO.md` (light task tracker compatible with Joe's `/todo` and `/bug-bash` skills). Grouped together because all three are project-meta and reference each other from the conventions block.
+
+**`CLAUDE.md`** — generate if missing:
 
 ```markdown
 # <Project name>
@@ -300,35 +330,85 @@ If `CLAUDE.md` doesn't exist at the project root, generate:
 
 See `design/DESIGN.md` for the full design and `design/README.md` for the trust hierarchy.
 `design/helping-hands/README.md` documents tasks needing the user's hands.
+`DIARY.md` is the rolling narrative log of decisions and architectural changes.
 
 ## Build / run
 
 See `Makefile`. Standard targets: init, build, run, lint, test, dist, clean.
+
+## Engineering diary
+
+Maintain `DIARY.md` — add an entry when making significant changes, architectural decisions, or non-obvious tradeoffs. Latest entries at top. Write in narrative form, not bullet dumps. Focus on *why* and *context*, not *what* (that's in the commits).
 
 ## Project conventions
 
 <!-- This section is the SHARED MEMORY across /groot-project, /project-setup, and gstack.
      Each tool reads this before suggesting structural changes. Edit deliberately. -->
 
-This project uses the `/groot-project` `design/` subtree:
+This project uses the `/groot-project` `design/` subtree, a root-level `DIARY.md`, and a root-level `TODO.md` for light task tracking. Three lanes, no overlap:
 
-- **Bug/task tracking** — `design/stories/` (trust-tiered feature specs) and `design/helping-hands/` (asks needing the user). No root-level `TODO.md` unless the user explicitly adds one.
-- **Engineering diary** — captured in `design/notes/` (dated snapshots) and `design/plans/` (dated implementation plans). No separate `DIARY.md` by default.
+- **Light task tracking** — root `TODO.md`. For "fix the sidebar flicker" / "add this shortcut" / quick bugs. Compatible with `/todo`, `/bug`, and `/bug-bash` (Joe's upstream skills) without modification.
+- **Feature specs** — `design/stories/` (trust-tiered: drafts/ready/done). For work that needs design thinking before code. Heavier than a TODO entry; use when there's genuine spec work.
+- **User-action items** — `design/helping-hands/`. For tasks that need the user's hands, credentials, paid subscriptions, or physical access. Not for things Claude can do.
+- **Engineering diary** — root `DIARY.md`, rolling chronological narrative (latest entries on top). Separate from `design/notes/` (frozen snapshots) and `design/plans/` (forward-looking implementation blueprints).
 - **Changelog** — `git log` is canonical. No separate `CHANGELOG.md` by default.
 - **Atomic commits, pre-commit test/lint, test-first, mistake retrospectives, encoding preferences** — covered globally in `~/.claude/CLAUDE.md`. Do not duplicate here.
 
-If `/project-setup` is invoked later, only its items 2 (DIARY), 3 (CHANGELOG), 4 (scorecard cadence), 8 (README maintenance), and 10b (multi-request organization) are candidates. Items 5/6/7/9/10a are already covered globally. Item 1 (root TODO.md) conflicts with this project's design/-centric tracking — skip unless the user opts in.
+If `/project-setup` is invoked later, it should *infer skips* from this block (and from the file/heading evidence above) rather than from item numbers — Joe's upstream may renumber. Specifically:
+
+- Already covered here, skip: **bug tracker** (root `TODO.md` is in place — Joe's tracker convention applies as-is), **engineering diary** (root `DIARY.md` + `## Engineering diary` rule above), **changelog** (`git log` is canonical).
+- Already covered globally in `~/.claude/CLAUDE.md`, skip: atomic commits, pre-commit test/lint, test-first development, mistake retrospectives, encoding preferences.
+- Genuine candidates if not yet present: scorecard cadence note, README-currency rule, multi-request organization rule, and anything new Joe's `/project-setup` has added since this block was last reviewed.
 
 ## <Language>-specific notes
 
 <placeholder — fill in as conventions emerge>
 ```
 
-If `CLAUDE.md` exists but lacks a `## Project conventions` section, *offer* to insert one (don't auto-insert). Print: *"Existing CLAUDE.md found. It has no `## Project conventions` block, which acts as shared memory between /groot-project, /project-setup, and gstack. Want me to add one? (Y/n)"* — and if Y, append the section without modifying anything else.
+If `CLAUDE.md` exists but lacks a `## Project conventions` section, *offer* to insert one (don't auto-insert). Print: *"Existing CLAUDE.md found. It has no `## Project conventions` block, which acts as shared memory between /groot-project, /project-setup, and gstack. Want me to add one? (Y/n)"* — and if Y, append the section (plus the `## Engineering diary` rule, if not already present) without modifying anything else.
 
 If `CLAUDE.md` exists and has a `## Project conventions` section, leave it alone. Print: *"Existing CLAUDE.md with conventions section — left untouched."*
 
 The skeleton intentionally relies on `~/.claude/CLAUDE.md` (global) and `~/.claude/rules/*.md` (path-scoped) for the bulk of behavioral rules. Project-level CLAUDE.md only holds project-specific things plus the shared-memory conventions block.
+
+**`DIARY.md`** — generate if missing:
+
+```markdown
+# Engineering Diary
+
+Latest entries first. Record significant decisions, architecture changes, and non-obvious context. Narrative form, not bullet dumps. Focus on *why* and *context*, not *what* (that's in the commits).
+
+---
+
+## <YYYY-MM-DD> — Initial project setup
+
+Set up the project with [brief description from office-hours doc, or placeholder]. Key decisions:
+- <decision and rationale>
+- <decision and rationale>
+```
+
+Substitute the current date for `<YYYY-MM-DD>` at generation time. If an office-hours doc was found in Phase 4 detection, pull a 1–2 sentence project description into the initial-setup entry; otherwise leave the placeholder.
+
+If `DIARY.md` already exists at project root, leave it untouched. Print: *"Existing DIARY.md — left untouched."*
+
+**`TODO.md`** — generate if missing. Use Joe's `/project-setup` format verbatim, since `/todo` and `/bug-bash` are built to read it:
+
+```markdown
+# Todo
+
+<!-- Format: [status] P<priority> (category) Title -->
+<!-- Status: [ ] open, [~] in progress, [x] done, [-] won't fix -->
+<!-- Priority: P0 critical, P1 high, P2 medium, P3 low -->
+<!-- Category: bug, feature, chore, docs -->
+
+## Open
+
+(no open items yet — use `/todo <description>` to add one)
+
+## Done
+```
+
+If `TODO.md` already exists, leave it untouched (even if its format diverges — don't reformat). Print: *"Existing TODO.md — left untouched."*
 
 ### Phase 4: Office-hours import
 
@@ -436,7 +516,12 @@ Print a concise table:
 Done:
   ✓ git init
   ✓ design/ subtree (README.md, DESIGN.md, helping-hands/, plans/, stories/ with trust-tier subdirs + STORY_TEMPLATE.md, notes/)
-  ✓ CLAUDE.md skeleton (with ## Project conventions shared-memory block)
+  ✓ Migrated 2 files inside design/:
+      design/2026-05-05-foo-plan.md → design/plans/
+      design/2026-05-05-foo.md      → design/stories/ready/
+  ✓ CLAUDE.md skeleton (with ## Engineering diary rule + ## Project conventions shared-memory block)
+  ✓ DIARY.md (seeded with initial-setup entry)
+  ✓ TODO.md (light tracker for /todo, /bug, /bug-bash)
   ✓ Office-hours import (from <doc-path>)
   ✓ .gitignore (Python)
   ✓ Makefile (Python)
@@ -483,7 +568,10 @@ Project audit for myproject:
 
   [✓] Git initialized
   [✓] design/ subtree (DESIGN.md, helping-hands/, plans/, stories/, notes/)
+  [⚠] design/ root has 2 unmigrated files (foo-plan.md, foo.md) — Phase 2 will offer to migrate
   [✓] CLAUDE.md
+  [✓] DIARY.md
+  [✓] TODO.md
   [⚠] Makefile (missing targets: dist, clean)
   [✓] .gitignore (Python)
   [✓] iTerm profile (claude-config, Plum)
@@ -498,11 +586,13 @@ If the user says Y, fall through into the regular interactive walkthrough, only 
 
 ## Aggressive retrofit
 
-When the user invokes with aggressive/restructure language (*"be aggressive"*, *"restructure"*, *"reorganize"*, *"move things into design/"*, etc.), expand scope:
+Files **inside** `design/` are handled by the default Phase 2 migration step (see above) — no aggressive flag needed. Aggressive mode is for the **broader, project-root** moves the default step won't touch.
 
-- Offer to move misplaced docs (e.g., a top-level `docs/` directory) into `design/` or `design/notes/`.
-- Offer to rename non-standard directories that map to canonical names (e.g., `specs/` → `design/plans/`).
-- Offer to consolidate scattered design notes into `design/notes/`.
+When the user invokes with aggressive/restructure language (*"be aggressive"*, *"restructure"*, *"reorganize"*, *"move things into design/"*, etc.), expand scope to:
+
+- Offer to move top-level directories that semantically belong inside `design/` — e.g., a project-root `docs/` → `design/notes/`, `specs/` → `design/plans/`, `stories/` (at project root) → `design/stories/`.
+- Offer to rename non-standard sibling directories that map to canonical names.
+- Offer to consolidate scattered design-ish files from across the repo into `design/notes/`.
 
 **Always confirm each structural move before acting**, and use git operations (`git mv`) so history is preserved. Never silently restructure files. Aggressive mode is opt-in by user phrasing — never the default.
 

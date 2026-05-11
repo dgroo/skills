@@ -45,6 +45,7 @@ If the table drifts, the git output wins. Re-sync the table; don't touch git his
 - **Don't edit upstream skills in place.** Pull from `upstream/main` periodically and merge. If you need to change behavior, fork-and-rename (e.g., `todo-derek`) so upstream merges stay clean.
 - **New skill from you?** Create at `skills/<name>/`, then add a row to the Derek-authored table.
 - **Promoted upstream?** If Joe ever merges one of yours, move the row to the upstream table.
+- **After every `upstream/main` merge: re-read `skills/project-setup/SKILL.md`** and reconcile with `skills/groot-project/SKILL.md`'s `## Project conventions` skeleton block. The block describes covered items semantically (by name, not item number) to survive renumbering, but if Joe *adds* a genuinely new convention, `groot-project` should pick it up explicitly or note it as a new genuine candidate.
 
 ## Why not put origin in `SKILL.md` frontmatter?
 
