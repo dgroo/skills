@@ -22,10 +22,6 @@ Maintain `DIARY.md` — add an entry when making significant changes, architectu
 
 Run `/scorecard` periodically — after completing a feature, before major PRs, or when onboarding to assess health. Address critical findings before moving on.
 
-## Commits
-
-Break work into small atomic commits — one logical change per commit. Don't bundle unrelated changes. A bug fix, a new feature, and a refactor are three commits, not one.
-
 ## Documentation
 
 Update `README.md` (and any relevant docs) before committing if the change affects:
@@ -49,14 +45,6 @@ Every SKILL.md must have `name` and `description`. Add `argument-hint` if the sk
 
 Don't use `user_invocable: true` — it's the default. Only use `user_invocable: false` for background-knowledge skills that shouldn't appear in the `/` menu.
 
-## Evolving preferences
+## Evolving preferences (project-specific)
 
-When the user expresses a coding preference, convention, or correction during a session, offer to encode it into this CLAUDE.md file so it persists across sessions. Examples: naming conventions, preferred libraries, architecture patterns, things to avoid.
-
-## Mistake retrospectives
-
-When you make a mistake (especially forgetting something the user asked for):
-1. Acknowledge it directly
-2. Identify the root cause — why did this happen? (e.g. no checklist, unclear convention, missing rule)
-3. Suggest a concrete project change to prevent recurrence (add a rule to CLAUDE.md, add a pre-commit check, create a checklist in the relevant skill)
-Don't just apologize — fix the system.
+Cross-session *personal* preferences (style, taste, habits) belong in auto-memory — that system captures them automatically. This section is for *project-specific* conventions that apply only inside this skills repo: naming patterns for skill files, tone choices for skill descriptions, etc. When such a convention emerges, offer to encode it here.
