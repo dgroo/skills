@@ -19,7 +19,9 @@ Interactive walkthrough that suggests improvements to make a project more effici
 
 Before starting, read the project's existing `CLAUDE.md`, `README.md`, `CONTRIBUTING.md`, and any config files to understand what's already in place. Don't suggest things the project already does.
 
-Present each suggestion as a short pitch: what it is, why it helps, and what you'll create/change. Wait for the user's response before moving on. If they accept, implement it immediately.
+Present **all** applicable suggestions at once as a numbered list with a one-line description each. Default all to **yes**. Tell the user to reply with the numbers they want to **skip**, or just confirm to accept all. Then implement everything that wasn't skipped in one pass.
+
+This is faster than going one-by-one — the user can scan the full list and opt out of what they don't want rather than answering ten separate questions.
 
 ---
 
@@ -99,7 +101,40 @@ Maintain `DIARY.md` — add an entry when making significant changes, architectu
 
 ---
 
-### 3. Regular Scorecard
+### 3. Changelog
+
+**Pitch:** A simple, human-readable log of what changed and when. Unlike git log, it's curated — only meaningful changes, no merge commits or fixups. Easy for anyone to scan without touching git.
+
+**Implementation:** Create `CHANGELOG.md` in the repo root:
+
+```markdown
+# Changelog
+
+## 2026-03-31
+
+- Add keyboard shortcuts for navigation
+- Fix sidebar flicker on window resize
+
+## 2026-03-28
+
+- Initial release
+```
+
+**Key points:**
+- Grouped by date (newest first), one bullet per change
+- Short descriptions — what happened, not how
+- No commit hashes, no authors, no version numbers unless the project does releases
+- Update it with every commit
+
+Add to `CLAUDE.md`:
+```
+## Changelog
+Update `CHANGELOG.md` with every commit. Format: grouped by date (newest first), one bullet per change with a short description. Keep it human-readable — no commit hashes, no authors.
+```
+
+---
+
+### 4. Regular Scorecard
 
 **Pitch:** Periodic code quality audits catch problems before they accumulate. The `/scorecard` skill grades your codebase across 13 dimensions.
 
@@ -111,7 +146,7 @@ Run `/scorecard` periodically — after completing a feature, before major PRs, 
 
 ---
 
-### 4. Atomic Commits
+### 5. Atomic Commits
 
 **Pitch:** Small, focused commits are easier to review, revert, and understand. AI agents naturally batch work — this rule keeps commits clean.
 
@@ -123,7 +158,7 @@ Break work into small atomic commits — one logical change per commit. Don't bu
 
 ---
 
-### 5. Test and Lint Before Committing
+### 6. Test and Lint Before Committing
 
 **Pitch:** Catch breakage before it enters the history. Simple rule, big payoff.
 
@@ -143,7 +178,7 @@ Adapt the commands to whatever the project actually uses. If there's no test/lin
 
 ---
 
-### 6. Test-First Development
+### 7. Test-First Development
 
 **Pitch:** Writing a failing test before implementing forces clear thinking about expected behavior and gives you a definitive "done" signal. Balance fast unit tests with thorough end-to-end tests.
 
@@ -161,7 +196,7 @@ Don't skip step 2 — a test that never failed never caught anything.
 
 ---
 
-### 7. Keep README Current
+### 8. Keep README Current
 
 **Pitch:** Stale docs are worse than no docs — they mislead. Updating docs at commit time costs 30 seconds; fixing confused users costs hours.
 
@@ -176,7 +211,7 @@ Update README.md (and any relevant docs) before committing if the change affects
 
 ---
 
-### 8. Encode Preferences into Rules
+### 9. Encode Preferences into Rules
 
 **Pitch:** When you correct the AI or express a preference during a session, capture it permanently so it doesn't need to be repeated.
 
@@ -188,7 +223,7 @@ When the user expresses a coding preference, convention, or correction during a 
 
 ---
 
-### 9. Mistake Retrospectives
+### 10. Mistake Retrospectives
 
 **Pitch:** When the AI makes a mistake — especially "I forgot to do X" — treat it as a process problem, not a one-off. A quick retrospective and a rule change prevents recurrence.
 
@@ -238,6 +273,7 @@ Project setup status:
 
   [x] Bug tracker — using TODO.md
   [x] Engineering diary — DIARY.md exists
+  [ ] Changelog — no CHANGELOG.md
   [ ] Regular scorecard — not mentioned in CLAUDE.md
   [x] Atomic commits — rule in CLAUDE.md
   [x] Test before commit — rule in CLAUDE.md
