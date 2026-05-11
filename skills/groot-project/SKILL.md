@@ -1,6 +1,6 @@
 ---
 name: groot-project
-description: Bootstrap a project the Derek way — git, design/ subtree, CLAUDE.md skeleton, Makefile, iTerm profile, optional GitHub remote and gbrain registration. Independent of /project-setup. Re-runnable; works for new and existing projects.
+description: Bootstrap a project the Derek way — git, design/ subtree (incl. trust-tiered stories/), CLAUDE.md skeleton with a shared-memory conventions block, Makefile, iTerm profile, optional GitHub remote and gbrain registration. Coexists with /project-setup and gstack; detects collisions and never clobbers. Re-runnable.
 argument-hint: [status|--auto|--public]
 ---
 
@@ -30,11 +30,15 @@ Gather state and print a summary before asking anything:
 - Is this a git repo? (`git rev-parse --is-inside-work-tree 2>/dev/null`)
 - Does a recent `/office-hours` design doc exist at `~/.gstack/projects/<basename>/*.md`? Take the most recent.
 - What language signals exist? Presence of `pyproject.toml`, `setup.py`, `package.json`, `Cargo.toml`, `go.mod`.
-- What standard files / directories are present? `README.md`, `Makefile`, `design/`, `design/DESIGN.md`, `design/helping-hands/`, `design/plans/`, `design/stories/`, `design/notes/`, `.gitignore`, `CLAUDE.md`.
+- What standard files / directories are present? `README.md`, `Makefile`, `design/`, `design/DESIGN.md`, `design/helping-hands/`, `design/plans/`, `design/stories/`, `design/stories/llm_generated/`, `design/stories/user_updated/`, `design/stories/z.done/`, `design/stories/STORY_TEMPLATE.md`, `design/notes/`, `.gitignore`, `CLAUDE.md`.
+- **Collision detection** (read but don't act yet — these inform later phases):
+  - Joe-style artifacts: `TODO.md`, `DIARY.md`, `CHANGELOG.md` at the project root (indicates `/project-setup` has run or the user uses that convention).
+  - gstack artifacts: `~/.gstack/projects/<basename>/`, gstack hooks in `.claude/settings.json`, gstack-specific CLAUDE.md sections (e.g., a `## gstack` heading).
+  - Existing `## Project conventions` section in `CLAUDE.md` — this is the shared memory across `/groot-project`, `/project-setup`, and gstack. If present, **read it and respect it** before suggesting changes.
 - Is there an iTerm profile bound to this directory? (`~/.claude/scripts/iterm-setup.py <basename> --list-colors` shows the existing-profile banner if so.)
 - Is the directory under `~/code/`? (Affects alias suggestion in iTerm phase.)
 
-Print a "found / will create / will skip" summary so the user sees the scope before any phase fires.
+Print a "found / will create / will skip / collision-detected" summary so the user sees the scope before any phase fires. The collision-detected line surfaces any Joe-style or gstack artifacts that change how subsequent phases behave (see "Coexistence" below).
 
 ## Phases (in order)
 
@@ -63,18 +67,203 @@ Create the canonical subtree, leaving any existing pieces alone:
 
 ```
 design/
-├── DESIGN.md         # skeleton (or seeded from office-hours doc in phase 4)
+├── README.md                  # trust-hierarchy index (see "design/README.md template" below)
+├── DESIGN.md                  # skeleton (or seeded from office-hours doc in phase 4)
 ├── helping-hands/
-│   └── README.md     # the helping-hands convention doc (see "Helping-hands template" below)
+│   └── README.md              # the helping-hands convention doc (see "Helping-hands template" below)
 ├── plans/
-│   └── README.md     # one-liner: "Implementation plans live here. One file per plan."
+│   └── README.md              # dated implementation plans: YYYY-MM-DD-<slug>.md
 ├── stories/
-│   └── README.md     # one-liner: "User stories / scenarios live here."
+│   ├── README.md              # readiness-by-directory convention (pull from iDM canonical)
+│   ├── STORY_TEMPLATE.md      # the standard story format (pull from iDM canonical)
+│   ├── drafts/.gitkeep        # explicitly partial / not-yet-ready stories (any author)
+│   ├── ready/.gitkeep         # safe to implement from (default landing zone)
+│   └── done/.gitkeep          # archive
 └── notes/
-    └── README.md     # one-liner: "Free-form notes, todos, rough thinking."
+    └── README.md              # informal materials index (see "notes/README.md template" below)
 ```
 
 For each subdir or file: skip if it exists, create if it doesn't. Never overwrite.
+
+**Canonical source for stories/ docs:** Pull `stories/README.md` and `stories/STORY_TEMPLATE.md` from `~/code/iDM/design/stories/` if available. iDM is the source of truth for the stories convention. If iDM isn't available (different machine), use the embedded fallback templates below.
+
+**Stories README (fallback if iDM isn't available):**
+
+```markdown
+# Stories
+
+Feature specifications. **Readiness** is encoded by directory; **authorship** lives in frontmatter.
+
+## Directory structure
+
+\`\`\`
+stories/
+├── STORY_TEMPLATE.md   # the format
+├── drafts/             # explicitly partial / not-yet-ready (any author)
+├── ready/              # implementation-ready (default landing zone)
+└── done/               # archived after implementation
+\`\`\`
+
+## Where does a new story go?
+
+- **Default: `ready/`.** A new story should be written to a quality bar of "implementable as-is". If it isn't, it shouldn't exist yet — flesh it out before filing.
+- **Exception: `drafts/`.** Use only when the story is explicitly partial — e.g., the user dropped a sentence and asked the LLM to expand it; or the LLM is blocked on input it can't get.
+- **`done/`.** Move here when the feature ships.
+
+LLM-authored stories in `ready/` are *still* "review carefully" by convention — the author field tells the next reader what kind of review to expect (see below). `ready/` is not a stamp of correctness, just a quality threshold.
+
+## Frontmatter
+
+\`\`\`yaml
+---
+author: claude        # claude | user | both
+priority: medium      # high | medium | low
+---
+\`\`\`
+
+**No `status:` field** — the directory is the status. **No `created:` / `updated:` dates** — LLMs hallucinate dates, and absolute date is the wrong question anyway. What matters is *drift relative to the codebase*, which is computed from git mtime against recent code activity (see drift check below).
+
+## How an LLM should pick up a story
+
+In order:
+
+1. **Drift check first.** Get the story's last commit time:
+   \`\`\`bash
+   git log -1 --format=%cI -- <story-file>
+   \`\`\`
+   Compare to recent code activity on the modules the story touches. If meaningful code changes have landed since the story's last update, treat the story as stale: re-read against current code state and surface gaps before implementing. Drift can happen in hours with active development, not just weeks.
+
+2. **Authorship check (frontmatter `author`):**
+   - `claude` → "Probably thorough but may not match current code state. Vet against the modules it touches; expect gaps the original author didn't see."
+   - `user` → "Intention likely correct but spec likely incomplete. Fill in details and flag your assumptions before implementing."
+   - `both` → already iterated; treat as ready, still apply drift check.
+
+3. **Implement from `ready/`.** Do not implement from `drafts/` without first promoting the story to `ready/` (which may involve a conversation with the user).
+
+## Epics
+
+For bodies of work too large for one story but coherent enough not to fragment, use an epic file:
+
+- Lives at `stories/<dir>/<slug>-epic.md` (suffix `-epic.md`).
+- Has a `## Stories` section with a checklist of child story files.
+- Each child story adds a top line: `**Epic:** [<slug>-epic.md](../<dir>/<slug>-epic.md)`.
+- Epic is "done" when every child story is in `done/`.
+
+No new tooling, no folder, no metadata schema. The `-epic.md` suffix and the cross-link are the entire convention.
+
+## When to write a story
+
+- A feature needs design work before coding
+- Multiple implementation approaches to compare
+- UI/UX decisions to capture
+- Complex technical requirements
+
+**Don't** write a story for: simple bug fixes, routine changes, one-liner features.
+
+**Important:** the LLM should ASK before writing a brand-new story unless explicitly invited.
+```
+
+**STORY_TEMPLATE.md (fallback):**
+
+```markdown
+---
+author: claude        # claude | user | both
+priority: medium      # high | medium | low
+---
+
+# Story Title
+
+## Problem
+
+What problem does this solve? What's the current pain point or gap?
+
+## Proposed Solution
+
+High-level description of the proposed approach. One paragraph.
+
+## Design Notes
+
+Technical considerations, schema sketches, ASCII diagrams, implementation details, alternatives considered.
+
+## Acceptance Criteria
+
+- [ ] Criterion 1
+- [ ] Criterion 2
+
+## Open Questions
+
+- Things this story doesn't decide and that should be resolved before or during implementation.
+
+## Related
+
+- `../DESIGN.md` — relevant section
+- Other stories: `<slug>.md`
+- External reference: paths into `../notes/` or URLs
+```
+
+**notes/README.md template:**
+
+```markdown
+# Notes
+
+Informal materials. **Not authoritative for project design** — see `../DESIGN.md` for that.
+
+## Conventions
+
+- **Snapshots**: prefix the filename with the date (e.g., `2026-05-07-name.md`). Treat as frozen-in-time.
+- **Living vision drafts**: keep the original filename; location signals non-canonical status.
+- **External reference**: keep the original filename; document the source at the top of the file.
+
+If a piece of thinking here graduates into a real decision, capture it in `../DESIGN.md` or in a story under `../stories/`. If a note is contradicted by `DESIGN.md`, `DESIGN.md` wins.
+```
+
+**plans/README.md template:**
+
+```markdown
+# Plans
+
+Dated implementation plans. One file per plan: `YYYY-MM-DD-<slug>.md`.
+
+A plan is a concrete blueprint for a piece of work: scope, steps, decision points, fallbacks. Distinct from stories (which are *what and why*) and notes (which are exploratory).
+
+The most recent dated plan for any given concern is the one to trust.
+```
+
+**design/README.md template** (the trust-hierarchy index for the whole subtree):
+
+```markdown
+# Design
+
+Design artifacts for this project. The structure separates **living/authoritative** docs from **snapshots and notes** so future sessions know which to trust.
+
+## What's here
+
+\`\`\`
+design/
+├── README.md           # this file
+├── DESIGN.md           # ← canonical, living. Source of truth for project design.
+├── stories/            # ← living. Feature specs, trust-tiered.
+├── plans/              # ← living. Dated implementation plans.
+├── helping-hands/      # ← living. Open asks for actions only the user can take.
+└── notes/              # ← informal, may be stale. Snapshots, vision braindumps, external reference.
+\`\`\`
+
+## Trust hierarchy
+
+When in doubt, trust this order:
+
+1. **`DESIGN.md`** — canonical project design. If something here disagrees with anything else in this directory, this wins.
+2. **`stories/ready/`** — feature specs at implementation-ready quality. Apply drift + authorship checks (see `stories/README.md`) before treating as a spec.
+3. **`stories/drafts/`** — explicitly partial stories. Reference only; do not implement from.
+4. **`plans/`** — implementation plans, dated. Trust the latest dated plan for any given concern.
+5. **`notes/`** — exploratory thinking and external reference. **Do not assume any note is current.**
+
+Authorship of any individual story lives in its frontmatter, not its directory.
+
+## Helping-hands
+
+`helping-hands/` is a parallel track: tasks needing the user's hands, eyes, account credentials, or physical access. Surfaced just-in-time when a story or plan cites one. See `helping-hands/README.md`.
+```
 
 The DESIGN.md skeleton (used when no office-hours doc exists):
 
@@ -109,19 +298,37 @@ If `CLAUDE.md` doesn't exist at the project root, generate:
 
 <one-line description from office-hours doc, or placeholder>
 
-See `design/DESIGN.md` for the full design and
-`design/helping-hands/README.md` for tasks needing my hands.
+See `design/DESIGN.md` for the full design and `design/README.md` for the trust hierarchy.
+`design/helping-hands/README.md` documents tasks needing the user's hands.
 
 ## Build / run
 
 See `Makefile`. Standard targets: init, build, run, lint, test, dist, clean.
+
+## Project conventions
+
+<!-- This section is the SHARED MEMORY across /groot-project, /project-setup, and gstack.
+     Each tool reads this before suggesting structural changes. Edit deliberately. -->
+
+This project uses the `/groot-project` `design/` subtree:
+
+- **Bug/task tracking** — `design/stories/` (trust-tiered feature specs) and `design/helping-hands/` (asks needing the user). No root-level `TODO.md` unless the user explicitly adds one.
+- **Engineering diary** — captured in `design/notes/` (dated snapshots) and `design/plans/` (dated implementation plans). No separate `DIARY.md` by default.
+- **Changelog** — `git log` is canonical. No separate `CHANGELOG.md` by default.
+- **Atomic commits, pre-commit test/lint, test-first, mistake retrospectives, encoding preferences** — covered globally in `~/.claude/CLAUDE.md`. Do not duplicate here.
+
+If `/project-setup` is invoked later, only its items 2 (DIARY), 3 (CHANGELOG), 4 (scorecard cadence), 8 (README maintenance), and 10b (multi-request organization) are candidates. Items 5/6/7/9/10a are already covered globally. Item 1 (root TODO.md) conflicts with this project's design/-centric tracking — skip unless the user opts in.
 
 ## <Language>-specific notes
 
 <placeholder — fill in as conventions emerge>
 ```
 
-If `CLAUDE.md` exists, leave it alone. Print: *"Existing CLAUDE.md — left untouched."* The skeleton intentionally relies on `~/.claude/CLAUDE.md` (global) and `~/.claude/rules/*.md` (path-scoped) for the bulk of behavioral rules. Project-level CLAUDE.md only holds project-specific things.
+If `CLAUDE.md` exists but lacks a `## Project conventions` section, *offer* to insert one (don't auto-insert). Print: *"Existing CLAUDE.md found. It has no `## Project conventions` block, which acts as shared memory between /groot-project, /project-setup, and gstack. Want me to add one? (Y/n)"* — and if Y, append the section without modifying anything else.
+
+If `CLAUDE.md` exists and has a `## Project conventions` section, leave it alone. Print: *"Existing CLAUDE.md with conventions section — left untouched."*
+
+The skeleton intentionally relies on `~/.claude/CLAUDE.md` (global) and `~/.claude/rules/*.md` (path-scoped) for the bulk of behavioral rules. Project-level CLAUDE.md only holds project-specific things plus the shared-memory conventions block.
 
 ### Phase 4: Office-hours import
 
@@ -228,12 +435,18 @@ Print a concise table:
 
 Done:
   ✓ git init
-  ✓ design/ subtree (DESIGN.md + helping-hands, plans, stories, notes)
-  ✓ CLAUDE.md skeleton
+  ✓ design/ subtree (README.md, DESIGN.md, helping-hands/, plans/, stories/ with trust-tier subdirs + STORY_TEMPLATE.md, notes/)
+  ✓ CLAUDE.md skeleton (with ## Project conventions shared-memory block)
   ✓ Office-hours import (from <doc-path>)
   ✓ .gitignore (Python)
   ✓ Makefile (Python)
   ✓ iTerm profile (Plum, alias=foo)
+
+Collision-detected:
+  - Found root-level TODO.md from /project-setup. Did not create design/TODO.md.
+    The CLAUDE.md conventions block notes this so future /project-setup runs respect it.
+  - Found ~/.gstack/projects/<name>/ — imported office-hours doc; left other gstack
+    artifacts alone.
 
 Skipped:
   - GitHub remote (you said skip)
@@ -241,10 +454,12 @@ Skipped:
 
 Next:
   - Run `uv init` to initialize the Python project
-  - Run `/project-setup` to layer Joe's 10-convention checklist on top, if wanted
+  - Run `/project-setup` if you want any of items 2/3/4/8/10b (others are duplicates — see CLAUDE.md ## Project conventions)
   - Run `/office-hours` to backfill DESIGN.md if you didn't already
   - Run `/groot-project status` later for a re-audit
 ```
+
+Collision-detected lines only appear if collisions were actually found. The point is to make the avoidance auditable.
 
 ## `--auto` mode
 
@@ -317,6 +532,36 @@ Filed entries surface as a one-liner only: `Filed: <title> — see design/helpin
 
 When picking up work, check whether any open helping-hands item is referenced as a blocker by the current task, its parent story, or its plan. If so, name the specific blocker before pressing on. Do not auto-scan the directory at session start.
 ```
+
+## Coexistence with `/project-setup` and gstack
+
+`/groot-project` runs alongside Joe Walnes's `/project-setup` and the gstack skill family. None of them modifies the others' files. They cooperate via a single **shared memory**: the `## Project conventions` section in the project's `CLAUDE.md`.
+
+### How the shared memory works
+
+`/project-setup` already promises (in its own SKILL.md): *"read the project's existing `CLAUDE.md`, `README.md`, `CONTRIBUTING.md`, and any config files to understand what's already in place. Don't suggest things the project already does."* This is the hook. `/groot-project` writes a `## Project conventions` section that explicitly names which `/project-setup` items are already covered globally and which would conflict with this project's design/ pattern.
+
+Many gstack skills also read `CLAUDE.md` for project context. The conventions block tells them too.
+
+### Order of invocation — both directions handled
+
+- **`/groot-project` first, then `/project-setup`** (the recommended path): the conventions block is in place. `/project-setup` reads it and skips covered items (5/6/7/9/10a duplicates, item 1 conflict with design/ tracking). It still offers 2/3/4/8/10b — the user picks.
+- **`/project-setup` first, then `/groot-project`**: pre-flight detects root-level `TODO.md` / `DIARY.md` / `CHANGELOG.md`. Phase 2 skips creating any equivalent under `design/`. Phase 3 inserts a `## Project conventions` block that *reflects what already exists* (e.g., "Bug tracking — uses root `TODO.md` per `/project-setup`. Don't create `design/TODO.md`.") so subsequent `/groot-project` and `/project-setup` runs stay coherent.
+- **Either run twice**: pre-flight detection makes both idempotent. No file is ever overwritten. The summary's "collision-detected" section makes the avoidance auditable.
+
+### gstack collisions
+
+- **`/office-hours`** writes to `~/.gstack/projects/<basename>/`. Phase 4 imports from there. No collision.
+- **`/todo` and `/bug-bash`** (gstack) read/write root-level `TODO.md`. If `/project-setup` created one, gstack works on it natively. If this project uses the design/-centric pattern instead, the conventions block tells gstack skills that there's no `TODO.md` to read — they should fall back to `design/stories/` or ask.
+- **`/sync-gbrain`** is invoked optionally in Phase 9; it manages its own state in `CLAUDE.md` under a `## GBrain Search Guidance` heading. Don't touch that section.
+- **`/setup-deploy`** writes deploy config under its own heading in `CLAUDE.md`. Don't touch.
+- **`/plan-*` gstack skills** write plan files to ad-hoc paths. They don't conflict with `design/plans/` — but they also don't integrate. If the user wants gstack plan output to land in `design/plans/`, that's a manual move (out of scope for this skill).
+
+### Maintenance discipline
+
+- **Never edit upstream skills** (`/project-setup`, gstack/*). Behavior changes for them happen by changing what `CLAUDE.md` says, not by patching their SKILL.md.
+- **Re-running `/groot-project` is safe** — it re-detects state and only fills gaps.
+- **If the conventions block goes stale** (e.g., the project moves from design/-centric to root-level tracking), update it by hand or re-run `/groot-project status` followed by the interactive walkthrough; the skeleton offer in Phase 3 will surface the drift.
 
 ## What this skill does NOT do
 
