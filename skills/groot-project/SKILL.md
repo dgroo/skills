@@ -38,7 +38,7 @@ Gather state and print a summary before asking anything:
   - Joe-style artifacts: `TODO.md`, `DIARY.md`, `CHANGELOG.md` at the project root (indicates `/project-setup` has run or the user uses that convention).
   - gstack artifacts: `~/.gstack/projects/<basename>/`, gstack hooks in `.claude/settings.json`, gstack-specific CLAUDE.md sections (e.g., a `## gstack` heading).
   - Existing `## Project conventions` section in `CLAUDE.md` — this is the shared memory across `/groot-project`, `/project-setup`, and gstack. If present, **read it and respect it** before suggesting changes.
-- Is there an iTerm profile bound to this directory? (`~/.claude/scripts/iterm-setup.py <basename> --list-colors` shows the existing-profile banner if so.)
+- Is there an iTerm profile bound to this directory? (`~/.claude/skills/iterm-setup/iterm-setup.py <basename> --list-colors` shows the existing-profile banner if so.)
 - Is the directory under `~/code/`? (Affects alias suggestion in iTerm phase.)
 
 Print a "found / will create / will skip / collision-detected" summary so the user sees the scope before any phase fires. The collision-detected line surfaces any Joe-style or gstack artifacts that change how subsequent phases behave (see "Coexistence" below).
@@ -77,8 +77,8 @@ design/
 ├── plans/
 │   └── README.md              # dated implementation plans: YYYY-MM-DD-<slug>.md
 ├── stories/
-│   ├── README.md              # readiness-by-directory convention (pull from iDM canonical)
-│   ├── STORY_TEMPLATE.md      # the standard story format (pull from iDM canonical)
+│   ├── README.md              # readiness-by-directory convention (see "Stories README" template below)
+│   ├── STORY_TEMPLATE.md      # the standard story format (see "STORY_TEMPLATE" template below)
 │   ├── drafts/.gitkeep        # explicitly partial / not-yet-ready stories (any author)
 │   ├── ready/.gitkeep         # safe to implement from (default landing zone)
 │   └── done/.gitkeep          # archive
@@ -113,9 +113,9 @@ Migrate with `git mv` (preserves history)?
 
 This step is **default behavior** — no aggressive flag required. It only touches files *inside* `design/`. Broader moves (top-level `docs/` → `design/`, renaming non-canonical sibling dirs) still require aggressive-mode opt-in (see top of file). `--auto` mode runs the classifier but, since the prompt would otherwise block, defaults to **n** (leave in place) and surfaces the list under Drift — never auto-moves without user input.
 
-**Canonical source for stories/ docs:** Pull `stories/README.md` and `stories/STORY_TEMPLATE.md` from `~/code/iDM/design/stories/` if available. iDM is the source of truth for the stories convention. If iDM isn't available (different machine), use the embedded fallback templates below.
+**Canonical source for stories/ docs:** the embedded templates below are the single source of truth. If you want to evolve the stories convention, edit it here in `skills/groot-project/SKILL.md` and re-run `make install` — that's what propagates the change to every new project, on any machine.
 
-**Stories README (fallback if iDM isn't available):**
+**Stories README:**
 
 ```markdown
 # Stories
@@ -191,7 +191,7 @@ No new tooling, no folder, no metadata schema. The `-epic.md` suffix and the cro
 **Important:** the LLM should ASK before writing a brand-new story unless explicitly invited.
 ```
 
-**STORY_TEMPLATE.md (fallback):**
+**STORY_TEMPLATE.md:**
 
 ```markdown
 ---
@@ -598,9 +598,7 @@ When the user invokes with aggressive/restructure language (*"be aggressive"*, *
 
 ## Helping-hands template
 
-The skill should populate `design/helping-hands/README.md` from `~/code/iDM/design/helping-hands/README.md` (the canonical reference) if it exists. This keeps every project's helping-hands convention current with iDM as the source of truth.
-
-If `~/code/iDM/design/helping-hands/README.md` doesn't exist (e.g., this skill runs on a different machine), use this minimal embedded template as a fallback:
+The embedded template below is the single source of truth for `design/helping-hands/README.md`. To evolve the convention, edit it here in `skills/groot-project/SKILL.md` and re-run `make install`.
 
 ```markdown
 # Helping hands
@@ -665,9 +663,8 @@ Many gstack skills also read `CLAUDE.md` for project context. The conventions bl
 
 ## Reference
 
-- Helping-hands convention (canonical): `~/code/iDM/design/helping-hands/README.md`
-- iDM design layout (template for `design/` subtree): `~/code/iDM/design/`
-- iterm-setup: `~/.claude/scripts/iterm-setup.py`
+- All canonical templates (stories/, STORY_TEMPLATE, helping-hands, notes/, plans/, design/README) live in this SKILL.md itself — no external dependencies, portable across machines.
+- iterm-setup: `~/.claude/skills/iterm-setup/iterm-setup.py`
 - `gh` CLI for GitHub remote: https://cli.github.com/
 - `/sync-gbrain` skill (gstack)
 - `/project-setup` skill (Joe Walnes upstream): retrofits 10 conventions to existing projects (independent of this skill)

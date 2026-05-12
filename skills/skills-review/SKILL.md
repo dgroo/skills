@@ -24,7 +24,7 @@ Walk the filesystem in parallel:
 
 1. `ls -la ~/.claude/skills/` — directly-installed and symlinked skills.
 2. `ls ~/.claude/plugins/cache/claude-plugins-official/` — installed plugins. For each plugin, find SKILL.md files: `find ~/.claude/plugins/cache/claude-plugins-official/<plugin>/<version>/skills/ -name SKILL.md`.
-3. `ls ~/code/claude/skills/skills/` — local skills source (the dgroo/skills fork).
+3. Local skills source repo (e.g., a fork of `joewalnes/skills` or any sibling repo whose skills are symlinked into `~/.claude/skills/`). **Discover the path at runtime**, don't hardcode: `readlink ~/.claude/skills/<any-symlinked-skill>` resolves to that skill's source location, and the parent's parent (`dirname $(dirname $(readlink ...))`) is the repo's `skills/` dir. Pick a skill you know is local (e.g., one listed in this repo's `MAINTAINERS.md`); skip this source entirely if no `~/.claude/skills/<name>` symlinks resolve to a non-plugin location.
 4. Note built-in CLI skills (loop, schedule, claude-api, init, review, security-review, simplify, fewer-permission-prompts, update-config, keybindings-help). These aren't on disk — they're harness-resident. Use the session's system-reminder skill listing as the canonical source for these (their descriptions appear there).
 
 For each skill found, capture: name, source (gstack / superpowers / plugin / local / built-in), one-line description (from frontmatter `description:` field, trimmed to a single sentence).
@@ -286,7 +286,7 @@ For each removed skill: confirm the directory no longer exists. For each Makefil
 
 ## Rules
 
-- **Never delete skills directly from `~/.claude/skills/<name>/`** unless they are real directories (not symlinks) and not from a plugin. For symlinked local skills: delete the source in `~/code/claude/skills/skills/<name>/` then `make install` to update the symlinks.
+- **Never delete skills directly from `~/.claude/skills/<name>/`** unless they are real directories (not symlinks) and not from a plugin. For symlinked local skills: discover the source location via `readlink ~/.claude/skills/<name>` (resolves to the skill's actual source dir), delete that source, then run `make install` from the source repo's root to refresh the symlinks.
 - **Never modify plugin skill content** — those are owned by the plugins and reset on update.
 - **Don't propose removing safety skills** (careful, freeze, unfreeze, guard, verification-before-completion) even if rarely used. They're insurance.
 - **Don't add JS to the report.** Static HTML, inline CSS, zero deps.

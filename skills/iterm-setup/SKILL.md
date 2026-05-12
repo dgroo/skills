@@ -8,14 +8,14 @@ argument-hint: [name-or-alias | auto]
 
 Creates an iTerm2 Dynamic Profile with a custom background color and an Automatic Profile Switching (APS) rule that fires when the user `cd`s into the project's directory. Each project gets a visually distinct terminal so the user can tell at a glance which project they're in. Optionally also adds a shell alias to `~/.zshrc` for quick navigation.
 
-The actual work is done by `~/.claude/scripts/iterm-setup.py`. This skill is a thin wrapper that walks the user through naming, color selection, and alias setup.
+The actual work is done by `~/.claude/skills/iterm-setup/iterm-setup.py`. This skill is a thin wrapper that walks the user through naming, color selection, and alias setup.
 
 ## How to Invoke
 
 ```
 /iterm-setup              # use cwd basename as the project name
 /iterm-setup myproject    # explicit profile name (e.g., for worktree dirs)
-/iterm-setup chgr         # if cwd basename is `changer`, this is the alias shorthand
+/iterm-setup mp           # if cwd basename is `myproject`, this is the alias shorthand
 /iterm-setup auto         # let the agent pick color + alias autonomously (no prompts)
 ```
 
@@ -30,7 +30,7 @@ The actual work is done by `~/.claude/scripts/iterm-setup.py`. This skill is a t
    - **Alias name** (used for the `~/.zshrc` shell alias): defaults to the profile name.
    - If the user passed an arg, interpret as follows:
      - **Arg is exactly `auto`** → enter auto mode (see step 2 / step 3). Profile name = cwd basename, alias = profile name. No further confirmation.
-     - **Arg looks like an abbreviation** of cwd basename (shorter, often a substring or initials, e.g. `chgr` for `changer`, `gos` for `grootOS`) → treat arg as **alias**, profile name comes from cwd. Confirm.
+     - **Arg looks like an abbreviation** of cwd basename (shorter, often a substring or initials, e.g. `mp` for `myproject`, `wa` for `webapp`) → treat arg as **alias**, profile name comes from cwd. Confirm.
      - **Arg differs from cwd basename in a non-abbreviation way** (e.g. you're in `myproject-feature-x` and they pass `myproject`) → treat arg as **profile name** (worktree case). Confirm.
      - **Arg matches cwd basename** → treat arg as profile name; ask separately whether they want a different alias.
    - Confirm with the user when cwd is suspicious (`~`, `~/Downloads`, anywhere not obviously a project root) — this confirmation runs even in `auto` mode, since picking the wrong directory is a footgun, not a preference.
@@ -38,12 +38,12 @@ The actual work is done by `~/.claude/scripts/iterm-setup.py`. This skill is a t
    **Then check for an existing alias for this directory** before suggesting a new one:
 
    ```
-   ~/.claude/scripts/iterm-setup.py --cwd-aliases
+   ~/.claude/skills/iterm-setup/iterm-setup.py --cwd-aliases
    ```
 
    This prints alias names from `~/.zshrc` whose `cd` target resolves to the current directory (one per line; empty if none). Handles direct `cd ~/X` / `cd /abs/X` / `cd $HOME/X` and chained `code;cd X`-style aliases.
 
-   - **If the output is non-empty** (e.g. user is in `~/code/grootOS` and `gos` already targets it): tell the user, default to **reusing the existing alias** (skip the alias step), and only add a new alias if they explicitly want one (then pass `--force-alias`).
+   - **If the output is non-empty** (e.g. user is in `~/code/webapp` and `wa` already targets it): tell the user, default to **reusing the existing alias** (skip the alias step), and only add a new alias if they explicitly want one (then pass `--force-alias`).
    - **If empty:** proceed with the alias suggestion as normal.
 
 2. **Present the palette via `AskUserQuestion` (AUQ).**
@@ -51,8 +51,8 @@ The actual work is done by `~/.claude/scripts/iterm-setup.py`. This skill is a t
    Gather palette data with two bash calls (can run in parallel):
 
    ```
-   ~/.claude/scripts/iterm-setup.py <profile> --list-colors
-   ~/.claude/scripts/iterm-setup.py <profile> --list-colors --vivid
+   ~/.claude/skills/iterm-setup/iterm-setup.py <profile> --list-colors
+   ~/.claude/skills/iterm-setup/iterm-setup.py <profile> --list-colors --vivid
    ```
 
    Parse both outputs to extract:
@@ -86,7 +86,7 @@ The actual work is done by `~/.claude/scripts/iterm-setup.py`. This skill is a t
 
    **Auto mode (only when invoked as `/iterm-setup auto`):** skip the AUQ. Still run the two bash calls to read the palette data, then pick the lowest-numbered swatch in the dark palette with no `used by:` annotation and no near-clash with "Other existing profiles." Proceed straight to step 3. Mention the chosen color in the wrap-up so the user can override on a follow-up turn.
 
-   **Change-color path (profile for `<profile>` already exists):** the first bash call's output begins with a banner like `Existing profile 'changer': Plum (#4), APS=/*/changer*` and the current color is marked `★ current` in the palette. In this case:
+   **Change-color path (profile for `<profile>` already exists):** the first bash call's output begins with a banner like `Existing profile 'myproject': Plum (#4), APS=/*/myproject*` and the current color is marked `★ current` in the palette. In this case:
    - Frame the AUQ question as *"You're already on Plum — change to?"*
    - Pick a *different* unused color as the suggestion (don't suggest the current one).
    - Pass `--force` in **step 5** (the script otherwise refuses to overwrite).
@@ -117,17 +117,17 @@ The actual work is done by `~/.claude/scripts/iterm-setup.py`. This skill is a t
 5. **Create the profile (and alias).** Run:
 
    ```
-   ~/.claude/scripts/iterm-setup.py <profile> --color <N> --alias <alias>
+   ~/.claude/skills/iterm-setup/iterm-setup.py <profile> --color <N> --alias <alias>
    ```
 
    Or with `--no-alias` to skip the alias. Add `--force` only if the user explicitly wants to overwrite an existing profile. Add `--pattern <PAT>` if they want a non-default APS rule (default is `/*/<profile>*`). Add `--title-format` / `--no-title` if step 4 resolved non-interactively.
 
    The script will:
    - Write the iTerm2 profile JSON to `~/Library/Application Support/iTerm2/DynamicProfiles/`.
-   - Pick the right alias body: `'code;cd <project>'` for projects directly under `~/code/`, `'cd ~/<rel>'` for other paths under `$HOME`, `'cd <abs>'` otherwise.
-   - Insert the alias after `alias code='cd ~/code'` in `~/.zshrc` (clusters with existing nav aliases). Idempotent — skips silently if the exact line is already there.
+   - Pick the right alias body. If `~/.zshrc` contains `alias code='cd ~/code'` (or its `$HOME` variant) AND the target is a direct child of `~/code/`, it'll use the `'code;cd <project>'` shorthand. Otherwise it falls back to `'cd ~/<rel>'` for paths under `$HOME`, or `'cd <abs>'`. No `alias code=` required — the shorthand is an optimization, not a dependency.
+   - Insert the alias after `alias code='cd ~/code'` in `~/.zshrc` when that line is present (clusters with existing nav aliases); otherwise appends at end of file. Idempotent — skips silently if the exact line is already there.
    - Warn (not overwrite) if a different alias with the same name already exists.
-   - **Refuse to add the alias** (without `--force-alias`) if a *different* alias in `~/.zshrc` already resolves to the current cwd. Prevents duplicates like adding `grootOS` when `gos='code;cd grootOS'` already exists. The skill should normally have already caught this in step 1, but this is the safety net.
+   - **Refuse to add the alias** (without `--force-alias`) if a *different* alias in `~/.zshrc` already resolves to the current cwd. Prevents duplicates like adding `webapp` when `wa='cd ~/webapp'` already exists. The skill should normally have already caught this in step 1, but this is the safety net.
 
 6. **Verify.**
    - For the profile: open a new tab and `cd` into the project — the background color should switch automatically.

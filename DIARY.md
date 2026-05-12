@@ -4,6 +4,25 @@ Latest entries first. Record significant decisions, architecture changes, and no
 
 ---
 
+## 2026-05-12 — Portability pass on Derek-authored skills
+
+Tried running `/groot-project` against `~/code/changer` and it failed because the skill referenced `~/code/iDM/` as the canonical source for stories/helping-hands templates. That kicked off an audit: are these skills portable, or are they personal-config skills disguised as portable ones? Answer: mostly portable but with three real bugs that would break a fresh install (or anyone else picking them up — e.g., if Joe ever wanted these in return).
+
+**Changes made:**
+- `/groot-project`: removed all `~/code/iDM/` references; the embedded templates are now the sole canonical source for stories/, helping-hands/, notes/, plans/, design/README. Updated tree-diagram annotations and Reference section accordingly.
+- `iterm-setup.py` moved out of `~/.claude/scripts/` and into `skills/iterm-setup/iterm-setup.py` so the skill is self-contained. Left a symlink at the old path for backwards compat with my hooks (`_iterm_title.py`).
+- Script's alias-body logic now reads `~/.zshrc` and only emits the `'code;cd X'` shortcut when an `alias code='cd ~/code'` line is detected. Without that anchor, falls back to plain `'cd ~/<rel>'`. The shortcut is now an *optimization*, not a *dependency*.
+- `iterm-setup/SKILL.md`: genericized example project names (`changer`/`grootOS` → `myproject`/`webapp`) and accurately documented the conditional shortcut.
+- `skills-review/SKILL.md`: replaced hardcoded `~/code/claude/skills/skills/` with runtime discovery via `readlink ~/.claude/skills/<any-local-skill>`. The skill no longer assumes the repo lives at any specific path.
+
+**Decisions:**
+- **Move script, don't copy.** Considered `cp` + leaving the original, but two copies invite drift. Move + back-symlink keeps a single canonical file and preserves every existing reference unchanged.
+- **Conditional `code;cd` shortcut, not removed.** Considered just stripping the optimization since it's Derek-specific. But it's genuinely useful for me, and the runtime check is one regex; degrading gracefully for everyone else is cheap.
+- **Runtime discovery for skills-source, not env var.** Considered a `$LOCAL_SKILLS_REPO` env var pattern. Rejected — `readlink` on any installed symlinked skill already tells you where the repo lives, no config required. Self-bootstrapping beats configuration.
+- **Stop having external files outside the skill directory.** New rule (implicit): if a Derek-authored skill depends on a script, the script lives *in the skill directory*, not in `~/.claude/scripts/`. The skills repo is the unit of distribution; anything a skill needs ships with it.
+
+---
+
 ## 2026-05-11 — /groot-project coexistence with Joe's upstream
 
 Spent a session sharpening how `/groot-project` plays with `/project-setup` and Joe's tracker skills (`/todo`, `/bug`, `/bug-bash`). The thread connecting all the work: Joe's upstream is a moving target, our local skill needs to coexist without rotting when he changes things, and the original conventions block had a real gap — `DIARY.md` was hand-waved away as "captured in `design/notes/` + `design/plans/`" which isn't honest. Notes are frozen snapshots, plans are forward-looking; neither is a rolling chronological log.
