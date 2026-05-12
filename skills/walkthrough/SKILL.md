@@ -76,7 +76,15 @@ He calls it *Tides of Azure*.
 
 HTML comments don't render in markdown previews, so the doc stays presentable. Username defaults to `git config user.name` (lowercased); the skill greps for `<!-- @<username>:`.
 
-Process:
+**Auto-discovery (when no path is given).** If the user invokes iterate mode without specifying a file, scan likely doc homes for candidates with pending review markers:
+
+1. Search order (first match wins as the search root): `design/notes/`, `notes/`, `docs/walkthroughs/`, `docs/`
+2. Within the first existing root, grep for files containing `<!-- @<username>:` markers
+3. Exactly one match → use it
+4. Multiple matches → use `AskUserQuestion` to pick (offer each with last-modified date)
+5. Zero matches → fall back to filename pattern (`*walkthrough*`, `*narrative*`) or frontmatter (`doc-kind: narrative-walkthrough`); if one walkthrough doc exists but has no markers, ask whether user meant to draft new content or learn from direct edits
+
+Process once a doc is selected:
 
 1. Grep the doc for `<!-- @<username>:` markers
 2. For each marker, integrate the comment into the surrounding prose and strip the marker
@@ -88,7 +96,7 @@ If no markers exist but the doc has been edited directly, surface the diff and a
 
 ## Follow-ups mode
 
-Triggered when the user says the doc is "good enough for now" or explicitly asks for follow-up extraction.
+Triggered when the user says the doc is "good enough for now" or explicitly asks for follow-up extraction. Uses the same auto-discovery as iterate mode when no path is given, except the candidate signal is presence of `[extrap]` tags or a sibling `<docname>-review-log.md` rather than pending review markers.
 
 Scan the doc + review-log for: `[extrap]` tags, resolved comments that surfaced gaps, and open questions raised during drafting. Triage into:
 
