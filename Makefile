@@ -1,11 +1,13 @@
 SKILLS_DIR := $(CURDIR)/skills
 TARGET_DIR := $(HOME)/.claude/skills
+HOOKS_SRC := $(CURDIR)/scripts/hooks
+HOOKS_DST := $(CURDIR)/.git/hooks
 
 SKILL_DIRS := $(wildcard $(SKILLS_DIR)/*)
 
-.PHONY: install uninstall list
+.PHONY: install uninstall list install-hooks check-pii
 
-install:
+install: install-hooks
 	@mkdir -p "$(TARGET_DIR)"
 	@for skill in $(SKILL_DIRS); do \
 		name=$$(basename "$$skill"); \
@@ -35,6 +37,27 @@ uninstall:
 			echo "  ok  $$name (not installed)"; \
 		fi; \
 	done
+
+install-hooks:
+	@if [ ! -d "$(HOOKS_DST)" ]; then \
+		echo "  SKIP  hooks — $(HOOKS_DST) doesn't exist (not a git checkout?)"; \
+	else \
+		for hook in $(HOOKS_SRC)/*; do \
+			name=$$(basename "$$hook"); \
+			target="$(HOOKS_DST)/$$name"; \
+			if [ -L "$$target" ] && [ "$$(readlink "$$target")" = "$$hook" ]; then \
+				echo "  ok  hook $$name (already linked)"; \
+			elif [ -e "$$target" ]; then \
+				echo "  SKIP  hook $$name — already exists at $$target (not overwriting)"; \
+			else \
+				ln -s "$$hook" "$$target"; \
+				echo "  link  hook $$name → $$hook"; \
+			fi; \
+		done; \
+	fi
+
+check-pii:
+	@bash $(CURDIR)/scripts/check-pii.sh --all
 
 list:
 	@echo "Skills in this repo:"

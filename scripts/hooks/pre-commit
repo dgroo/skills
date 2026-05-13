@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Pre-commit hook: scan staged files for PII patterns.
+# Installed by `make install-hooks`.
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+exec "$REPO_ROOT/scripts/check-pii.sh" --staged

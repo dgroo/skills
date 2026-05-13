@@ -1,0 +1,39 @@
+# Patterns that should NOT appear in this public repo.
+# One ERE regex per line. Lines starting with # are ignored.
+# To intentionally allow a single occurrence, add an inline "# pii-allow: <reason>"
+# marker on that line in the source file (the scanner skips lines containing pii-allow).
+#
+# Scanner: scripts/check-pii.sh
+# Patterns file itself is auto-excluded from scanning.
+
+# --- Private project names ----------------------------------------------------
+# iDM, vfstrategy, grootOS are personal project names. "changer" is a personal
+# project too but ambiguous as a common word, so only match it in a path-like
+# context (see path section below).
+\biDM\b
+\bvfstrategy\b
+\bgrootOS\b
+
+# --- Personal paths -----------------------------------------------------------
+# Anything pointing at this specific machine's user home should be parameterized.
+/Users/[A-Za-z0-9._-]+/
+# Common personal project parents
+~/code/iDM
+~/code/changer
+~/code/games/
+
+# --- Personal handles --------------------------------------------------------
+\biamgroot\b
+
+# --- Personal email / domain --------------------------------------------------
+veryfinehat
+# Generic email regex — any real-looking address. False positives go through the
+# pii-allow marker (e.g., user@example.com on a docs line).
+[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}
+
+# --- Common secret shapes -----------------------------------------------------
+# Anthropic, OpenAI, GitHub PAT prefixes — catches accidental key paste.
+\bsk-ant-[A-Za-z0-9_-]{20,}
+\bsk-[A-Za-z0-9]{20,}
+\bghp_[A-Za-z0-9]{30,}
+\bgithub_pat_[A-Za-z0-9_]{20,}

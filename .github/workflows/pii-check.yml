@@ -1,0 +1,15 @@
+name: PII check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan tracked files against .pii-patterns
+        run: bash scripts/check-pii.sh --all
