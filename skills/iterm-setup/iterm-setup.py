@@ -524,7 +524,12 @@ def pick_color_interactive(
     """
     render_palette(name, palette, existing_colors, existing, vivid_section=vivid_section)
     combined = palette + (vivid_section or [])
-    suggested = suggest_default_color_index(combined, existing_colors)
+    # Restrict default suggestions to the main palette — vivid is reserved for
+    # opt-in special-case projects. (When --vivid is set, `palette` already IS
+    # the vivid palette and `vivid_section` is empty, so this still picks from
+    # what the user asked for.) The returned index is 0..len(palette)-1, which
+    # is still a valid index into `combined`.
+    suggested = suggest_default_color_index(palette, existing_colors)
     prompt_suffix = f" (default: {suggested + 1})"
     while True:
         try:

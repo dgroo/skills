@@ -60,7 +60,9 @@ The actual work is done by `~/.claude/skills/iterm-setup/iterm-setup.py`. This s
    - **Vivid palette (15–28):** RGB tuples and names (from the second call — the script numbers vivid 1–14 there; *re-number to 15–28* for continuous numbering in the AUQ).
    - **Other existing profiles** (from the first call's footer): hex values from other projects that sit outside the palette — used for near-clash awareness when picking the suggested color.
 
-   Pick a **suggested color** (the first AUQ option). From the dark palette, prefer:
+   **Dark-only rule for defaults.** The suggested color (Option 1) and any auto-mode pick **must come from the dark palette (1–14), never the vivid palette (15–28).** Vivid is reserved for special-case highlight projects the user explicitly opts into (e.g. `~/.claude` itself). The user can still *choose* vivid via the AUQ Notes — just don't ever *suggest* it.
+
+   Pick a **suggested color** (the first AUQ option) from the dark palette, preferring:
    - An unused color (no `used by:` annotation).
    - A hue distinct from the "Other existing profiles" hexes (avoid near-clashes).
    - A name/aesthetic that fits the project (warm/earthy for library-ish, cool/deep for systems, etc.).
