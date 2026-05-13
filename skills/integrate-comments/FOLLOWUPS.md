@@ -4,7 +4,7 @@ Skill split out of `/walkthrough iterate` on 2026-05-12. The iterate verb was ge
 
 ## S1. Large-iterate UX (batch vs. interactive) — INHERITED FROM WALKTHROUGH
 
-**Original surfacing.** The iDM walkthrough's first iterate pass picked up 22 reviewer comments and made batch decisions on all of them. Several were spec-shaped (substantial rewrites, deferred follow-ups) — the user had to trust the batch synthesis rather than walking through them one at a time.
+**Original surfacing.** A real walkthrough's first iterate pass picked up 22 reviewer comments and made batch decisions on all of them. Several were spec-shaped (substantial rewrites, deferred follow-ups) — the user had to trust the batch synthesis rather than walking through them one at a time.
 
 **What's already addressed.** Preserve-don't-strip (`@<user>:` → `@<user>+seen:` in place) plus the review-log preserves the disposition trail. A user can re-read post-iterate and see which paragraph each comment hung off, alongside the disposition. That narrows the "trust batch synthesis" concern but doesn't eliminate it.
 
@@ -30,5 +30,5 @@ Not yet baked in. Could surface via `AskUserQuestion` when N≥10, defaulting to
 
 ## Related
 
-- `~/code/claude/skills/skills/walkthrough/SKILL.md` — sibling skill (content generator only after this split)
-- `~/code/claude/skills/skills/walkthrough/FOLLOWUPS.md` — earlier follow-ups, some of which (S3 in particular) migrated here.
+- `../walkthrough/SKILL.md` — sibling skill (content generator only after this split)
+- `../walkthrough/FOLLOWUPS.md` — earlier follow-ups, some of which (S3 in particular) migrated here.

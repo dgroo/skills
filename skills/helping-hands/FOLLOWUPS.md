@@ -1,12 +1,12 @@
 # helping-hands — follow-ups
 
-Surfaced 2026-05-12 from RED/dogfood against `~/code/iDM/design/helping-hands/` (5 open items, 3 closed). Items below are skill-level improvements that didn't land in the initial SKILL.md; each came up in the first real run.
+Surfaced 2026-05-12 from RED/dogfood against a personal project's `design/helping-hands/` queue (5 open items, 3 closed). Items below are skill-level improvements that didn't land in the initial SKILL.md; each came up in the first real run.
 
 Items applied directly to SKILL.md from the same dogfood (not listed here): cheap-filter for `all`, NEXT.md trust-direction inversion, tool-availability gate for "already-LLM-resolvable," extend-vs-closure approval reconciliation, AskUserQuestion-as-default tightening, slug-ambiguity clarification.
 
 ## S1. Sibling-synergy heuristic is currently decorative
 
-**Problem.** The Validate phase tells the model to detect "are 2+ open items obviously co-batchable" but gives no signal for "obvious." In the iDM dogfood, `meta-metagm-survey` + `survey-bank-research` were genuinely co-batchable (same external sources: Colville, Shea, Monte Cook; same user trip; both feed `surveys-and-feedback-loop.md`) but the dogfood-run model surfaced them as independent rows because it had no rule to follow.
+**Problem.** The Validate phase tells the model to detect "are 2+ open items obviously co-batchable" but gives no signal for "obvious." In the dogfood, two items were genuinely co-batchable (same external sources, same user trip, both feeding the same downstream spec) but the dogfood-run model surfaced them as independent rows because it had no rule to follow.
 
 **Proposed heuristic** (needs another dogfood to validate):
 
@@ -20,7 +20,7 @@ If 2+ items match: surface as a co-batch suggestion in the `all` table — a sub
 
 ## S2. Readiness table needs a "what does this unblock now" signal
 
-**Problem.** In iDM, `foundry-mcp-setup` and `rpg-folder-examination` are both technically `blocked-on-user`, but they're not equivalent: `foundry-mcp-setup` is parked relative to current focus (Slice 4/Assistant v0.1 per NEXT.md), while `rpg-folder-examination` would sharpen work the user is *actively* doing (M12 data model in `assistant-mode-first.md`). Surfacing them in the same row weight is wrong prioritization.
+**Problem.** In the dogfood, two items were both technically `blocked-on-user` but unequal in urgency: one was parked relative to current focus (per NEXT.md), the other would sharpen work the user was *actively* doing. Surfacing them in the same row weight is wrong prioritization.
 
 **Proposed addition.** Either a "current-focus signal" column in the `all` table (✓ / — / unknown), or a sub-bucket split: `blocked-on-user (current-focus)` vs `blocked-on-user (parked)`. The signal comes from cross-referencing each item's cited stories/files against NEXT.md's "Current focus" section.
 
@@ -28,7 +28,7 @@ Not yet baked in because the cross-reference logic adds real complexity; worth s
 
 ## S3. Closure should suggest a diary entry when the project has one
 
-**Problem.** iDM's project CLAUDE.md says: *"Maintain `DIARY.md` — add an entry when making significant changes, architectural decisions, or non-obvious tradeoffs."* Closing a helping-hand with a non-trivial `## Decision` is exactly that — and the skill's Closure section currently lists frontmatter + Decision section + follow-ups but doesn't mention the diary.
+**Problem.** A dogfood project's CLAUDE.md says: *"Maintain `DIARY.md` — add an entry when making significant changes, architectural decisions, or non-obvious tradeoffs."* Closing a helping-hand with a non-trivial `## Decision` is exactly that — and the skill's Closure section currently lists frontmatter + Decision section + follow-ups but doesn't mention the diary.
 
 **Proposed fix.** Closure section should add a project-aware check: if a root-level `DIARY.md` (or convention pointer in CLAUDE.md to a diary file) exists, propose a diary entry alongside the closure edit. Wording: "Diary-worthy? If yes, here's a draft entry…" — surfaced, not silent.
 
@@ -42,7 +42,7 @@ The same logic likely applies for `CHANGELOG.md` in projects that use one. Proje
 
 ## S5. NEXT.md drift as a co-output
 
-**Problem (caught in dogfood).** iDM's `design/NEXT.md` had a "## Open helping-hands items" section listing only 1 of 5 open items. The skill detected the disagreement (per the SKILL.md update) but the natural follow-up — propose updating NEXT.md as a side cleanup — wasn't called out as a first-class output.
+**Problem (caught in dogfood).** The dogfood project's `design/NEXT.md` had a "## Open helping-hands items" section listing only 1 of 5 open items. The skill detected the disagreement (per the SKILL.md update) but the natural follow-up — propose updating NEXT.md as a side cleanup — wasn't called out as a first-class output.
 
 **Proposed fix.** When the orient-phase NEXT.md hint disagrees with the directory: stage a NEXT.md cleanup proposal as a separate, optional output of the run. Phrasing: "NEXT.md lists N items; directory has M. Propose this edit to NEXT.md after we're done with the queue work — ok to queue?" Don't fold the edit into the helping-hands flow itself; surface it as a sibling proposal.
 
@@ -70,5 +70,5 @@ Worth pasting a one-line example in the `all` flow body so the model has the che
 ## Related
 
 - `walkthrough` / `cleanup-design` — sister skills with their own FOLLOWUPS.md; same dogfood-then-refactor cadence.
-- `~/code/iDM/design/helping-hands/README.md` — convention source-of-truth (3 rules: pre-exhaust LLM work, artifact as source-of-truth, JIT citation-by-path).
+- The dogfood project's `design/helping-hands/README.md` documents the convention in full (3 rules: pre-exhaust LLM work, artifact as source-of-truth, JIT citation-by-path).
 - 2026-05-12 baseline + dogfood subagent reports (in-conversation; not filed as artifacts) — source of the gaps enumerated above.

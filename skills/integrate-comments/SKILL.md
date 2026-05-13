@@ -36,7 +36,7 @@ Skip when: the user wants to *draft* new content (use the appropriate content-ge
 
 Determine which `@<word>:` prefix to scan for:
 
-1. **Scan the doc first.** Grep for any `@<word>:` markers; if a single distinct prefix appears, use it. The doc is authoritative — handles cases like `git config user.name` returning `iamgroot` while the reviewer annotates with `@derek`.
+1. **Scan the doc first.** Grep for any `@<word>:` markers; if a single distinct prefix appears, use it. The doc is authoritative — handles cases where `git config user.name` returns a system handle while the reviewer annotates with a different prefix (e.g. their first name).
 2. Fall back to `git config user.name` (lowercased).
 3. Then `git config user.email`'s local-part.
 4. Then `$USER`.

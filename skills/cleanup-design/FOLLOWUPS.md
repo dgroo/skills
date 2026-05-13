@@ -1,6 +1,6 @@
 # cleanup-design — follow-ups
 
-Surfaced 2026-05-11 from dogfooding against iDM. Items are skill-level improvements; each came up during the first real use.
+Surfaced 2026-05-11 from dogfooding against a real personal project. Items are skill-level improvements; each came up during the first real use.
 
 ## S1. Read-before-edit failures during bulk reference cleanup
 
@@ -14,7 +14,7 @@ For bulk-reference-style updates where the replacement is a simple path swap, th
 
 ## S2. Drift detection from recently-closed helping-hands worked
 
-**Validation.** The strong heuristic from the SKILL.md ("for each helping-hand marked `status: done` in last N days, grep canonical doc for pre-decision state") found the iDM cleanup items correctly:
+**Validation.** The strong heuristic from the SKILL.md ("for each helping-hand marked `status: done` in last N days, grep canonical doc for pre-decision state") found the cleanup items correctly:
 
 - Q1/Q2 (lazy-gm + attribution decisions closed 2026-05-11) → caught DESIGN.md §M3, assistant-mode-first.md slices, NEXT.md slice-4.
 - Q3 (deprecated-notes-regression closed 2026-05-11) → caught DESIGN.md §M6 + 5 stale `notes/virtual-gm-personality-init.md` references.
@@ -33,5 +33,4 @@ The skill currently treats this as `update-reference`. Worth making it explicit 
 
 ## Related
 
-- `~/code/iDM/design/notes/2026-05-11-narrative-assistGM-human-review-log.md` — sibling precedent (walkthrough skill follow-ups also surfaced from dogfooding)
 - `SKILL.md` — the skill these improvements target

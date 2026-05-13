@@ -7,7 +7,7 @@ priority: low
 
 ## Problem
 
-When `ls`ing `~/code/claude/skills/skills/`, Derek can't tell at a glance which skills are his vs Joe Walnes's upstream. The current solution is `MAINTAINERS.md` at the repo root — a hand-maintained manifest that lists ownership but isn't visible from `ls`.
+When `ls`ing the local skills directory, Derek can't tell at a glance which skills are his vs Joe Walnes's upstream. The current solution is `MAINTAINERS.md` at the repo root — a hand-maintained manifest that lists ownership but isn't visible from `ls`.
 
 This is fine today (only 5 Derek-authored skills, and the manifest table is easy to glance at), but if the count grows or import sources multiply (e.g., vendoring from mattpocock/skills or domengabrovsek/claude), the at-a-glance question may sharpen.
 
