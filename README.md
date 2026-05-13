@@ -43,6 +43,7 @@ make list       # Show available skills and install status
 | `bug` | Add a new bug to the project's tracker (alias for `/todo`) |
 | `bug-bash` | Autonomously work through a project's bug list, fixing bugs in priority order |
 | `hello-world` | A simple test greeting skill |
+| `integrate-comments` | Generic comment-driven iteration: integrate `<!-- @<user>: -->` review comments into prose, mark processed in place, emit tabular review-log |
 | `project-setup` | Walk through project setup improvements for AI-assisted development |
 | `readme` | Generate or update project README documentation |
 | `release-setup` | Set up automated cross-platform binary releases for a Go project |

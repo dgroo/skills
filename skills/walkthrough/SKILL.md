@@ -1,6 +1,6 @@
 ---
 name: walkthrough
-description: Use when asked to produce a narrative walkthrough of how an application or system is used end-to-end from a specific user's perspective ("walk me through using X", "how would a new user start with Y", "narrative of usage", "user journey doc", "narrative description of installing and using"). Tutorial-quadrant docs — story-shaped, learning-oriented — distinct from reference, spec, and how-to. Also handles iterating on existing walkthrough docs via inline-comment review, cleaning processed comments, and extracting spec-gap follow-ups.
+description: Use when asked to produce a narrative walkthrough of how an application or system is used end-to-end from a specific user's perspective ("walk me through using X", "how would a new user start with Y", "narrative of usage", "user journey doc", "narrative description of installing and using"). Tutorial-quadrant docs — story-shaped, learning-oriented — distinct from reference, spec, and how-to. Also handles cleaning processed review comments and extracting spec-gap follow-ups from existing walkthrough docs. Comment-driven iteration of existing docs lives in the sibling `/integrate-comments` skill.
 ---
 
 <!-- Maintenance: SKILL.md loads on every invocation. Before adding mass, prefer compressing in place or extracting sub-files (see `trajectory.md` as precedent for load-on-demand sub-procedures). Check size with `wc -w SKILL.md`; this skill is structurally larger than typical due to multiple verbs + modes — keep growth justified. -->
@@ -17,7 +17,7 @@ Skip if the user wants architecture/API/spec content (that's reference), step-by
 
 ## Modes
 
-A walkthrough's *temporal stance* — what slice of the app it describes — is chosen during scoping. Mode is metadata of the doc, not a verb; you can `iterate` on any mode.
+A walkthrough's *temporal stance* — what slice of the app it describes — is chosen during scoping. Mode is metadata of the doc, not a verb; iteration (via `/integrate-comments`) preserves whatever mode the doc was drafted in.
 
 | Mode | Sources | Tagging | When to pick it |
 |------|---------|---------|-----------------|
@@ -34,29 +34,33 @@ A walkthrough's *temporal stance* — what slice of the app it describes — is 
 - `infinity`: "...as currently conceived end-state. `[extrap]` marks speculation past spec."
 - `trajectory`: synthesis sibling explains the four-artifact set.
 
-**Mode + verb interaction.** A doc's mode is fixed at draft time and preserved through `iterate`. `clean-comments` and `follow-ups` are mode-agnostic. `trajectory` is the only mode that produces multiple artifacts in one run.
+**Mode + verb interaction.** A doc's mode is fixed at draft time. Iteration on existing walkthroughs (via `/integrate-comments`) preserves the mode. `clean-comments` and `follow-ups` are mode-agnostic. `trajectory` is the only mode that produces multiple artifacts in one run.
 
 **Back-compat.** Existing walkthrough files without a mode suffix in the filename are treated as `infinity`. Don't rename them retroactively.
 
 ## Routing
 
-Four verbs. Bare invocation is smart-routed.
+Three verbs. Bare invocation is smart-routed.
 
 | Invocation | Action |
 |---|---|
-| `/walkthrough` (bare) | If a walkthrough artifact exists in the expected location (see auto-discovery), default to **iterate**. Else → **draft new**. |
+| `/walkthrough` (bare) | If a walkthrough artifact with unseen `<!-- @<user>: -->` markers exists in the expected location (see auto-discovery), **hand off to `/integrate-comments`** with that path. Else → **draft new**. |
 | `/walkthrough new` | **Force-fresh draft** regardless of what exists. Dated filename naturally avoids collision. Use for comparison runs (parallel artifacts). |
-| `/walkthrough clean-comments [path]` | Strip `<!-- @<user>+seen: -->` markers; with confirmation, also bare `<!-- @<user>: -->` markers. Explicit-only; never auto-runs. |
+| `/walkthrough clean-comments [path]` | Strip `<!-- @<user>+seen: -->` markers; with confirmation, also bare `<!-- @<user>: -->` markers. Explicit-only; never auto-runs. Works on any annotated markdown, not just walkthroughs. |
 | `/walkthrough follow-ups [path]` | Triage `[extrap]` tags + review-log resolved items + open questions into candidate stories / helping-hands / design questions. Stage; user files. |
 
-**Auto-discovery (when no path is given to iterate / clean-comments / follow-ups):**
+**Iterating on an existing walkthrough.** Use `/integrate-comments [path]`. That skill owns the comment-driven workflow (marker rewrite, review-log emission, no-fabrication guardrail, uncommitted-state safety check) and is content-type-agnostic — same mechanics work on survey drafts, design notes, etc.
+
+**Auto-discovery (when no path is given to clean-comments / follow-ups):**
 
 1. Search order, first existing root wins: `design/notes/`, `notes/`, `docs/walkthroughs/`, `docs/`.
 2. Within that root, identify candidates by:
-   - `<!-- @<user>:` or `<!-- @<user>+seen:` markers (iterate / clean-comments signal)
+   - `<!-- @<user>+seen:` markers (clean-comments signal)
    - `[extrap]` or `[planned]` tags or a sibling `<docname>-review-log.md` (follow-ups signal)
    - Filename pattern (`*walkthrough*`, `*narrative*`) or frontmatter (`doc-kind: narrative-walkthrough`) as fallback
 3. Single match → use it. Multiple → `AskUserQuestion` with last-modified date **and mode** (inferred from filename suffix, or `infinity` if un-suffixed). Zero → ask whether to draft new.
+
+**Bare-invocation hand-off detail.** When bare `/walkthrough` finds an existing walkthrough artifact with unseen `<!-- @<user>: -->` markers, don't run integrate inline — surface the find ("found walkthrough at X with N unseen comments; handing off to /integrate-comments") and invoke that skill. If the artifact exists but has no unseen markers, ask whether the user wants `clean-comments`, `follow-ups`, or to draft a fresh walkthrough.
 
 ## Draft new (default for bare invocation when no prior artifact exists)
 
@@ -119,40 +123,11 @@ If the user asked for it, generate a second file with the same arc but a differe
 
 Documented in `trajectory.md`. Load that file before proceeding when the user has chosen `trajectory` during scoping — it covers the iterative `current` → `planned` → `infinity` build, the synthesis sibling's shape, spine-divergence handling, and cost guidance. Don't try to reconstruct from memory; the procedure has specific ordering and tagging rules that matter.
 
-## Iterate
+## Iterating on an existing walkthrough
 
-Triggered when the user has reviewed an existing walkthrough and wants feedback incorporated. Default for bare `/walkthrough` when an artifact exists.
+Lives in the sibling `/integrate-comments` skill. Bare `/walkthrough` hands off when it finds an existing walkthrough with unseen `<!-- @<user>: -->` markers (see [Routing](#routing)).
 
-**Comment convention.** Reviewer comments live as inline HTML comments next to the passages they target:
-
-```markdown
-... Derek's ready to run his Tuesday group through a campaign.
-<!-- @derek: player onboarding should happen here, before campaign add -->
-He calls it *Tides of Azure*.
-```
-
-HTML comments don't render in markdown previews, so the doc stays presentable.
-
-**Username discovery.** First, scan the doc for whatever `@<word>:` markers actually appear; if there's a single distinct prefix, use it (handles e.g. `@derek` when `git config user.name` returns `iamgroot`). Else fall back to `git config user.name` (lowercased), then `git config user.email`'s local-part, then `$USER`. Else ask.
-
-**Uncommitted-artifact safety check (precondition; hard stop).** Before mutating the target, run `git status --porcelain <path>`. If the target has uncommitted changes, stop and ask the user to either commit or explicitly accept loss. Iterate rewrites prose; running it on dirty working state risks destroying un-saved work with no clean recovery path.
-
-**Preserve-don't-strip.** Iterate marks reviewed comments rather than removing them. For each `<!-- @<user>: <comment> -->`:
-
-1. Integrate the comment into the surrounding prose.
-2. **Rewrite the marker in place** from `@<user>:` to `@<user>+seen:` (preserve the comment text verbatim). The inline context stays visible — a reader can tell which paragraph each comment hung off — while the prefix signals the skill has processed it.
-3. Record the disposition in the review-log (see below). Markers are not the disposition record; the log is. **One marker variant only** — no `+deferred:` / `+ack:` subtypes. Disposition richness lives in the log.
-
-Stripping seen markers is a separate, explicit operation (`/walkthrough clean-comments`).
-
-**Review-log.** Append a `<docname>-review-log.md` sibling:
-
-- **Framing-decision preamble** at the top — any reframing decisions (e.g., mode choice or mode-change request) called out before the per-comment table. Mode itself is preserved through iterate; explicit mode changes are a re-draft, not an iterate.
-- **Tabular per-comment record:** `# | Topic | What changed` rows for integrated comments, plus sections for deferred / follow-up-candidates / positive-feedback / skill-level-meta-issues.
-
-After integration: show diff and stop. Don't auto-commit. Flag anything that surfaces a real spec gap as a follow-up candidate (defer to follow-ups verb unless trivially actionable now).
-
-If no markers exist but the doc has been edited directly, surface the diff and ask whether to learn from the edits.
+That skill handles: username discovery, uncommitted-state safety check, marker rewrite (`@<user>:` → `@<user>+seen:` in place), review-log emission with framing-decision preamble, and the no-fabrication guardrail. Mode metadata on the walkthrough is preserved — `/integrate-comments` reads framing notes but doesn't rewrite modes.
 
 ## Clean-comments
 
@@ -160,7 +135,7 @@ Explicit `/walkthrough clean-comments [path]`. Never auto-runs.
 
 1. Auto-discovery if path omitted.
 2. Default: strip all `<!-- @<user>+seen: ... -->` markers (the processed ones).
-3. With `--strict` or explicit confirmation in the conversation: also strip bare `<!-- @<user>: ... -->` markers (un-processed comments). Without confirmation, surface those as "not yet processed; run iterate first?" rather than stripping.
+3. With `--strict` or explicit confirmation in the conversation: also strip bare `<!-- @<user>: ... -->` markers (un-processed comments). Without confirmation, surface those as "not yet processed; run `/integrate-comments` first?" rather than stripping.
 4. Show diff. Don't auto-commit.
 
 ## Follow-ups
@@ -193,8 +168,7 @@ On second invocation in the same project: if scoping conversations are repeating
 - **Missing framing-note.** Reader can't tell which era they're in. Fix: every mode opens with a one-paragraph framing-note declaring the slice.
 - **Picks `trajectory` reflexively.** Generates four artifacts when the user wanted one. Fix: confirm trajectory before running; most asks want a single mode.
 - **Trajectory ignores spine.** Re-drafts `planned` and `infinity` from scratch, producing three independent narratives instead of three layered versions of the same one. Fix: each layer uses the prior layer as its spine; only the deltas change.
-- **Strips markers during iterate.** Removes inline context a future reader (or future iterate pass) might want. Fix: rewrite `@<user>:` → `@<user>+seen:` in place; use the separate `clean-comments` verb when removal is wanted.
-- **Iterates over dirty working state.** Destroys un-saved edits. Fix: hard-stop if `git status` shows the target dirty; ask the user to commit or accept loss.
+- **Bare invocation runs iterate inline.** Old behavior was for `/walkthrough` to mutate prose in place when markers existed. Now: surface the find and hand off to `/integrate-comments`. Don't reimplement iterate logic here.
 - **Auto-files follow-ups.** Skill writes stories/todos into spec directories without approval. Fix: stage and surface; user files.
 - **Generates LLM companion by default.** Doubles output for a thing the user may not want. Fix: ask; default no.
 
@@ -202,10 +176,12 @@ On second invocation in the same project: if scoping conversations are repeating
 
 | Verb | Output | When |
 |------|--------|------|
-| (bare) `/walkthrough` | Routes to iterate (if existing) or draft new | Default invocation |
+| (bare) `/walkthrough` | Hand-off to `/integrate-comments` (if existing has unseen markers) or draft new | Default invocation |
 | `/walkthrough new` | Force-fresh draft | Comparison / parallel artifact |
 | `/walkthrough clean-comments [path]` | Stripped seen markers | Explicit cleanup |
 | `/walkthrough follow-ups [path]` | Triaged spec-gap candidates | After iterate, at "good enough for now" |
+
+For integrating reviewer `<!-- @<user>: -->` comments into an existing walkthrough, use **`/integrate-comments [path]`** (sibling skill).
 
 | Phase | Output |
 |-------|--------|
@@ -222,8 +198,8 @@ On second invocation in the same project: if scoping conversations are repeating
 | `[planned]` | `planned`, `trajectory` | Item is on the near-term roadmap but not yet shipped. |
 | `[extrap]` | `infinity`, `trajectory` | Speculation past spec; reader should not treat as commitment. |
 
-**Review-comment markers:**
-- `<!-- @<username>: <comment> -->` — unseen, pending iterate
+**Review-comment markers** (processed by `/integrate-comments`):
+- `<!-- @<username>: <comment> -->` — unseen; run `/integrate-comments` to integrate
 - `<!-- @<username>+seen: <comment> -->` — processed; disposition in review-log; remove via `clean-comments`
 
 **Diátaxis quadrant:** tutorial. If the user actually wants reference / how-to / explanation, this is the wrong skill.
