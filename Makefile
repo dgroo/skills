@@ -5,7 +5,7 @@ HOOKS_DST := $(CURDIR)/.git/hooks
 
 SKILL_DIRS := $(wildcard $(SKILLS_DIR)/*)
 
-.PHONY: install uninstall list install-hooks check-pii
+.PHONY: install uninstall list install-hooks check-pii upstream-check upstream-skills
 
 install: install-hooks
 	@mkdir -p "$(TARGET_DIR)"
@@ -58,6 +58,15 @@ install-hooks:
 
 check-pii:
 	@bash $(CURDIR)/scripts/check-pii.sh --all
+
+upstream-check:
+	@bash $(CURDIR)/scripts/upstream-check.sh
+
+upstream-skills:
+	@git ls-tree -r --name-only upstream/main 2>/dev/null \
+		| awk -F/ '$$1 == "skills" && NF >= 2 { print $$2 }' \
+		| sort -u \
+		|| echo "(no upstream remote configured — see 'git remote -v')"
 
 list:
 	@echo "Skills in this repo:"

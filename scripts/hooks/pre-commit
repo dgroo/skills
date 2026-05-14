@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
-# Pre-commit hook: scan staged files for PII patterns.
+# Pre-commit hook: chain repo checks.
 # Installed by `make install-hooks`.
+#
+# Checks (in order):
+#   1. PII scan on staged files
+#   2. Block edits to upstream-tracked skills/<name>/ (override with SKIP_UPSTREAM_GUARD=1)
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-exec "$REPO_ROOT/scripts/check-pii.sh" --staged
+
+"$REPO_ROOT/scripts/check-pii.sh" --staged
+"$REPO_ROOT/scripts/check-upstream-edits.sh"

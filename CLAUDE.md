@@ -10,6 +10,24 @@ make install
 
 Ask if they have existing skills they'd like to import into this repo using `/import-skill`.
 
+## Upstream provenance
+
+This repo is a fork of `joewalnes/skills`. Three classes of files, two rules:
+
+- **Skills tracked in upstream** — list with `make upstream-skills`. **Hard rule: never edit in place.** Fork into a new local skill with a distinct name. The pre-commit hook (`scripts/check-upstream-edits.sh`) blocks commits that modify upstream-tracked `skills/<name>/`; override with `SKIP_UPSTREAM_GUARD=1` only for an actual upstream contribution.
+- **Top-level files** (`CLAUDE.md`, `README.md`, `Makefile`) — also upstream-tracked, but **soft rule**: local edits are fine. Expect to resolve merge conflicts on upstream pulls.
+- **Local-only skills** — anything else under `skills/`. Edit freely.
+
+Before editing any skill, confirm provenance:
+
+```bash
+git log upstream/main -- skills/<name>/
+```
+
+Empty output = local-only, safe to edit. Non-empty = upstream-tracked, fork instead.
+
+Check for upstream updates with `make upstream-check` (also surfaced by `/sup`). Run periodically — pulling stays cheap when you do it often.
+
 ## Bug tracking
 
 Bugs and tasks are tracked in `TODO.md`. Use `/todo` to add entries and `/bug-bash` to work through them.
