@@ -24,6 +24,7 @@ This skill is **user-invoked, on-demand**. It deliberately scans the whole direc
 | `/helping-hands` (bare) | List open items with one-line summaries (cheap validation only). Pick one via `AskUserQuestion`. Then run the single-item flow. |
 | `/helping-hands all` | Full validation on every open item. Present a table grouped by readiness category. Then `AskUserQuestion` for which to dive into. |
 | `/helping-hands <slug>` | Skip listing; run the single-item flow on the slug match. Slug = filename without date prefix or `.md`; full filename also accepted. Ambiguous (e.g., two dates with the same slug) → ask which. |
+| `/helping-hands new <slug>` | Create a new helping-hand entry at `<dir>/YYYY-MM-DD-<slug>.md` using the project's canonical template. Run the creation flow. |
 
 ## Auto-discovery
 
@@ -89,6 +90,58 @@ Run validate on the open set. Group by readiness:
 
 Present as a single table: `# | slug | bucket | one-line summary | suggested next step`. Then `AskUserQuestion` for which to dive into, with options derived from the table (top 3-4 candidates plus "other / just show me the table again").
 
+## Creation flow
+
+Run for `/helping-hands new <slug>`. Purpose: produce a new entry that conforms to the project's canonical template on the first try — no manual reflow, no missing sections.
+
+### 1. Resolve directory
+
+Use the same auto-discovery as the other flows (`design/helping-hands/` → `helping-hands/` → `docs/helping-hands/`). If none exists, ask where it lives. **If `<slug>` was omitted**, ask for it before continuing — don't invent one from chat context (the user's words usually map to a *title*, not a filename slug).
+
+### 2. Load the canonical template
+
+**Read the project's `helping-hands/README.md` and locate its "Item template" section.** Don't hardcode the template into this skill — different projects can tweak field names, section order, or `## Background` framing, and the README is authoritative for that project. Extract:
+
+- frontmatter fields (names, defaults, allowed values)
+- section order and headings
+- the "if this section would be empty, the entry should not exist" guard (or the project's equivalent)
+
+If the project has a `helping-hands/` directory but no README, ask the user to point at a representative existing entry to mirror, or fall back to the canonical shape sketched in step 4 below (which is the reference implementation this skill was developed against).
+
+### 3. Gather content
+
+Prompt the user for the fields below. **Use `AskUserQuestion` only for the bucket choices** (priority, and "what I already did" sufficiency — see below); the rest are free-text and should be plain prompts so the user can paste in long content.
+
+- **Title** — one line, friendly, phrased as a request (e.g., "Pick a name for the new persona"), not a directive ("Name the persona").
+- **TL;DR** — one sentence. Reader should know what to do from this line alone.
+- **The ask** — one paragraph framing what's needed and why. Will land in `### Why this matters` under Background.
+- **What I already did** bullets — **load-bearing**. The artifact's whole reason for existing is that the user's part is 30 seconds. If the LLM-side scaffolding list is empty or thin, **stop and surface that**: propose doing the scaffolding first (draft the file, pre-fill the form, build the comparison) before filing the entry. Use `AskUserQuestion` with options: "do the scaffolding work first" (recommended) / "file anyway, scaffolding is genuinely impossible" / "cancel". Per the template's own rule: empty `What I already did` ⇒ entry should not exist.
+- **Concrete numbered steps** — paste-ready, one action per step. These go under `## Do this` (the high-visibility section, second only to TL;DR). Push back if the steps drift into prose or assume context the user won't have when reading the file 8 hours later.
+- **Tell me when you're done** — what the user reports back, or what the LLM will detect, to unblock the next step. Goes under `## Tell me when you're done`.
+- **Related** — links to stories, plans, design docs, sibling helping-hands. Surface candidates: grep recent `design/stories/` and `design/plans/` for the slug and obvious key terms; offer the matches.
+- **Priority** — `AskUserQuestion` with `high` / `medium` / `low`. Default `medium`.
+- **Estimated time** — free text (e.g., `~10 min`, `~1 hour`, `"I don't know"` is valid per the template).
+
+### 4. Assemble and write
+
+Compose the file in the **exact canonical order** from the project's README. A typical order (matching the reference implementation this skill was developed against) is:
+
+1. Frontmatter (`status: open`, `created: <today>`, `priority:`, `estimated_time:`)
+2. `# Friendly title`
+3. `**TL;DR:** ...`
+4. `## Do this` (numbered steps — **second from top**, not buried)
+5. `## Tell me when you're done`
+6. `---` separator
+7. `## Background (optional reading)` containing `### Why this matters`, `### What I already did to make this easier`, `### Related`
+
+**Show the assembled file as a preview in chat before writing.** Get user approval. On yes, write to `<helping-hands-dir>/YYYY-MM-DD-<slug>.md` (use today's date).
+
+Filename collision: if a file with that exact name already exists, stop and ask (append suffix? overwrite? pick a different slug?). Never silently overwrite — helping-hands files are source-of-truth artifacts.
+
+### 5. Confirm
+
+Print exactly one line: `Filed: <title> — see <relative path>`. Don't recap the body in chat; the artifact carries the detail. (Same one-liner shape as rule 2 in the helping-hands README.)
+
 ## Closure
 
 When the user gives the answer in chat, do the synthesis work the item promises, then **propose** an edit:
@@ -117,6 +170,7 @@ When the user gives the answer in chat, do the synthesis work the item promises,
 | `/helping-hands` (bare) | One-line list → pick → single-item flow | Default invocation |
 | `/helping-hands all` | Validated readiness table → pick → single-item flow | Periodic queue review |
 | `/helping-hands <slug>` | Single-item flow directly | User already knows which |
+| `/helping-hands new <slug>` | Creation flow → new entry at `<dir>/YYYY-MM-DD-<slug>.md` | Filing a new item from scratch |
 
 | Phase (single item) | Output |
 |---|---|

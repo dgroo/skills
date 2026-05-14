@@ -43,12 +43,14 @@ make list       # Show available skills and install status
 | `bug` | Add a new bug to the project's tracker (alias for `/todo`) |
 | `bug-bash` | Autonomously work through a project's bug list, fixing bugs in priority order |
 | `hello-world` | A simple test greeting skill |
+| `idea` | Capture a quick spark to the project's sparkfile (`design/IDEAS.md`). `/idea <text>` to add, `/idea review` to list, `/idea iterate` to walk each entry |
 | `integrate-comments` | Generic comment-driven iteration: integrate `<!-- @<user>: -->` review comments into prose, mark processed in place, emit tabular review-log |
 | `project-setup` | Walk through project setup improvements for AI-assisted development |
 | `readme` | Generate or update project README documentation |
 | `release-setup` | Set up automated cross-platform binary releases for a Go project |
 | `scorecard` | Comprehensive codebase quality audit with letter grades |
 | `sitrep` | Quick situation report — recap progress, uncommitted work, gaps, and next steps |
+| `skill-add` | Evaluation gate for proposing a new skill — scans the catalog for collisions, overlaps, and wrap candidates; pushes back on thin value; interviews and creates if it proceeds |
 | `sup` | Local extension of `/sitrep` — adds active backlog scan + specific pick recommendation, plus a high-confidence new-session check |
 | `todo` | Add a new bug or todo to the project's tracker |
 | `tool-web` | Build a lightweight single-file web application with no external dependencies |
