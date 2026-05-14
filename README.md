@@ -49,7 +49,7 @@ make list       # Show available skills and install status
 | `release-setup` | Set up automated cross-platform binary releases for a Go project |
 | `scorecard` | Comprehensive codebase quality audit with letter grades |
 | `sitrep` | Quick situation report — recap progress, uncommitted work, gaps, and next steps |
-| `sup` | Local extension of `/sitrep` adding an upstream-check section and explicit session-breakpoint evaluation |
+| `sup` | Local extension of `/sitrep` — adds active backlog scan + specific pick recommendation, plus a high-confidence new-session check |
 | `todo` | Add a new bug or todo to the project's tracker |
 | `tool-web` | Build a lightweight single-file web application with no external dependencies |
 

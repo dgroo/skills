@@ -1,19 +1,20 @@
 ---
 name: sup
-description: Personalized situation report — mirrors /sitrep's full output (Branch, State, Next steps, etc.), then issues a high-confidence new-session recommendation in bold yellow when warranted. Use when resuming a session, asking "where were we?", or when the chunk of work feels finished.
+description: Personalized situation report — mirrors /sitrep's full output, actively scans for queued work and recommends a specific pick, then issues a high-confidence new-session recommendation in bold yellow when warranted. Use when resuming a session, asking "where were we?", or when the chunk of work feels finished.
 allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 ---
 
 # Sup — Situation Report (Derek's flavor)
 
-`/sup` is a **strict superset of `/sitrep`**: it produces the full sitrep output first (never drops sections, especially Next steps), then evaluates one additional thing — whether to recommend a fresh Claude session.
+`/sup` is a **strict superset of `/sitrep`** with two additions: (1) it actively scans the repo for queued work and recommends a specific pick, and (2) it evaluates whether to recommend a fresh Claude session.
 
 `/sitrep` itself is upstream-tracked (joewalnes/skills) and intentionally left untouched. Use `/sup` instead.
 
 ## Sequence
 
 1. **Produce the full sitrep output** (see "Sitrep mirror" below). Never drop sections that sitrep would include — especially **Next steps**.
-2. **Then evaluate the new-session recommendation** (see "New-session check" below). Most of the time, emit nothing. Only fire when both conditions are clearly met.
+2. **Scan the backlog and recommend a pick** (see "Backlog scan & pick" below). Run only when current work is parkable; otherwise skip.
+3. **Evaluate the new-session recommendation** (see "New-session check" below). Most of the time, emit nothing. Only fire when the bar is genuinely cleared.
 
 ## Sitrep mirror
 
@@ -49,9 +50,54 @@ Report structure (omit empty sections, keep each to 1–3 lines max):
 **Upstream:** N commit(s) ahead, paths touched. (Only when in skills repo AND `upstream-check.sh` returned output. Omit otherwise.)
 
 **Next steps:** 1–3 concrete actions to resume work. **Always include this section** — it's the most useful single line in the whole report.
+
+**Backlog:** One-line inventory of queued work surfaced by the scan (see "Backlog scan & pick"). Only when current chunk is parkable.
+
+**Pick:** One specific recommendation with one-line reasoning. Only when current chunk is parkable.
 ```
 
 Same rules as /sitrep: brief, one sentence per item, don't read file contents unless something in the diff looks suspicious, scan diffs for obvious unfinished markers.
+
+## Backlog scan & pick
+
+Run **only when the current chunk is parkable** — clean tree, or one obvious commit away from clean. If there's substantive in-flight work (mid-refactor, uncommitted changes spanning multiple files, half-applied feature), **skip this entire section**. Sitrep's Next steps already says what to resume; piling on a backlog pick is noise.
+
+### Where to scan (parallel, skip non-existent paths)
+
+Common surfaces, in roughly the order they tend to matter:
+
+- `TODO.md`, `design/TODO.md` — open entries (use `/todo` and `/bug-bash` if present).
+- `design/stories/ready/*.md` — stories explicitly marked ready to work on (Derek's groot-project convention). Outranks `drafts/`.
+- `design/stories/drafts/*.md` — drafted but not yet promoted.
+- `design/helping-hands/*.md` — items needing user action (often unblock other work).
+- `gh pr list --state open --limit 10` — open PRs (skip if `gh` not installed or no GitHub remote).
+- `git branch --no-merged main | head` — stale branches with unmerged work.
+
+Project-specific patterns to recognize if they exist: `BACKLOG.md`, `ROADMAP.md`, `NOTES.md`, plus anything obvious in the working directory. **Glance briefly — don't deep-read.** Counts and titles are enough.
+
+### What to render
+
+Add two lines to the sitrep report, right after Next steps:
+
+- **Backlog:** Compact inventory. Example: `TODO.md (5 open), stories/ready (3), helping-hands (2), no open PRs, 1 stale branch (refactor-auth).` Skip surfaces with zero items.
+- **Pick:** One specific recommendation with one-line reasoning. Example: `Start stories/ready/payment-retry.md — ready, unblocks 2 downstream items, ~2 hours.`
+
+If nothing's queued anywhere, render: `**Backlog:** Nothing obvious queued — what would you like to work on?` and skip the Pick line.
+
+### Picking criteria (tiebreakers in order)
+
+1. **Unblocks downstream work.** Helping-hands often gate other items; ready stories may be prerequisites for drafts.
+2. **Removes risk.** Security, data loss, broken main, compliance.
+3. **Matches session capacity.** If context is already getting full (but you're not recommending a new session), prefer something small. If fresh, can be ambitious.
+4. **Continuity with current context.** If files just touched relate to a queued item, that's a strong pull.
+5. **Tied?** Smaller concrete item over larger ambiguous one.
+
+### Rules for this section
+
+- Only recommend something you've actually seen in a file or command output. **No imagined options.**
+- If you read a story/helping-hands file to check it, surface a *one-line* characterization — don't paste contents.
+- Don't pad with detailed pros/cons. One pick, one reason. The user will ask if they want more.
+- If you genuinely can't pick (everything looks equally good or equally unclear), say so and list the top 2–3 options for the user to choose from. Don't force a fake recommendation.
 
 ## New-session check
 
