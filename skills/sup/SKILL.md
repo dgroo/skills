@@ -99,17 +99,19 @@ If nothing's queued anywhere, render: `**Backlog:** Nothing obvious queued — w
 - Don't pad with detailed pros/cons. One pick, one reason. The user will ask if they want more.
 - If you genuinely can't pick (everything looks equally good or equally unclear), say so and list the top 2–3 options for the user to choose from. Don't force a fake recommendation.
 
-## New-session check
+## End-of-session check
 
-After the sitrep output, decide whether to recommend a fresh Claude session.
+After the sitrep output, decide whether to recommend that *this* session be ended and a fresh one started for the next task.
+
+**This signal is about the health of THIS conversation, not about where the next task happens to run.** Don't conflate the two. If your recommended pick lives in a different directory or a different repo, that's normal — *you* are not the one who would run it; the user starts a new terminal/CC instance for it whenever they're ready. The end-of-session signal fires only when continuing this same conversation for the next task would be measurably worse than starting fresh.
 
 **Default: silence.** New sessions have real cost — the user has to re-establish context, re-orient Claude, possibly re-read files. Don't suggest that cost unless the current session has a *visible, concrete problem* that a fresh session would actually solve.
 
 ### The test
 
-The bar is **not** "is this an OK time to stop?" (true after almost any completed task — meaningless signal). The bar is **"would continuing this session be measurably worse than starting fresh?"**
+The bar is **not** "is this an OK time to stop?" (true after almost any completed task — meaningless signal). The bar is **"would continuing this conversation for the next task be measurably worse than starting fresh?"**
 
-Recommend a new session **only when at least one of these is observably true**:
+Recommend ending this session **only when at least one of these is observably true**:
 
 - **Context pressure is real.** The Claude Code context indicator shows ≥50% used, OR the system has already auto-compacted, OR you (Claude) have noticed yourself re-reading files you read earlier, losing details from earlier in the conversation, or otherwise behaving like you're context-starved.
 - **The conversation has drifted across multiple unrelated subtasks** *and* the next requested work is again unrelated to anything currently in cache. (Three distinct topics, with a fourth pivot incoming, is a clear case.)
@@ -123,23 +125,25 @@ These are **not sufficient reasons** by themselves. If these are all you have, s
 - A commit was just made or a milestone was just completed. (Normal end-of-task state — default is to wait for the next task in the same session.)
 - "This feels like a natural stopping point." (Most stopping points are *fine* to continue from. Naturalness is not a signal.)
 - The session is short or just started. (Short sessions especially should not trigger this — the warm context is the asset.)
+- **The recommended pick lives in a different working directory, repo, or terminal.** That's a property of the task environment, not of this session's health. The user runs the pick in its own session whenever they pick it up; this one stays useful for whatever comes next here. Stay silent unless one of the bullets above also fires.
 
 ### How to emit
 
-When the bar is genuinely cleared, emit as a final Bash call so it renders in real terminal yellow:
+When the bar is genuinely cleared, emit as a final Bash call so it renders in real terminal yellow. Phrase it so the reader can't mistake it for "you'll need another session for the next task" — it's specifically *end this one*:
 
 ```bash
 # Replace <reason> with the specific observable signal — not a generic "good time to stop."
 # Good: "context >70%, next slice is unrelated."
 # Bad: "tree is clean, milestone shipped." (← that's just the prerequisite.)
-printf '\n\033[1;33m⚠ NEW SESSION RECOMMENDED — <reason>\033[0m\n'
+# Bad: "the pick runs in a different scratch dir." (← that's a non-signal.)
+printf '\n\033[1;33m⚠ THIS SESSION IS USED UP — start a fresh Claude session for the next task. Reason: <reason>\033[0m\n'
 ```
 
 Optional prep line first, only if commits/notes/etc. are actually needed before stopping:
 
 ```bash
 printf '\n\033[1;33mBefore stopping: <prep>\033[0m\n'
-printf '\033[1;33m⚠ NEW SESSION RECOMMENDED — <reason>\033[0m\n'
+printf '\033[1;33m⚠ THIS SESSION IS USED UP — start a fresh Claude session for the next task. Reason: <reason>\033[0m\n'
 ```
 
 If you're tempted to soften with "you could…" or "consider…" — don't. Either you have observable evidence the current session is impaired (fire), or you don't (silent). Hedged recommendations are noise.
