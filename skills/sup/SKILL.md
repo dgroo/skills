@@ -21,12 +21,13 @@ allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 Gather context in parallel:
 
 1. `git status` — uncommitted changes, untracked files, current branch
-2. `git diff --stat` — what's been modified
-3. `git log --oneline -5` — recent commits for context
-4. `git stash list` — anything stashed
-5. Check for running background tasks (TaskList tool)
-6. If `scripts/upstream-check.sh` exists at repo root, run it — surfaces unpulled upstream commits. (Only meaningful in the skills repo; silently skip elsewhere.)
-7. Scan conversation history for what was last discussed
+2. `git worktree list` — sibling worktrees and their branches. Critical orientation step: a sibling whose branch name matches the current/upcoming task topic is almost always the right home for that work, and silently editing on `main` when a topic-named worktree exists is the bug this step prevents.
+3. `git diff --stat` — what's been modified
+4. `git log --oneline -5` — recent commits for context
+5. `git stash list` — anything stashed
+6. Check for running background tasks (TaskList tool)
+7. If `scripts/upstream-check.sh` exists at repo root, run it — surfaces unpulled upstream commits. (Only meaningful in the skills repo; silently skip elsewhere.)
+8. Scan conversation history for what was last discussed
 
 Report structure (omit empty sections, keep each to 1–3 lines max):
 
@@ -34,6 +35,8 @@ Report structure (omit empty sections, keep each to 1–3 lines max):
 ## Sup
 
 **Branch:** `branch` · **Last commit:** `short message`
+
+**Worktrees:** Only when `git worktree list` shows >1 entry. Render each as `path · branch · commit`. If any sibling's branch name plausibly matches the current task topic or what's about to be discussed, explicitly flag: `→ This work likely belongs on <branch> — confirm before editing on main.` Don't ask reflexively when siblings exist for unrelated topics; only flag when there's a topic match.
 
 **State:** Combined snapshot — clean/dirty tree, stashes, background tasks, todos, "fresh session" or "mid-task." If there's enough going on, split into the longer fields below.
 
