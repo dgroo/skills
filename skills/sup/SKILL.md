@@ -126,6 +126,7 @@ These are **not sufficient reasons** by themselves. If these are all you have, s
 - "This feels like a natural stopping point." (Most stopping points are *fine* to continue from. Naturalness is not a signal.)
 - The session is short or just started. (Short sessions especially should not trigger this — the warm context is the asset.)
 - **The recommended pick lives in a different working directory, repo, or terminal.** That's a property of the task environment, not of this session's health. The user runs the pick in its own session whenever they pick it up; this one stays useful for whatever comes next here. Stay silent unless one of the bullets above also fires.
+- **The session has accomplished substantial work / covered a lot of ground.** Volume of completed work is not impairment. The trigger is observable loss of recall or coherence, NOT "feels like the session has been productive enough." A session that just shipped a slice + three drafts + a debug detour is doing exactly what a session is supposed to do — that's not a fresh-context signal. Don't conflate "done a lot" with "running out of room." Check the actual recall-loss signals; if none fire, stay silent.
 
 ### How to emit
 
