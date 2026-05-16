@@ -119,12 +119,68 @@ Ask only what you need:
 ## Phase 5: Create
 
 1. **Write `skills/<name>/SKILL.md`.** Use the structure of an adjacent skill in the chosen style as a template — don't invent a new shape.
-2. **Update `README.md`.** Add a row to the Skills table, alphabetical order. (Project convention — see this repo's `CLAUDE.md`.)
-3. **Run `make install`.** Symlinks the skill into `~/.claude/skills/`.
-4. **Show the result.** Path to the new SKILL.md, the README row added, and the install output line.
-5. **Don't commit.** Stage nothing automatically. Tell the user what to commit and let them.
+2. **Include the standard `help` verb.** Every new skill ships with a `help` routing entry plus a dedicated `## Help` section. See [Help verb convention](#help-verb-convention) below for the format. This is non-negotiable scaffolding — don't ask the user whether to include it.
+3. **Update `README.md`.** Add a row to the Skills table, alphabetical order. (Project convention — see this repo's `CLAUDE.md`.)
+4. **Run `make install`.** Symlinks the skill into `~/.claude/skills/`.
+5. **Show the result.** Path to the new SKILL.md, the README row added, and the install output line.
+6. **Don't commit.** Stage nothing automatically. Tell the user what to commit and let them.
 
 If the skill needs companion files (a script, a template), create them alongside `SKILL.md` in the same directory.
+
+---
+
+## Help verb convention
+
+Every skill in this repo includes a `help` verb that prints a unix-style usage block. The point: a user typing `/<skill> help` should get the same surface they'd get from a CLI's `--help` flag — one-line description, invocation shape, list of verbs/arguments with one-line descriptions, pointer to the SKILL.md for the full reference.
+
+**Anchor in SKILL.md.** Two places:
+
+1. A routing-table row (or equivalent — see "skills without a routing table" below): `| /<skill> help | Print usage (see Help section) |`
+2. A dedicated `## Help` section that pins the exact output block. When invoked, the skill prints what's in that section verbatim.
+
+**Standard help block format:**
+
+```
+<skill-name> — <one-line description from frontmatter>
+
+Usage: /<skill-name> [verb] [args]
+
+Verbs:
+  (none)            <what bare invocation does>
+  <verb-1>          <one-line description>
+  <verb-2>          <one-line description>
+  ...
+  help              Show this message.
+
+[Optional — Modes / Options sections for non-verb args.]
+
+See SKILL.md for full reference.
+```
+
+**Adapt for shape:**
+
+- *Skills with one main action, no subcommands* (e.g., `/bug`, `/idea`): use `Arguments:` instead of `Verbs:` — list the arg shapes.
+- *Skills with modes that are doc-metadata, not verbs* (e.g., `/walkthrough`'s `current` / `planned` / `infinity`): list them under a `Modes:` section below `Verbs:`.
+- *Skills with both verbs and options*: both sections; verbs first.
+
+**Skills without a routing table.** Many existing skills document their interface via `## Quick reference`, `## Subcommand:` headers, or prose. For *new* skills, prefer a `## Routing` table — it's the cleanest anchor for help. For *retrofits* (handled by `/skills-review`), the help section can read from whatever verb-doc shape the skill already has; you don't have to rewrite the skill's structure to add help.
+
+**Example** (for the `/journal` skill from this skill's invocation example):
+
+```
+journal — Append timestamped entries to a daily journal, with light triage on review.
+
+Usage: /journal [verb] [args]
+
+Verbs:
+  (none) <text>     Append text as a timestamped entry to today's journal file.
+  review            Surface recent entries; offer to tag or extract follow-ups.
+  help              Show this message.
+
+See SKILL.md for full reference.
+```
+
+The skill's `## Help` section contains this block verbatim, indented as a code fence. When the user invokes `/journal help`, the skill prints exactly that block.
 
 ---
 
@@ -135,6 +191,36 @@ If the skill needs companion files (a script, a template), create them alongside
 - **Local-only by default.** This repo is a fork; upstream-bound skills are rare and need to clear a different bar (Joe's style, generic enough, etc.). The pre-commit hook (`scripts/check-upstream-edits.sh`) blocks accidental edits to upstream files — let it do its job, don't fight it.
 - **Match the surrounding style.** Joe's skills (`/todo`, `/project-setup`) are tight and pragmatic; Derek's local skills (`/claude-md-add`, `/groot-project`) are heavier on rationale. Pick one consciously per Phase 4 — don't mix.
 - **The trigger phrase is the most important field.** A skill no one reaches for is dead weight. Make sure the trigger matches how the user actually talks about the work.
+- **Help is universal.** Every skill gets a `help` verb (see [Help verb convention](#help-verb-convention)). Don't surface this as an interview question — scaffold it automatically. Skills without help are flagged by `/skills-review` and need retrofit.
+
+## Help
+
+When invoked as `/skill-add help`, print the following block verbatim:
+
+```
+skill-add — Gate before creating a new Claude Code skill. Evaluates, decides, then creates.
+
+Usage: /skill-add [<one-line pitch>]
+
+Arguments:
+  <pitch>           Free-form description of the proposed skill. If omitted,
+                    the skill asks for one. Routes the pitch through Phases
+                    1-5 (capture, evaluate, decide, interview, create).
+
+Phases:
+  1. Capture        Pin down name, purpose, triggers, local-vs-upstream.
+  2. Evaluate       Collision / overlap / value checks against installed catalog.
+  3. Decide         Present findings; user picks proceed / modify / abandon.
+  4. Interview      Short, focused — only what isn't already clear.
+  5. Create         Write SKILL.md (with mandatory `help` verb), update README,
+                    run make install. Don't commit.
+
+Conventions:
+  Help verb         Every new skill ships with a `/<name> help` routing entry +
+                    `## Help` section. Scaffolded automatically, not asked.
+
+See SKILL.md for full reference.
+```
 
 ## Related
 

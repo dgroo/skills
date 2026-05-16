@@ -83,6 +83,26 @@ Scan for:
 - Stale directories — a SKILL.md whose `name:` field doesn't match its parent dir name.
 - Composite skills (e.g. `guard` = `careful` + `freeze`) — flag but don't recommend removal unless unused.
 
+### Step 5b — Convention checks (local skills only)
+
+Scope: **local skills only.** Plugin, gstack, superpowers, and built-in skills are owned upstream and out of scope for retrofit recommendations. Detect local skills by source path: those under this repo (`~/code/claude/skills/skills/<name>/`, resolved via `readlink ~/.claude/skills/<name>`).
+
+**Missing `help` verb.** Every local skill should define a `help` verb that prints a unix-style usage block. Detect by checking the SKILL.md for:
+
+1. **Routing entry.** A line matching the literal `/<skill-name> help` pattern in a Routing or Quick-reference table (e.g. `| /walkthrough help | ... |`). Don't match bare `help`, `--help`, or `help:` — those false-positive on prose, code fences, and Makefile snippets in skill bodies.
+2. **Dedicated section.** A heading matching exactly `## Help` (case-sensitive, no suffix). Don't match `## Help verb convention` or other `## Help …` headings — those document the convention without implementing it for the skill itself.
+
+A skill is flagged if **both** are absent. Skills with one but not the other are flagged as "partial" and surfaced with a smaller draft.
+
+For each flagged skill, produce a 🔵 Suggested-edit finding (`E<n>`) with:
+- The skill name and a one-line diagnosis ("no help verb defined" / "routing entry but no Help section" / etc.).
+- A draft help block inline, populated from the skill's frontmatter `description` and whatever verb structure already exists (Routing table, Quick reference, Subcommand headers, or prose modes). See `/skill-add`'s [Help verb convention] for the format.
+- The target file path so the user can apply the edit with a single Edit call.
+
+**Verb-doc dialect drift (informational).** Local skills currently document their verbs in several incompatible ways: `## Routing` tables, `## Quick reference` tables, `## Subcommand:` headers, or free-form prose. Note this in the report as a "Convention drift" sub-section under "Redundancy & Conflicts" (Step 7) — but **don't auto-recommend rewriting**. The help-verb convention works on top of any of these shapes; only a Routing-table-style scaffold is recommended for *new* skills (handled by `/skill-add`).
+
+The check is read-only — do not modify any skill files. Findings land in 🔵 (Step 6).
+
 ### Step 6 — Build action list
 
 Group recommendations into three tiers:
@@ -101,7 +121,7 @@ Write to `~/.claude/design/skills-review.html`. Use the structure from the exist
 3. **Legend** — color-coded usefulness key.
 4. **Table of contents** — anchored links to each category.
 5. **Per-category tables** — name, source pill (color-coded), description, rating.
-6. **Redundancy & Conflicts** section — narrative explanation of each detected conflict.
+6. **Redundancy & Conflicts** section — narrative explanation of each detected conflict. Include a "Convention drift" sub-section listing local skills that lack a `help` verb and noting the verb-doc dialect mix (Routing / Quick-reference / Subcommand / prose). Each missing-help finding gets an E-tier draft in the Executive Summary.
 7. **Probably underused** section — skills the model thinks fit the user but they may not be invoking.
 8. **Sources walked** footer — what file paths were inspected, what was excluded.
 
@@ -294,6 +314,40 @@ For each removed skill: confirm the directory no longer exists. For each Makefil
 - **Conservative on red.** Red = "consider", not "delete".
 - **Open is best-effort.** Skip silently if headless.
 - **Built-in skills are listed by name** — the harness owns their descriptions in the session reminder. Use what's in the active session's system reminder rather than guessing.
+
+## Help
+
+When invoked as `/skills-review help`, print the following block verbatim:
+
+```
+skills-review — Audit installed Claude Code skills. Enumerate, categorize, flag conflicts and convention drift; produce an HTML report.
+
+Usage: /skills-review [verb] [args]
+
+Verbs:
+  (none)            Default review. Walk all skill sources, categorize, rate
+                    per user's CLAUDE.md, flag duplicates / conflicts /
+                    missing help verbs. Write HTML to
+                    ~/.claude/design/skills-review.html and open it.
+  research          Project-aware mode. Same as default plus a "Suggested
+                    for this project" panel. Writes to
+                    <project>/design/skills-review.html.
+  do recommended    Execute prior report's 🟢 (safe) actions, draft 🔵
+  apply <ID>        (edits), surface 🟡 (decisions). Re-reads the existing
+  do <ID> and <ID>  report and runs the requested IDs.
+  help              Show this message.
+
+Convention checks (default mode, Step 5b):
+  Help verb         Local skills missing `## Help` section → 🔵 E-tier finding.
+  Dialect drift     Notes mix of Routing / Quick-ref / Subcommand / prose;
+                    informational only, no auto-rewrite.
+
+Scope:
+  Local skills only for convention checks. Plugin / gstack / superpowers /
+  built-in are upstream-owned and out of scope for retrofit recommendations.
+
+See SKILL.md for full reference.
+```
 
 ## Known limitations
 
