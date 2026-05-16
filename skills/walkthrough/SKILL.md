@@ -1,6 +1,6 @@
 ---
 name: walkthrough
-description: Use when asked to produce a narrative walkthrough of how an application or system is used end-to-end from a specific user's perspective ("walk me through using X", "how would a new user start with Y", "narrative of usage", "user journey doc", "narrative description of installing and using"). Tutorial-quadrant docs — story-shaped, learning-oriented — distinct from reference, spec, and how-to. Also handles cleaning processed review comments and extracting spec-gap follow-ups from existing walkthrough docs. Comment-driven iteration of existing docs lives in the sibling `/integrate-comments` skill.
+description: Use when asked to produce a narrative walkthrough of how an application or system is used end-to-end from a specific user's perspective ("walk me through using X", "how would a new user start with Y", "narrative of usage", "user journey doc"). Tutorial-quadrant docs — story-shaped, learning-oriented — distinct from reference, spec, and how-to. Also handles gap-analysis (`check` verb) comparing a human-authored narrative to the codebase + design docs, cleaning processed review comments, and extracting spec-gap follow-ups. Comment-driven iteration of LLM-drafted walkthroughs lives in the sibling `/integrate-comments` skill.
 ---
 
 <!-- Maintenance: SKILL.md loads on every invocation. Before adding mass, prefer compressing in place or extracting sub-files (see `trajectory.md` as precedent for load-on-demand sub-procedures). Check size with `wc -w SKILL.md`; this skill is structurally larger than typical due to multiple verbs + modes — keep growth justified. -->
@@ -40,14 +40,16 @@ A walkthrough's *temporal stance* — what slice of the app it describes — is 
 
 ## Routing
 
-Three verbs. Bare invocation is smart-routed.
+Five verbs. Bare invocation is smart-routed.
 
 | Invocation | Action |
 |---|---|
 | `/walkthrough` (bare) | If a walkthrough artifact with unseen `<!-- @<user>: -->` markers exists in the expected location (see auto-discovery), **hand off to `/integrate-comments`** with that path. Else → **draft new**. |
 | `/walkthrough new` | **Force-fresh draft** regardless of what exists. Dated filename naturally avoids collision. Use for comparison runs (parallel artifacts). |
+| `/walkthrough check [path]` | **Gap-analysis.** Compare a human-authored narrative against the codebase + design docs. Parses `[[design-actionable]]` and `((aside))` markers. Bidirectional (narrative→code and code→narrative). See [Check](#check). |
 | `/walkthrough clean-comments [path]` | Strip `<!-- @<user>+seen: -->` markers; with confirmation, also bare `<!-- @<user>: -->` markers. Explicit-only; never auto-runs. Works on any annotated markdown, not just walkthroughs. |
 | `/walkthrough follow-ups [path]` | Triage `[extrap]` tags + review-log resolved items + open questions into candidate stories / helping-hands / design questions. Stage; user files. |
+| `/walkthrough help` | Print unix-style usage (see [Help](#help)). |
 
 **Iterating on an existing walkthrough.** Use `/integrate-comments [path]`. That skill owns the comment-driven workflow (marker rewrite, review-log emission, no-fabrication guardrail, uncommitted-state safety check) and is content-type-agnostic — same mechanics work on survey drafts, design notes, etc.
 
@@ -150,6 +152,102 @@ Scan the doc + sibling review-log for: `[extrap]` tags, resolved comments that s
 
 Stage the triage as a markdown list with suggested file locations. Ask the user which to file. **Don't write into spec/story/blocker directories without explicit per-item or per-bucket approval.**
 
+## Check
+
+Gap-analysis verb. Inverse of `write` (LLM reads code, drafts narrative) — here the *human* has written a narrative of how they envision using the app, and the skill compares it against the actual codebase + design docs to surface drift.
+
+The point: a human-authored narrative encodes intent the rest of the design surface may not capture. Comparing it three-ways (narrative ↔ design docs ↔ code) catches silent drift in any direction — features the narrative implies that don't exist, features the code has that the narrative omits, and design-doc-vs-narrative-vs-code disagreements that no unidirectional review would surface.
+
+### Inputs
+
+1. **A human-authored narrative.** Markdown file. Either passed as a path argument or auto-discovered (search order: same locations as the auto-discovery rules in [Routing](#routing); prefer files whose preamble announces a human author or whose markers are `[[...]]` / `((...))` rather than `<!-- @user: -->`).
+2. **The codebase.** Inferred from `$CWD` / git root.
+3. **The design surface.** README, `design/` or `docs/` trees, anything the project treats as design source-of-truth. Skim — don't ingest exhaustively.
+
+If the narrative path is ambiguous, ask. Don't guess between candidates.
+
+### Marker parsing
+
+Default conventions (override by the narrative's own preamble if it declares different markers):
+
+- **`[[design-actionable text]]`** — embedded design notes the author wants picked up. Treat like `follow-ups`'s `[extrap]` triage: each `[[...]]` is a candidate story / helping-hand / design question. Surface them in the output's triage section.
+- **`((parenthetical aside))`** — clarifying context for the human reader, **not** design-actionable. Read as scoping signal (helps disambiguate what the narrative means) but don't produce output items from `(())` content.
+- **`<!-- @user: -->`** — review markers from another flow; ignore in `check` (they're owned by `/integrate-comments`). If present, surface a one-liner: "narrative has unseen review markers; consider `/integrate-comments` separately."
+
+If the narrative's preamble announces its own markup conventions (as many human-authored narratives do), honor those declarations and note the override in the output's framing-note.
+
+### Procedure
+
+1. **Read the narrative end-to-end.** Capture its implied surface: commands the user types, files the app creates, behaviors invoked, modes / states / entry points referenced.
+2. **Skim the design surface.** README + design index + any `design/` doc whose title overlaps a narrative-named verb or feature. Don't try to load everything.
+3. **Skim the code.** Targeted greps for narrative-named commands, file paths, config keys. Identify entry points and primary loops.
+4. **Build the three-way map.** For each behavior the narrative implies, record what design-docs say (if anything) and what code shows (if anything). For each feature the code has, record whether the narrative mentions it.
+5. **Produce the output artifact** (see below).
+6. **Surface priority.** Top of artifact: a short "recommended pickup order" — the 3-5 highest-leverage gaps. Derived from the tables, not invented.
+
+### Output
+
+Write to `<narrative-stem>-check.md` as a sibling of the narrative. Structure:
+
+1. **Framing-note** — one paragraph: narrative source path, snapshot commit, declared markers (and any overrides from preamble), scope of code/design skim.
+2. **Recommended pickup order** — 3–5 highest-leverage findings, each one line, with a pointer to the row in the tables below.
+3. **N → C gaps** (narrative-to-code) — table: behavior the narrative implies, narrative anchor (file:line), status (`missing` / `partial` / `planned-in-stories` / `contradicted-by-design-doc`), design-doc cross-reference if any, code anchor if any, one-line gap description.
+4. **C → N gaps** (code-to-narrative) — table: behavior the code has, code anchor, whether the narrative mentions it, one-line note. This catches silent over-implementation — easy to forget.
+5. **Three-way disagreements** — narrative ↔ design-doc ↔ code mismatches where all three say different things. Often the most useful section; surface it even if short.
+6. **`[[...]]` triage** — every `[[design-actionable]]` marker, mapped to one of: candidate story (`stories/drafts/<slug>.md`) / candidate helping-hand / open design question / already-handled (with anchor). Stage as a list; don't write into spec/story dirs.
+
+**Provenance discipline.** Every row in every table needs at least one anchor (`<file>:<line>` or `<file>` if line isn't meaningful). No anchor → don't include the row. For rows where one side is the gap itself (N→C row where code doesn't exist; C→N row where narrative doesn't mention the feature), the other side's anchor — or a design-doc line that declares the gap — is sufficient.
+
+### Scoping
+
+Don't try to be exhaustive. Aim for the 80/20: the gaps a careful reader of the narrative + a careful skim of the code would catch. If the codebase is huge, declare what you skipped in the framing-note.
+
+### What `check` is not
+
+- Not a substitute for `write` — doesn't draft a narrative; it consumes one.
+- Not a review of the narrative's prose — doesn't suggest tightening or restructuring; only checks claims against code/design.
+- Not a story-filer — `[[...]]` triage stages candidates; the user files them.
+- Not a one-shot living doc — the output is a report. Re-run `check` after acting on findings rather than commenting on the report itself.
+
+## Help
+
+When invoked as `/walkthrough help`, print the following block verbatim:
+
+```
+walkthrough — Tutorial-quadrant narrative docs from a user's perspective. Also gap-analysis and follow-up triage.
+
+Usage: /walkthrough [verb] [args]
+
+Verbs:
+  (none)            Smart-route: hand off to /integrate-comments if a
+                    walkthrough with unseen review markers exists; else
+                    draft a new walkthrough.
+  new               Force-fresh draft regardless of existing artifacts.
+  check [path]      Bidirectional gap-analysis: compare a human-authored
+                    narrative against the codebase + design docs. Parses
+                    [[design-actionable]] and ((aside)) markers.
+  clean-comments [path]
+                    Strip processed <!-- @user+seen: --> markers from
+                    annotated markdown. Works on any annotated doc.
+  follow-ups [path] Triage [extrap] tags + review-log items into candidate
+                    stories / helping-hands / design questions.
+  help              Show this message.
+
+Modes (draft verbs only):
+  current           Describes the app as it ships today; no extrapolation.
+  planned           Includes near-term roadmap; tags [planned] for unshipped.
+  infinity (default) End-state as currently conceived; tags [extrap] past spec.
+  trajectory        Four-artifact set (current + planned + infinity + synthesis).
+
+Markers:
+  [[...]]           Embedded human-narrative design-actionable note (check input).
+  ((...))           Embedded aside / clarification (check input; non-actionable).
+  <!-- @user: -->   Review marker on LLM-drafted narrative (processed by
+                    sibling /integrate-comments skill).
+
+See SKILL.md for full reference.
+```
+
 ## Out of scope for this skill
 
 - **Archival / moving prior narratives** (to `deprecated/` or elsewhere) — manual workflow decision; the skill does not move files between locations.
@@ -171,6 +269,9 @@ On second invocation in the same project: if scoping conversations are repeating
 - **Bare invocation runs iterate inline.** Old behavior was for `/walkthrough` to mutate prose in place when markers existed. Now: surface the find and hand off to `/integrate-comments`. Don't reimplement iterate logic here.
 - **Auto-files follow-ups.** Skill writes stories/todos into spec directories without approval. Fix: stage and surface; user files.
 - **Generates LLM companion by default.** Doubles output for a thing the user may not want. Fix: ask; default no.
+- **`check` runs unidirectionally.** Only catches narrative→code gaps (missing features) and misses code→narrative gaps (silent over-implementation) or three-way design-doc disagreements. Fix: produce all three sections every run, even if short. C→N is the easy one to skip; don't.
+- **`check` invents rows without anchors.** Tables get padded with intuited gaps that aren't tied to a specific file:line. Fix: every row needs at least one anchor; if you can't cite it, don't include it.
+- **`check` ignores narrative's declared markup.** Skill assumes `[[]]` / `(())` universally; user's narrative announces different markers in its preamble. Fix: read the preamble for marker declarations and honor them.
 
 ## Quick reference
 
@@ -178,8 +279,10 @@ On second invocation in the same project: if scoping conversations are repeating
 |------|--------|------|
 | (bare) `/walkthrough` | Hand-off to `/integrate-comments` (if existing has unseen markers) or draft new | Default invocation |
 | `/walkthrough new` | Force-fresh draft | Comparison / parallel artifact |
+| `/walkthrough check [path]` | Bidirectional gap-analysis (`<stem>-check.md`) | Human wrote a narrative; compare to code + design |
 | `/walkthrough clean-comments [path]` | Stripped seen markers | Explicit cleanup |
 | `/walkthrough follow-ups [path]` | Triaged spec-gap candidates | After iterate, at "good enough for now" |
+| `/walkthrough help` | Unix-style usage block | User asks "how do I use this" |
 
 For integrating reviewer `<!-- @<user>: -->` comments into an existing walkthrough, use **`/integrate-comments [path]`** (sibling skill).
 
@@ -201,5 +304,9 @@ For integrating reviewer `<!-- @<user>: -->` comments into an existing walkthrou
 **Review-comment markers** (processed by `/integrate-comments`):
 - `<!-- @<username>: <comment> -->` — unseen; run `/integrate-comments` to integrate
 - `<!-- @<username>+seen: <comment> -->` — processed; disposition in review-log; remove via `clean-comments`
+
+**Embedded human-narrative markers** (processed by `check`):
+- `[[design-actionable text]]` — author wants this picked up; triaged as candidate story / helping-hand / design question
+- `((parenthetical aside))` — clarifying context for the human reader; not surfaced as output items
 
 **Diátaxis quadrant:** tutorial. If the user actually wants reference / how-to / explanation, this is the wrong skill.
