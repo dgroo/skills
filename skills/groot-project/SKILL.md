@@ -40,6 +40,7 @@ Gather state and print a summary before asking anything:
   - Existing `## Project conventions` section in `CLAUDE.md` — this is the shared memory across `/groot-project`, `/project-setup`, and gstack. If present, **read it and respect it** before suggesting changes.
 - Is there an iTerm profile bound to this directory? (`~/.claude/skills/iterm-setup/iterm-setup.py <basename> --list-colors` shows the existing-profile banner if so.)
 - Is the directory under `~/code/`? (Affects alias suggestion in iTerm phase.)
+- Is there a `.groot-project.toml` at the repo root? (`~/.claude/skills/iterm-setup/iterm-setup.py --groot-toml-read` — empty output means none; otherwise prints `[iterm]` as `KEY=VALUE` lines.) This is the in-repo persistence file used to reproduce per-project workstation setup on a fresh clone. Phase 7 reads it to apply recorded settings; if absent, Phase 7 offers to write it from the just-applied settings.
 
 Print a "found / will create / will skip / collision-detected" summary so the user sees the scope before any phase fires. The collision-detected line surfaces any Joe-style or gstack artifacts that change how subsequent phases behave (see "Coexistence" below).
 
@@ -490,6 +491,10 @@ If a Makefile exists, check for the standard targets (`init`, `build`, `run`, `l
 
 Invoke `/iterm-setup` with the project basename. The iterm-setup skill handles its own interactive flow — color picker (with vivid section), alias prompt, title format. Don't second-guess it. In `--auto` mode, invoke `/iterm-setup auto` instead — iterm-setup's `auto` mode picks the lowest-numbered unused swatch from the main palette and uses the project basename as the alias, no prompts.
 
+**`.groot-project.toml` interaction (handled by `/iterm-setup` itself).** As of v1 of the persistence-file feature, `/iterm-setup` reads `./.groot-project.toml` at the start of its flow and prompts to apply recorded settings if present; at the end of its flow, it offers to write the file if absent (or update it if the user picked a different color). `/groot-project` doesn't need to orchestrate this — the delegation is intact. Phase 7's behavior is just: invoke `/iterm-setup`, let it handle file detection.
+
+The pre-flight summary still surfaces "found .groot-project.toml" (or "no .groot-project.toml") so the user sees what Phase 7 will use *before* Phase 7 fires.
+
 ### Phase 8: GitHub remote
 
 Ask: *"Create a GitHub remote? (y/skip)"*. If y:
@@ -575,6 +580,7 @@ Project audit for myproject:
   [⚠] Makefile (missing targets: dist, clean)
   [✓] .gitignore (Python)
   [✓] iTerm profile (claude-config, Plum)
+  [✓] .groot-project.toml ([iterm].color recorded)
   [ ] GitHub remote
   [ ] gbrain registered
   [✓] /office-hours doc imported

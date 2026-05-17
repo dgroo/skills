@@ -7,7 +7,23 @@
 
 ## Open
 
-(none)
+- [ ] **P2** (bug) iterm-setup reads/writes `~/.zshrc` only — misses `~/.shrc`
+  `aliases_targeting_cwd`, `add_alias_to_zshrc`, and `has_code_chain_alias` all
+  hardcode `ZSHRC_PATH = ~/.zshrc`. On a setup where shared aliases live in
+  `~/.shrc` (sourced by both `.zshrc` and `.bashrc`), the script can't see
+  existing aliases, writes new ones to the wrong file, and the `code;cd X`
+  chain-shorthand detection fails. Surfaced while smoke-testing the
+  `.groot-project.toml` feature: `--cwd-aliases` returned empty for a directory
+  that does have a `skills` alias (in `~/.shrc:109`). Fix: add a
+  `shell_config_files()` discoverer that returns `[~/.shrc, ~/.zshrc]` when
+  shrc exists, and `primary_shell_config_file()` that prefers shrc for writes
+  when zshrc sources it. Update the three touchpoints + their print messages.
+  Add tests covering both single-file and shrc+zshrc scenarios.
+
+- [ ] **P3** (chore) iterm-setup missing from README skills table
+  Pre-existing drift surfaced while updating docs for the
+  `.groot-project.toml` feature. CLAUDE.md says to add new skills to the
+  table (alphabetical); iterm-setup was never added. One-line fix.
 
 ## Done
 

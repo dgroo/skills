@@ -28,6 +28,7 @@ import json
 import random
 import re
 import sys
+import tomllib
 from pathlib import Path
 
 PARENT_PROFILE = "Default"
@@ -98,6 +99,19 @@ DYNAMIC_PROFILES_DIR = (
 ZSHRC_PATH = Path.home() / ".zshrc"
 CODE_DIR = Path.home() / "code"
 
+# Per-project workstation-setup file, checked into git so a fresh clone on
+# another machine can reproduce the iTerm profile (and, later, other
+# per-project workstation conventions). See `read_groot_project_iterm` /
+# `write_groot_project_iterm` for the read/write seam and SKILL.md for the
+# prompting flow.
+GROOT_PROJECT_TOML_NAME = ".groot-project.toml"
+GROOT_PROJECT_TOML_HEADER = (
+    "# .groot-project.toml — per-project workstation conventions.\n"
+    "# Tracked in git so a fresh clone reproduces this project's setup on a\n"
+    "# new machine. Read/written by /iterm-setup (and /groot-project).\n"
+)
+ITERM_TOML_FIELDS = ("color", "alias", "name")
+
 VALID_PROFILE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 VALID_ALIAS_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 HEX_COLOR_RE = re.compile(r"^#?([0-9a-fA-F]{6})$")
@@ -150,6 +164,10 @@ class AliasConflictError(ItermSetupError):
 
 
 class AliasTargetCollisionError(ItermSetupError):
+    pass
+
+
+class GrootProjectTomlError(ItermSetupError):
     pass
 
 
@@ -764,6 +782,164 @@ def add_alias_to_zshrc(alias_name: str, target: Path, zshrc: Path = ZSHRC_PATH) 
     return ("added", new_line)
 
 
+def _normalize_hex_color(hex_str: str) -> str:
+    """Return canonical `#RRGGBB` uppercase. Raises on malformed input."""
+    m = HEX_COLOR_RE.match(hex_str.strip())
+    if not m:
+        raise GrootProjectTomlError(
+            f"color must be #RRGGBB hex; got {hex_str!r}"
+        )
+    return "#" + m.group(1).upper()
+
+
+def read_groot_project_iterm(path: Path) -> dict | None:
+    """Return the `[iterm]` section as a dict, or None if file/section absent.
+
+    Recognized keys: `color` (required when section present), `alias`, `name`.
+    Unknown keys are silently dropped — newer writers can add fields without
+    breaking older readers.
+
+    Raises `GrootProjectTomlError` on malformed TOML or wrong-typed values.
+    """
+    try:
+        text = path.read_text()
+    except FileNotFoundError:
+        return None
+    try:
+        data = tomllib.loads(text)
+    except tomllib.TOMLDecodeError as e:
+        raise GrootProjectTomlError(f"malformed TOML in {path}: {e}") from e
+    iterm = data.get("iterm")
+    if iterm is None:
+        return None
+    if not isinstance(iterm, dict):
+        raise GrootProjectTomlError(
+            f"[iterm] in {path} must be a table; got {type(iterm).__name__}"
+        )
+    out: dict = {}
+    for key in ITERM_TOML_FIELDS:
+        if key not in iterm:
+            continue
+        value = iterm[key]
+        if not isinstance(value, str):
+            raise GrootProjectTomlError(
+                f"[iterm].{key} in {path} must be a string; got {type(value).__name__}"
+            )
+        out[key] = value
+    return out
+
+
+def _format_iterm_block(iterm: dict) -> str:
+    """Render an [iterm] section. Caller has already validated/normalized values."""
+    lines = ["[iterm]"]
+    # Stable key order — color first (the always-present field), then optional
+    # fields in the same order as ITERM_TOML_FIELDS.
+    for key in ITERM_TOML_FIELDS:
+        if key in iterm:
+            lines.append(f'{key} = "{iterm[key]}"')
+    return "\n".join(lines) + "\n"
+
+
+# Matches a top-level `[section]` line and captures the section name.
+_TOML_SECTION_RE = re.compile(r"^\[([^\[\]]+)\]\s*$", re.MULTILINE)
+
+
+def _splice_iterm_block(existing: str, new_block: str) -> str:
+    """Replace an existing [iterm] block in `existing` with `new_block`, or append.
+
+    A "block" runs from `[iterm]` up to (but not including) the next top-level
+    `[section]` header, or to end-of-file. Preserves all other sections and any
+    leading content (comments, blank lines).
+    """
+    matches = list(_TOML_SECTION_RE.finditer(existing))
+    iterm_match: re.Match | None = None
+    next_match: re.Match | None = None
+    for i, m in enumerate(matches):
+        if m.group(1).strip() == "iterm":
+            iterm_match = m
+            if i + 1 < len(matches):
+                next_match = matches[i + 1]
+            break
+
+    if iterm_match is None:
+        # Append. Ensure exactly one blank line between previous content and the
+        # new section so the file stays readable.
+        prefix = existing
+        if prefix and not prefix.endswith("\n"):
+            prefix += "\n"
+        if prefix and not prefix.endswith("\n\n"):
+            prefix += "\n"
+        return prefix + new_block
+
+    start = iterm_match.start()
+    end = next_match.start() if next_match else len(existing)
+    # Preserve a separating blank line between [iterm] and the next section,
+    # if there was one.
+    block = new_block
+    if next_match and not block.endswith("\n\n"):
+        block = block.rstrip("\n") + "\n\n"
+    return existing[:start] + block + existing[end:]
+
+
+def write_groot_project_iterm(path: Path, iterm: dict) -> str:
+    """Write/merge the `[iterm]` section into `path`. Returns status.
+
+    `iterm` is the *full intended state* of the section, not a patch — fields
+    omitted here are dropped from the file. Always includes `color`; `alias`
+    and `name` are optional. Color is normalized to canonical `#RRGGBB` upper.
+
+    Other sections in the file are preserved untouched. If the file doesn't
+    exist, it's created with a one-line header comment.
+
+    Returns one of: `"written"` (new file), `"updated"` (file existed, content
+    changed), `"unchanged"` (file existed, byte-identical after merge).
+    """
+    if "color" not in iterm:
+        raise GrootProjectTomlError("write requires a 'color' field")
+    normalized: dict = {"color": _normalize_hex_color(iterm["color"])}
+    try:
+        if "alias" in iterm:
+            validate_alias_name(iterm["alias"])
+            normalized["alias"] = iterm["alias"]
+        if "name" in iterm:
+            validate_profile_name(iterm["name"])
+            normalized["name"] = iterm["name"]
+    except (InvalidAliasNameError, InvalidProfileNameError) as e:
+        raise GrootProjectTomlError(str(e)) from e
+
+    new_block = _format_iterm_block(normalized)
+
+    if not path.exists():
+        path.write_text(GROOT_PROJECT_TOML_HEADER + "\n" + new_block)
+        return "written"
+
+    existing_text = path.read_text()
+    new_text = _splice_iterm_block(existing_text, new_block)
+    if new_text == existing_text:
+        return "unchanged"
+    path.write_text(new_text)
+    return "updated"
+
+
+def _print_iterm_toml(path: Path) -> int:
+    """Emit `[iterm]` fields as `KEY=VALUE` lines for the SKILL.md to parse.
+
+    Empty output if file or section absent. Exits 1 with a stderr message on
+    a malformed file (so the caller can distinguish absent from corrupt).
+    """
+    try:
+        iterm = read_groot_project_iterm(path)
+    except GrootProjectTomlError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    if iterm is None:
+        return 0
+    for key in ITERM_TOML_FIELDS:
+        if key in iterm:
+            print(f"{key}={iterm[key]}")
+    return 0
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="iterm-setup",
@@ -782,6 +958,37 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--list-colors", action="store_true", help="Print palette swatches and exit.")
     parser.add_argument("--vivid", action="store_true", help="Use a fully-vivid main palette (brighter colors, no separate vivid section). For highlight projects.")
     parser.add_argument("--cwd-aliases", action="store_true", help="Print alias names already targeting cwd (one per line) and exit.")
+    parser.add_argument(
+        "--groot-toml-read",
+        nargs="?",
+        const=".",
+        metavar="DIR",
+        help=(
+            "Read [iterm] from <DIR>/.groot-project.toml (default cwd) and print "
+            "KEY=VALUE lines. Empty output if file/section absent. Exits 0."
+        ),
+    )
+    parser.add_argument(
+        "--groot-toml-write",
+        nargs="?",
+        const=".",
+        metavar="DIR",
+        help=(
+            "Write [iterm] to <DIR>/.groot-project.toml (default cwd) using "
+            "--hex (required), --alias (optional), and the positional name "
+            "as the iterm.name field if explicitly passed. Standalone — does "
+            "not create a profile. Exits 0."
+        ),
+    )
+    parser.add_argument(
+        "--groot-toml-write-name",
+        action="store_true",
+        help=(
+            "Used with --groot-toml-write: include the positional `name` arg "
+            "as `iterm.name` in the file. Default is to omit it (so the file "
+            "stays portable across worktrees with different basenames)."
+        ),
+    )
     parser.add_argument("--dry-run", action="store_true", help="Print JSON to stdout; do not write profile or .zshrc.")
     return parser.parse_args(argv)
 
@@ -790,6 +997,33 @@ def run(args: argparse.Namespace) -> int:
     if args.cwd_aliases:
         for name in aliases_targeting_cwd():
             print(name)
+        return 0
+
+    if args.groot_toml_read is not None:
+        return _print_iterm_toml(
+            Path(args.groot_toml_read) / GROOT_PROJECT_TOML_NAME
+        )
+
+    if args.groot_toml_write is not None:
+        if args.hex_color is None:
+            raise ItermSetupError(
+                "--groot-toml-write requires --hex #RRGGBB (the color to record)."
+            )
+        # Validate via the existing hex parser; store the canonical form.
+        hex_to_rgb(args.hex_color)
+        iterm: dict = {"color": args.hex_color}
+        if args.alias:
+            validate_alias_name(args.alias)
+            iterm["alias"] = args.alias
+        if args.groot_toml_write_name:
+            if not args.name:
+                raise ItermSetupError(
+                    "--groot-toml-write-name requires the positional name argument."
+                )
+            iterm["name"] = args.name
+        toml_path = Path(args.groot_toml_write) / GROOT_PROJECT_TOML_NAME
+        status = write_groot_project_iterm(toml_path, iterm)
+        print(f"{status} {toml_path}")
         return 0
 
     name = args.name or Path.cwd().name

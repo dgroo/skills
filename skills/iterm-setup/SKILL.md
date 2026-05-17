@@ -25,6 +25,24 @@ The actual work is done by `~/.claude/skills/iterm-setup/iterm-setup.py`. This s
 >
 > **The only exception:** the user explicitly invoked `/iterm-setup auto`. In that mode, the agent picks color + alias without asking and proceeds end-to-end. Any other invocation form **must** prompt.
 
+0. **Check for `.groot-project.toml` (the persistence file).** Before anything else, run:
+
+   ```
+   ~/.claude/skills/iterm-setup/iterm-setup.py --groot-toml-read
+   ```
+
+   The script reads `./.groot-project.toml` and prints `KEY=VALUE` lines for the `[iterm]` section (empty output if file or section absent). Parse the output into a dict.
+
+   **If non-empty** (file exists with recorded settings), prompt via AUQ — frame it around the recorded color, and include the recorded alias if present:
+
+   - **Option 1 — Apply recorded settings:** *"Apply `[iterm].color = <hex>` (and `alias = <alias>`, if present) from .groot-project.toml — skip the palette."* On selection, jump to **step 5** with `--hex <color>` and `--alias <alias>` from the file (or `--no-alias` if absent). Don't prompt for color or alias. Title format prompt (step 4) still runs normally unless `auto` mode.
+   - **Option 2 — Pick a new color:** *"Run the normal palette flow. File stays untouched until end-of-flow, then I'll ask whether to update it."* Remember "file existed; may need update at end."
+   - **Option 3 — Cancel:** *"Don't change anything."* Exit.
+
+   **Auto mode:** if the file exists with a valid `[iterm].color`, apply it silently (no prompt). The persistence file is *exactly* the "already decided" signal that justifies auto-apply. If alias is absent in the file but the cwd has no matching alias yet, auto mode still skips the alias (no prompt, no add — match the existing auto-mode discipline of "lowest-friction defaults, never surprises").
+
+   **If empty** (no file, or no `[iterm]` section): continue to step 1. Remember "no file" — step 7 (offer-to-write) will fire at the end.
+
 1. **Determine the profile name and the alias name.**
    - **Profile name** (used for the iTerm2 profile + APS rule): defaults to `basename $(pwd)`.
    - **Alias name** (used for the `~/.zshrc` shell alias): defaults to the profile name.
@@ -137,6 +155,26 @@ The actual work is done by `~/.claude/skills/iterm-setup/iterm-setup.py`. This s
    - For the title: a fresh shell with the new profile should show `<state> <project> - <topic>` once Claude Code's state hooks have fired at least once (the `claudeState` user variable is empty until the first hook runs, in which case the prefix is just blank).
    - The script warns if iTerm2 shell integration isn't detected (APS won't fire without it).
 
+7. **Offer to write `.groot-project.toml` (persistence).** After a successful create / change-color, prompt to record the current settings so a fresh clone on another machine can reproduce them. Decide what to offer based on the file's state at step 0:
+
+   - **No file at step 0** (fresh setup, or already-configured project that's never been persisted): always offer. AUQ with three options — *Write color + alias / Write color only (skip alias) / Skip*. On accept, run:
+
+     ```
+     ~/.claude/skills/iterm-setup/iterm-setup.py --hex <chosen-hex> [--alias <alias>] --groot-toml-write
+     ```
+
+     The script prints `written <path>` or `unchanged <path>`.
+
+   - **File existed at step 0 and user picked "Apply recorded settings"**: no prompt — the file already matches. Skip.
+
+   - **File existed at step 0 and user picked "Pick a new color"**: settings just diverged from the file. Prompt: *"Update .groot-project.toml from `<old-hex>` → `<new-hex>`?"*. On accept, run the same `--groot-toml-write` invocation; it'll merge into the existing file and report `updated <path>`.
+
+   The persistence file also covers the *backfill* case: if the user runs `/iterm-setup` on a project that has an existing iTerm profile already (the change-color path) and no `.groot-project.toml`, this step is the moment to capture the current settings into the file for the first time. Phrase the prompt accordingly: *"This project's profile isn't recorded in .groot-project.toml yet. Write it so a fresh clone can reproduce the setup?"*
+
+   **Auto mode:** if the file is absent at step 0, write it automatically using the just-applied color and alias. (Auto mode's contract is "no prompts, sensible defaults" — and persisting the choice you just made is the sensible default.)
+
+   **What gets written.** The script stores `color` (always), `alias` (if you pass `--alias`), and `name` only if you pass `--groot-toml-write-name` together with a positional name. **Default is to omit `name`** — the profile name almost always equals `basename $(pwd)` and storing it in the file makes the file non-portable across worktrees with different basenames. Only set it when the project has a genuine reason for a fixed profile name (rare).
+
 ## One-time iTerm Default profile setup
 
 The state-glyph behavior also works for sessions that *don't* have a per-project profile (i.e. running under iTerm's Default profile). To enable it: open iTerm Preferences → Profiles → **Default** → General, set the Title dropdown to **Custom**, and use the same format string as above. All Dynamic Profiles inherit this unless they explicitly override it (which is what `iterm-setup.py` does by default — you can opt out with `--no-title` to inherit instead).
@@ -147,11 +185,33 @@ The state-glyph behavior also works for sessions that *don't* have a per-project
 - Doesn't list or remove profiles. To remove: `rm ~/Library/Application\ Support/iTerm2/DynamicProfiles/<name>.json`.
 - Doesn't remove aliases from `~/.zshrc` when a profile is deleted — left as a manual step so we never edit shell config destructively.
 - Doesn't auto-fire on `git init` or `git clone` — invocation is always explicit.
+- Doesn't auto-fire on `cd` either. `.groot-project.toml` is the *recorded preference*; `/iterm-setup` (or `/groot-project` during bootstrap) is what reads it and applies.
+
+## `.groot-project.toml` — the persistence file
+
+A tracked-in-git, per-project TOML at repo root that records the iTerm choices (and, later, other workstation-conventions sections). The point: a fresh clone on another machine can reproduce the per-project terminal setup via `/iterm-setup` without re-picking a color.
+
+Schema (v1 — `[iterm]` only):
+
+```toml
+[iterm]
+color = "#3A5F2C"       # background; always uppercase #RRGGBB after write
+# alias = "mp"          # optional; what to add to ~/.zshrc
+# name  = "myproject"   # optional; profile-name override (rare — see step 7 caveat)
+```
+
+Other top-level sections are preserved verbatim by the write helper. Unknown keys inside `[iterm]` are silently dropped on read (forward-compatible).
+
+Helper flags on `iterm-setup.py`:
+
+- `--groot-toml-read [DIR]` — print `[iterm]` as `KEY=VALUE` lines (default cwd; empty output if file/section absent; exit 1 on malformed TOML).
+- `--groot-toml-write [DIR] --hex #RRGGBB [--alias NAME] [--groot-toml-write-name]` — standalone (does NOT create a profile); merges into existing file, preserves other sections, normalizes color to uppercase, prints `written|updated|unchanged <path>`.
 
 ## Reference
 
 - Profile output dir: `~/Library/Application Support/iTerm2/DynamicProfiles/`
 - Color usage is read directly from on-disk profiles (matches background RGB to palette) — no separate state file to drift.
+- `.groot-project.toml` lives at the project root, tracked in git, format described above.
 - iTerm2 Dynamic Profiles: https://iterm2.com/documentation-dynamic-profiles.html
 - iTerm2 names and titles (interpolated string variables like `\(session.name)`, `\(user.foo)`): https://iterm2.com/documentation-session-title.html
 - The `claudeState` user variable is set by `~/.claude/hooks/{stop,notify,submit}-status.py` via the iTerm `OSC 1337;SetUserVar` escape sequence.

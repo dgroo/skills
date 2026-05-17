@@ -4,6 +4,27 @@ Latest entries first. Record significant decisions, architecture changes, and no
 
 ---
 
+## 2026-05-16 — `.groot-project.toml` for portable per-project workstation setup
+
+Adding an in-repo TOML so a fresh clone on a new machine can reproduce per-project iTerm setup without re-picking a color. Today the iTerm Dynamic Profile JSON lives in `~/Library/Application Support/iTerm2/DynamicProfiles/` and the alias lives in `~/.zshrc` — both outside the repo, both lost on a new machine. The new file is `.groot-project.toml` at repo root, tracked in git, with a single `[iterm]` section for v1.
+
+**Decisions:**
+- **General `.groot-project.toml`, not iTerm-specific `.iterm.json`.** The user waffled between iTerm-only and a broader file; landed on broader because it composes with future workstation concerns (editor, direnv, etc.) without a rename later. Tooling-keyed sections (`[iterm]`) instead of concern-keyed (`[terminal]`) so switching tools means switching sections — no ambiguous migration of a single block.
+- **TOML, not JSON.** Hand-edited file with comments; sections compose naturally; Python 3.11+ stdlib `tomllib` reads it; no new dep.
+- **Hex storage (`color = "#3A5F2C"`), not palette name/index.** The palette is *project-name-seeded* so the same index resolves to different colors per project. Hex is lossless and palette-algorithm-independent. Stored uppercase and validated against the existing `HEX_COLOR_RE` so it round-trips through `--hex`.
+- **Hand-rolled writer, no `tomli-w` dep.** The schema is tiny and well-known; the writer is ~30 lines (`_splice_iterm_block`) that finds the `[iterm]` block by regex over top-level section headers and replaces it in place, preserving everything else. Worth the line count to keep the dep surface at zero.
+- **Write is intended-state, not patch.** `write_groot_project_iterm` accepts the full intended state of the section; omitting `alias` removes a previously-stored alias. Avoids the partial-update ambiguity that bites you on every config-file API.
+- **`name` field is opt-in (`--groot-toml-write-name`), not default.** Profile name is almost always `basename $(pwd)`; storing it would make the file non-portable across worktrees with different basenames. Only write `name` when the project genuinely needs a fixed profile name.
+- **Skill orchestrates; Python helpers stay pure.** SKILL.md gets a new step 0 (read-and-prompt) and new step 7 (offer-to-write); the Python script gains `--groot-toml-read` and `--groot-toml-write` as standalone verbs that exit before the normal flow, like `--list-colors` and `--cwd-aliases`. The skill calls them as separate invocations rather than having the normal flow conditionally write the TOML — clearer separation, easier to test.
+- **`/groot-project` Phase 7 doesn't need new orchestration.** It already delegates fully to `/iterm-setup`. The new file-detect logic lives in the iterm-setup skill, so `/groot-project` gets the behavior for free. Pre-flight summary surfaces the file's presence/absence so the user sees what Phase 7 will do before it runs.
+- **Auto mode auto-applies if the file is present.** The persistence file is exactly the "already decided" signal that justifies auto-apply — no prompt needed. If absent, auto mode auto-writes after profile creation. Matches the "no prompts, sensible defaults" contract.
+
+**Test seam:** 23 pytest cases in `skills/iterm-setup/test_groot_project_toml.py`. Covers absent file, missing/extra sections, malformed TOML, type errors, full round-trip, write-merge-preserves-other-sections, hex normalization, intended-state semantics, invalid alias/name rejection. First Python test file in this repo — earlier skills had no test infrastructure. Tests are stdlib + pytest only; runnable directly with `python3 -m pytest test_groot_project_toml.py`.
+
+**Known drift surfaced (not fixed in this change):** `iterm-setup` skill is missing from the README skills table. Filing as separate cleanup — fixing it here would silently expand scope.
+
+---
+
 ## 2026-05-12 — Portability pass on Derek-authored skills
 
 Tried running `/groot-project` against a personal sibling project and it failed because the skill referenced another personal project as the canonical source for stories/helping-hands templates. That kicked off an audit: are these skills portable, or are they personal-config skills disguised as portable ones? Answer: mostly portable but with three real bugs that would break a fresh install (or anyone else picking them up — e.g., if Joe ever wanted these in return).
