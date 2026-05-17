@@ -19,10 +19,17 @@ If the table drifts, the git output wins. Re-sync the table; don't touch git his
 | Skill | First added | Notes |
 |---|---|---|
 | `claude-md-add` | 2026-05-10 | |
+| `cleanup-design` | 2026-05-11 | |
 | `groot-project` | 2026-05-10 | Wraps `/project-setup`; aware of gstack |
-| `iterm-setup` | 2026-05-05 | Has `auto` mode used by `/groot-project --auto` |
+| `helping-hands` | 2026-05-12 | Works the `design/helping-hands/` queue; user-invoked |
+| `idea` | 2026-05-14 | Captures sparks to `design/IDEAS.md` |
+| `integrate-comments` | 2026-05-12 | Comment-driven doc iteration (split from `/walkthrough`) |
+| `iterm-setup` | 2026-05-05 | Has `auto` mode used by `/groot-project --auto`; reads/writes `.groot-project.toml` |
 | `prior-art` | 2026-05-05 | |
+| `skill-add` | 2026-05-14 | Evaluation gate before creating a new skill |
 | `skills-review` | 2026-05-10 | |
+| `subagent` | 2026-05-14 | Four-check heuristic for spawning subagents |
+| `sup` | 2026-05-13 | Local fork of `/sitrep` with backlog scan + pick recommendation |
 | `walkthrough` | 2026-05-11 | |
 
 ## Upstream (from `joewalnes/skills`)

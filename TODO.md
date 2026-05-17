@@ -7,12 +7,12 @@
 
 ## Open
 
-- [ ] **P3** (chore) iterm-setup missing from README skills table
-  Pre-existing drift surfaced while updating docs for the
-  `.groot-project.toml` feature. CLAUDE.md says to add new skills to the
-  table (alphabetical); iterm-setup was never added. One-line fix.
+(none)
 
 ## Done
+
+- [x] **P3** (chore) iterm-setup missing from README skills table — 2026-05-17
+  Resolved: Added the iterm-setup row in alphabetical position. Also fixed a parallel drift in MAINTAINERS.md — 7 Derek-authored skills (cleanup-design, helping-hands, idea, integrate-comments, skill-add, subagent, sup) had been added since the last manifest sync. Single commit.
 
 - [x] **P2** (bug) iterm-setup reads/writes `~/.zshrc` only — misses `~/.shrc` — 2026-05-16
   Resolved: Added `shell_config_files()` discovery and `primary_shell_config_file()` write-target helpers; refactored `aliases_targeting_cwd` to read combined text from all discovered files; renamed `add_alias_to_zshrc` → `add_alias_to_shell_config` with conflict-check across both files. Detection regex handles guarded source patterns (`[ -f ~/.shrc ] && source ~/.shrc`, `if [...]; then source X; fi`) and ignores commented-out lines. 16 new pytest cases in `test_shell_config.py`. Belt-and-suspenders: added a "Shell config layout" section to `~/.claude/CLAUDE.md` so LLM-driven tools route correctly without needing the same discovery code.
