@@ -7,25 +7,15 @@
 
 ## Open
 
-- [ ] **P2** (bug) iterm-setup reads/writes `~/.zshrc` only — misses `~/.shrc`
-  `aliases_targeting_cwd`, `add_alias_to_zshrc`, and `has_code_chain_alias` all
-  hardcode `ZSHRC_PATH = ~/.zshrc`. On a setup where shared aliases live in
-  `~/.shrc` (sourced by both `.zshrc` and `.bashrc`), the script can't see
-  existing aliases, writes new ones to the wrong file, and the `code;cd X`
-  chain-shorthand detection fails. Surfaced while smoke-testing the
-  `.groot-project.toml` feature: `--cwd-aliases` returned empty for a directory
-  that does have a `skills` alias (in `~/.shrc:109`). Fix: add a
-  `shell_config_files()` discoverer that returns `[~/.shrc, ~/.zshrc]` when
-  shrc exists, and `primary_shell_config_file()` that prefers shrc for writes
-  when zshrc sources it. Update the three touchpoints + their print messages.
-  Add tests covering both single-file and shrc+zshrc scenarios.
-
 - [ ] **P3** (chore) iterm-setup missing from README skills table
   Pre-existing drift surfaced while updating docs for the
   `.groot-project.toml` feature. CLAUDE.md says to add new skills to the
   table (alphabetical); iterm-setup was never added. One-line fix.
 
 ## Done
+
+- [x] **P2** (bug) iterm-setup reads/writes `~/.zshrc` only — misses `~/.shrc` — 2026-05-16
+  Resolved: Added `shell_config_files()` discovery and `primary_shell_config_file()` write-target helpers; refactored `aliases_targeting_cwd` to read combined text from all discovered files; renamed `add_alias_to_zshrc` → `add_alias_to_shell_config` with conflict-check across both files. Detection regex handles guarded source patterns (`[ -f ~/.shrc ] && source ~/.shrc`, `if [...]; then source X; fi`) and ignores commented-out lines. 16 new pytest cases in `test_shell_config.py`. Belt-and-suspenders: added a "Shell config layout" section to `~/.claude/CLAUDE.md` so LLM-driven tools route correctly without needing the same discovery code.
 
 - [x] **P3** (chore) Standardize frontmatter fields across skills — 2026-03-31
   Resolved: Added `argument-hint` to all skills that accept arguments (bug-bash, project-setup, readme, scorecard, tool-web). Removed redundant `user_invocable: true` from tool-web. Documented frontmatter convention in CLAUDE.md: `name` and `description` required, `argument-hint` when args accepted, `allowed-tools` optional and enforced.

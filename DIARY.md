@@ -4,6 +4,22 @@ Latest entries first. Record significant decisions, architecture changes, and no
 
 ---
 
+## 2026-05-16 — iterm-setup respects `~/.shrc` shared shell config
+
+Bug fix surfaced immediately after the `.groot-project.toml` feature landed. Smoke-test in this repo: `--cwd-aliases` returned empty for a cwd that demonstrably has a `skills` alias. Cause: `iterm-setup.py` hardcoded `ZSHRC_PATH = ~/.zshrc` for every alias read and write, but the actual `skills` alias lives in `~/.shrc:109` — the shared shell config sourced by both `~/.zshrc:39` and `~/.bashrc:17`. Same root cause broke the alias-write path (would write to `~/.zshrc` for a user whose convention is `~/.shrc`) and the `code;cd X` chain-shorthand detection (because `alias code='cd ~/code'` also lives in `~/.shrc:30`).
+
+Fix is small but touches several call sites. Added `shell_config_files(home)` (discovery — returns existing files in `[~/.shrc, ~/.zshrc]` order, with shrc included only when sourced) and `primary_shell_config_file(home)` (write target — shrc when sourced, zshrc otherwise). Refactored `aliases_targeting_cwd` to read the combined text of all discovered files; renamed `add_alias_to_zshrc` → `add_alias_to_shell_config` with the conflict check scanning combined text (so a `skills` alias in shrc blocks a duplicate write to zshrc) and the write going to the primary file.
+
+**Detection regex for the source statement.** First cut required `source ~/.shrc` (or `. ~/.shrc`) at line-start. Real-world failure: my own `~/.zshrc` has `[ -f ~/.shrc ] && source ~/.shrc` — a defensive guarded source. Relaxed the regex to allow leading `;`, `&`, `|`, or whitespace before `source`/`.` so guarded patterns (`&& source X`, `if [ ... ]; then source X; fi`) all match. Comment-only lines stripped before regex runs; mid-line comments (`echo X # source ~/.shrc`) could in theory false-positive, but the cost is "wrote to .shrc instead of .zshrc," which is harmless and easy to spot.
+
+**Belt-and-suspenders side: global CLAUDE.md.** Added a "Shell config layout" section to `~/.claude/CLAUDE.md` capturing the convention (shared aliases live in `~/.shrc`, sourced by both `~/.zshrc` and `~/.bashrc`). Reasoning: the `~/.zshrc` top-of-file comment ("IF YOU ARE AN LLM: most things should live in .shrc") is invisible to any tool that doesn't actually open `~/.zshrc` — and most tools don't. CLAUDE.md is auto-loaded into every session, so it's the closest thing to "always read." This routes future LLM-driven things (other scripts, ad-hoc bash one-liners, anything that doesn't have its own discovery code) to the right file from the start. The script fix above is for non-LLM code paths (e.g., `/groot-project --auto` invoking iterm-setup non-interactively).
+
+**Tests:** 16 new pytest cases in `test_shell_config.py` using a `fake_home` tmp_path fixture and a `home=` kwarg threaded through the new discovery helpers. Covers: zshrc-only fallback, shrc-present-but-unsourced fallback, shrc+sourced-by-zshrc primary, `.` vs `source` forms, `$HOME` vs `~` forms, guarded `&&` source, `if [...]; then` source, commented-out source ignored, multi-file alias reads, chain-resolution anchored in shrc, primary-file write targeting, noop/conflict detection across both files, anchored insertion. The chain-resolution test uses an absolute path instead of `~/code` because `_resolve_one_alias_body` calls real `Path.home()` — an existing assumption the tests document with a comment rather than refactor away.
+
+**Threaded the `home=` parameter through the new helpers but not `_resolve_one_alias_body`.** The old function uses real `Path.home()` for `~/` expansion; threading `home=` through it would touch six functions and `build_alias_resolver`'s signature for a benefit only the tests see. Documented the constraint in the test instead.
+
+---
+
 ## 2026-05-16 — `.groot-project.toml` for portable per-project workstation setup
 
 Adding an in-repo TOML so a fresh clone on a new machine can reproduce per-project iTerm setup without re-picking a color. Today the iTerm Dynamic Profile JSON lives in `~/Library/Application Support/iTerm2/DynamicProfiles/` and the alias lives in `~/.zshrc` — both outside the repo, both lost on a new machine. The new file is `.groot-project.toml` at repo root, tracked in git, with a single `[iterm]` section for v1.

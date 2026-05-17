@@ -5,7 +5,10 @@ Writes a JSON file to ~/Library/Application Support/iTerm2/DynamicProfiles/.
 iTerm2 watches that directory and loads new/changed profiles live. Each profile
 inherits from "Default" so only colors and the APS rule are overridden.
 
-Optionally adds a shell alias to ~/.zshrc for quick `cd` to the project.
+Optionally adds a shell alias for quick `cd` to the project. The alias goes
+to ~/.shrc when it exists and is sourced by ~/.zshrc or ~/.bashrc (the
+"shared shell config" convention — aliases that work across zsh and bash);
+otherwise falls back to ~/.zshrc.
 
 Color palette: project-seeded random generation. Each project name produces a
 deterministic palette of 10 dark, saturated colors with hue spread, named by
@@ -97,7 +100,21 @@ DYNAMIC_PROFILES_DIR = (
     Path.home() / "Library" / "Application Support" / "iTerm2" / "DynamicProfiles"
 )
 ZSHRC_PATH = Path.home() / ".zshrc"
+SHRC_PATH = Path.home() / ".shrc"
+BASHRC_PATH = Path.home() / ".bashrc"
 CODE_DIR = Path.home() / "code"
+
+# Matches `source ~/.shrc` or `. ~/.shrc` (with optional $HOME variant)
+# anywhere on a line, ignoring commented-out lines. Permissive on what
+# precedes the source statement so we catch common guarded patterns like
+# `[ -f ~/.shrc ] && source ~/.shrc` and `if [ -f X ]; then source X; fi`.
+# Whole-line comments (`# source ~/.shrc`) are filtered before this regex
+# runs; mid-line comments containing a false positive are vanishingly rare
+# and we accept the risk.
+_SHRC_SOURCE_RE = re.compile(
+    r"(?:^|[ \t;&|])(?:source|\.)[ \t]+(?:~/|\$HOME/)\.shrc(?:[ \t]|$|#|;|&|\|)",
+    re.MULTILINE,
+)
 
 # Per-project workstation-setup file, checked into git so a fresh clone on
 # another machine can reproduce the iTerm profile (and, later, other
@@ -643,8 +660,76 @@ def alias_body_for_target(target: Path, zshrc_text: str = "") -> str:
         return f"'cd {target}'"
 
 
+def _shrc_is_sourced(home: Path) -> bool:
+    """True if ~/.zshrc or ~/.bashrc has a live `source ~/.shrc` / `. ~/.shrc` line.
+
+    Commented-out lines don't count. Detection is intentionally conservative —
+    if neither rc file sources shrc, treat shrc as inactive even if it exists.
+    """
+    for rc in (home / ".zshrc", home / ".bashrc"):
+        try:
+            text = rc.read_text()
+        except (FileNotFoundError, OSError):
+            continue
+        # Strip comment lines before searching so `# source ~/.shrc` doesn't count.
+        live_lines = "\n".join(
+            line for line in text.splitlines() if not line.lstrip().startswith("#")
+        )
+        if _SHRC_SOURCE_RE.search(live_lines):
+            return True
+    return False
+
+
+def shell_config_files(home: Path | None = None) -> list[Path]:
+    """Files where the user's shell aliases live, in read order.
+
+    Includes ~/.shrc first when it exists and is sourced by ~/.zshrc or
+    ~/.bashrc (the "shared shell config" convention — aliases that work
+    across zsh and bash). Then ~/.zshrc. Filtered to files that actually
+    exist. The combined contents form the user's effective alias set.
+    """
+    home = home or Path.home()
+    out: list[Path] = []
+    shrc = home / ".shrc"
+    if shrc.exists() and _shrc_is_sourced(home):
+        out.append(shrc)
+    zshrc = home / ".zshrc"
+    if zshrc.exists():
+        out.append(zshrc)
+    return out
+
+
+def primary_shell_config_file(home: Path | None = None) -> Path:
+    """Where new aliases should be written.
+
+    Returns ~/.shrc when it exists and is sourced by ~/.zshrc or ~/.bashrc
+    (so the alias is visible across shells). Otherwise ~/.zshrc, even if
+    it doesn't exist yet — the caller writes to it.
+    """
+    home = home or Path.home()
+    shrc = home / ".shrc"
+    if shrc.exists() and _shrc_is_sourced(home):
+        return shrc
+    return home / ".zshrc"
+
+
+def _combined_shell_config_text(home: Path | None = None) -> str:
+    """Concatenate all shell_config_files contents in read order (shrc, then zshrc).
+
+    A single newline between files ensures regex-based parsers don't run a
+    last-line of one file into the first line of the next.
+    """
+    chunks: list[str] = []
+    for p in shell_config_files(home=home):
+        try:
+            chunks.append(p.read_text())
+        except (FileNotFoundError, OSError):
+            continue
+    return "\n".join(chunks)
+
+
 def parse_aliases(zshrc_text: str) -> list[tuple[str, str]]:
-    """Return [(alias_name, body), ...] from ~/.zshrc.
+    """Return [(alias_name, body), ...] from raw shell-config text.
 
     Catches `alias NAME='...'` / `alias NAME="..."` lines. Skips anything we
     can't parse as a single quoted body (e.g., bare-word, complex shell).
@@ -717,15 +802,18 @@ def build_alias_resolver(zshrc_text: str) -> dict[str, Path]:
     return resolver
 
 
-def aliases_targeting_cwd(zshrc_path: Path = ZSHRC_PATH, cwd: Path | None = None) -> list[str]:
+def aliases_targeting_cwd(
+    cwd: Path | None = None,
+    home: Path | None = None,
+) -> list[str]:
     """Return alias names whose `cd` target equals cwd.
 
-    Fail-soft: returns [] on missing/unreadable .zshrc.
+    Reads the combined text of all shell_config_files (~/.shrc when sourced,
+    plus ~/.zshrc). Fail-soft: returns [] when no shell config exists.
     """
     cwd_resolved = (cwd or Path.cwd()).resolve()
-    try:
-        text = zshrc_path.read_text()
-    except (FileNotFoundError, OSError):
+    text = _combined_shell_config_text(home=home)
+    if not text:
         return []
     resolver = build_alias_resolver(text)
     return [name for name, target in resolver.items() if target == cwd_resolved]
@@ -759,26 +847,40 @@ def insert_alias_line(zshrc_text: str, new_line: str) -> str:
     return zshrc_text + new_line + "\n"
 
 
-def add_alias_to_zshrc(alias_name: str, target: Path, zshrc: Path = ZSHRC_PATH) -> tuple[str, str]:
-    """Add `alias <alias_name>=<body>` to ~/.zshrc.
+def add_alias_to_shell_config(
+    alias_name: str,
+    target: Path,
+    home: Path | None = None,
+) -> tuple[str, str]:
+    """Add `alias <alias_name>=<body>` to the primary shell config file.
+
+    The write target is `primary_shell_config_file()` — ~/.shrc when sourced,
+    ~/.zshrc otherwise. The conflict check scans the *combined* shell config
+    text (both files when shrc is active) so an existing alias in either file
+    is detected — we never duplicate.
 
     Returns (status, line) where status is one of:
-      - "added":    line was inserted
-      - "noop":     identical line already present
+      - "added":    line was inserted into the primary file
+      - "noop":     identical line already present in some shell config file
       - "conflict": a different `alias <alias_name>=...` exists; left untouched
 
     Never overwrites an existing conflicting alias.
     """
-    existing_text = zshrc.read_text() if zshrc.exists() else ""
-    body = alias_body_for_target(target, existing_text)
+    primary = primary_shell_config_file(home=home)
+    combined_text = _combined_shell_config_text(home=home)
+    primary_text = primary.read_text() if primary.exists() else ""
+
+    body = alias_body_for_target(target, combined_text)
     new_line = f"alias {alias_name}={body}"
-    existing = find_existing_alias(existing_text, alias_name)
+
+    existing = find_existing_alias(combined_text, alias_name)
     if existing is not None:
         if existing.strip() == new_line.strip():
             return ("noop", existing)
         return ("conflict", existing)
-    updated = insert_alias_line(existing_text, new_line)
-    zshrc.write_text(updated)
+
+    updated = insert_alias_line(primary_text, new_line)
+    primary.write_text(updated)
     return ("added", new_line)
 
 
@@ -950,7 +1052,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--hex", dest="hex_color", metavar="#RRGGBB", help="Custom hex color; bypasses the palette.")
     parser.add_argument("--pattern", metavar="PAT", help="APS pattern (default: /*/<name>*).")
     parser.add_argument("--force", action="store_true", help="Overwrite an existing profile file.")
-    parser.add_argument("--alias", metavar="NAME", help="Add `alias NAME='cd <cwd>'` to ~/.zshrc (idempotent).")
+    parser.add_argument("--alias", metavar="NAME", help="Add `alias NAME='cd <cwd>'` to ~/.shrc (or ~/.zshrc as fallback). Idempotent.")
     parser.add_argument("--no-alias", action="store_true", help="Skip the alias step entirely.")
     parser.add_argument("--force-alias", action="store_true", help="Add the alias even if a different alias already targets cwd.")
     parser.add_argument("--title-format", metavar="FORMAT", help=f"iTerm interpolated-string title format (default: {DEFAULT_TITLE_FORMAT!r}).")
@@ -1101,10 +1203,11 @@ def run(args: argparse.Namespace) -> int:
     if args.dry_run:
         print(rendered)
         if args.alias:
-            zshrc_text = ZSHRC_PATH.read_text() if ZSHRC_PATH.exists() else ""
-            body = alias_body_for_target(Path.cwd(), zshrc_text)
+            combined_text = _combined_shell_config_text()
+            body = alias_body_for_target(Path.cwd(), combined_text)
+            primary = primary_shell_config_file()
             existing_for_cwd = [a for a in aliases_targeting_cwd() if a != args.alias]
-            print(f"\nWould add to ~/.zshrc: alias {args.alias}={body}")
+            print(f"\nWould add to {primary}: alias {args.alias}={body}")
             if existing_for_cwd and not args.force_alias:
                 print(
                     f"  ⚠ existing alias(es) already target this cwd: "
@@ -1145,17 +1248,18 @@ def run(args: argparse.Namespace) -> int:
                 f"             use one of those, or pass --force-alias to add '{args.alias}' anyway."
             )
         else:
-            status, line = add_alias_to_zshrc(args.alias, Path.cwd())
+            primary = primary_shell_config_file()
+            status, line = add_alias_to_shell_config(args.alias, Path.cwd())
             if status == "added":
-                print(f"  Alias:   added to ~/.zshrc → {line}")
-                print("           run `source ~/.zshrc` (or open a new shell) to use it.")
+                print(f"  Alias:   added to {primary} → {line}")
+                print(f"           run `source {primary}` (or open a new shell) to use it.")
             elif status == "noop":
-                print(f"  Alias:   already present in ~/.zshrc → {line}")
+                print(f"  Alias:   already present in shell config → {line}")
             elif status == "conflict":
                 print(
-                    f"  Alias:   ⚠ '{args.alias}' already in ~/.zshrc with a different target:\n"
+                    f"  Alias:   ⚠ '{args.alias}' already in shell config with a different target:\n"
                     f"             existing: {line}\n"
-                    f"             not overwriting. Edit ~/.zshrc by hand to reconcile."
+                    f"             not overwriting. Edit the shell config by hand to reconcile."
                 )
 
     if not shell_integration_installed():
