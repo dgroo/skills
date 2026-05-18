@@ -1,6 +1,6 @@
-"""Tests for .groot-project.toml read/write helpers in iterm-setup.py.
+"""Tests for .groot-project.toml read/write helpers in terminal-setup.py.
 
-Run from the iterm-setup directory:
+Run from the terminal-setup directory:
 
     python3 -m pytest test_groot_project_toml.py -v
 
@@ -19,15 +19,17 @@ from pathlib import Path
 import pytest
 
 HERE = Path(__file__).parent
-SPEC = importlib.util.spec_from_file_location("iterm_setup", HERE / "iterm-setup.py")
+SPEC = importlib.util.spec_from_file_location(
+    "terminal_setup", HERE / "terminal-setup.py"
+)
 assert SPEC is not None and SPEC.loader is not None
-iterm_setup = importlib.util.module_from_spec(SPEC)
-sys.modules["iterm_setup"] = iterm_setup
-SPEC.loader.exec_module(iterm_setup)
+terminal_setup = importlib.util.module_from_spec(SPEC)
+sys.modules["terminal_setup"] = terminal_setup
+SPEC.loader.exec_module(terminal_setup)
 
-read_groot_project_iterm = iterm_setup.read_groot_project_iterm
-write_groot_project_iterm = iterm_setup.write_groot_project_iterm
-GrootProjectTomlError = iterm_setup.GrootProjectTomlError
+read_groot_project_iterm = terminal_setup.read_groot_project_iterm
+write_groot_project_iterm = terminal_setup.write_groot_project_iterm
+GrootProjectTomlError = terminal_setup.GrootProjectTomlError
 
 
 def test_read_returns_none_when_file_absent(tmp_path: Path) -> None:
@@ -97,9 +99,7 @@ def test_read_raises_when_color_not_string(tmp_path: Path) -> None:
 def test_read_ignores_unknown_iterm_keys(tmp_path: Path) -> None:
     """Forward compatibility: unknown keys in [iterm] are silently dropped."""
     path = tmp_path / ".groot-project.toml"
-    path.write_text(
-        '[iterm]\ncolor = "#3a5f2c"\nfuture_key = "from a newer version"\n'
-    )
+    path.write_text('[iterm]\ncolor = "#3a5f2c"\nfuture_key = "from a newer version"\n')
     assert read_groot_project_iterm(path) == {"color": "#3a5f2c"}
 
 

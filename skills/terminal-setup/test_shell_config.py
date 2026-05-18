@@ -1,4 +1,4 @@
-"""Tests for shell-config discovery in iterm-setup.py.
+"""Tests for shell-config discovery in terminal-setup.py.
 
 Covers the .shrc-aware read/write paths: shell_config_files() discovery,
 primary_shell_config_file() selection, aliases_targeting_cwd() reading
@@ -18,16 +18,18 @@ from pathlib import Path
 import pytest
 
 HERE = Path(__file__).parent
-SPEC = importlib.util.spec_from_file_location("iterm_setup", HERE / "iterm-setup.py")
+SPEC = importlib.util.spec_from_file_location(
+    "terminal_setup", HERE / "terminal-setup.py"
+)
 assert SPEC is not None and SPEC.loader is not None
-iterm_setup = importlib.util.module_from_spec(SPEC)
-sys.modules["iterm_setup"] = iterm_setup
-SPEC.loader.exec_module(iterm_setup)
+terminal_setup = importlib.util.module_from_spec(SPEC)
+sys.modules["terminal_setup"] = terminal_setup
+SPEC.loader.exec_module(terminal_setup)
 
-shell_config_files = iterm_setup.shell_config_files
-primary_shell_config_file = iterm_setup.primary_shell_config_file
-aliases_targeting_cwd = iterm_setup.aliases_targeting_cwd
-add_alias_to_shell_config = iterm_setup.add_alias_to_shell_config
+shell_config_files = terminal_setup.shell_config_files
+primary_shell_config_file = terminal_setup.primary_shell_config_file
+aliases_targeting_cwd = terminal_setup.aliases_targeting_cwd
+add_alias_to_shell_config = terminal_setup.add_alias_to_shell_config
 
 
 @pytest.fixture
@@ -100,9 +102,7 @@ def test_discovery_skips_commented_source_line(fake_home: Path) -> None:
     assert primary_shell_config_file(home=fake_home) == fake_home / ".zshrc"
 
 
-def test_aliases_targeting_cwd_reads_from_shrc(
-    fake_home: Path, tmp_path: Path
-) -> None:
+def test_aliases_targeting_cwd_reads_from_shrc(fake_home: Path, tmp_path: Path) -> None:
     target = tmp_path / "proj"
     target.mkdir()
     _write(fake_home / ".shrc", f"alias proj='cd {target}'\n")
@@ -145,9 +145,7 @@ def test_aliases_targeting_cwd_resolves_chain_anchored_in_shrc(
     assert aliases_targeting_cwd(cwd=project, home=fake_home) == ["proj"]
 
 
-def test_add_alias_writes_to_shrc_when_primary(
-    fake_home: Path, tmp_path: Path
-) -> None:
+def test_add_alias_writes_to_shrc_when_primary(fake_home: Path, tmp_path: Path) -> None:
     _write(fake_home / ".shrc", "# existing comment\n")
     _write(fake_home / ".zshrc", "source ~/.shrc\n")
     target = tmp_path / "proj"

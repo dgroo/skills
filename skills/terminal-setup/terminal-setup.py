@@ -58,11 +58,11 @@ ITERM_TITLE_COMPONENTS_CUSTOM = 16
 # Hue buckets at 22.5° intervals around the wheel; each generated palette
 # entry takes its name from whichever bucket is closest to its hue.
 HUE_BUCKETS: list[tuple[float, str]] = [
-    (0.0,   "Crimson"),
-    (22.5,  "Vermillion"),
-    (45.0,  "Rust"),
-    (67.5,  "Amber"),
-    (90.0,  "Olive"),
+    (0.0, "Crimson"),
+    (22.5, "Vermillion"),
+    (45.0, "Rust"),
+    (67.5, "Amber"),
+    (90.0, "Olive"),
     (112.5, "Moss"),
     (135.0, "Forest"),
     (157.5, "Pine"),
@@ -195,9 +195,11 @@ def stable_seed(s: str) -> int:
 
 def hue_bucket_name(hue_deg: float) -> str:
     """Closest bucket name for a hue, honoring the wheel's circular distance."""
+
     def circ_dist(a: float, b: float) -> float:
         d = abs(a - b) % 360.0
         return min(d, 360.0 - d)
+
     return min(HUE_BUCKETS, key=lambda b: circ_dist(hue_deg, b[0]))[1]
 
 
@@ -250,7 +252,11 @@ def generate_palette(
     base_hue = rng.uniform(0.0, 360.0)
     step = 360.0 / count
     jitter = step / 4.0
-    mid = (light_min + light_max) / 2 if stratify and light_max - light_min > 0.05 else None
+    mid = (
+        (light_min + light_max) / 2
+        if stratify and light_max - light_min > 0.05
+        else None
+    )
     used: dict[str, int] = {}
     palette: list[tuple[str, tuple[float, float, float]]] = []
     for i in range(count):
@@ -421,7 +427,9 @@ def render_palette(
             f"\nExisting profile {existing['name']!r}: "
             f"{existing['color_label']} (#{r:02X}{g:02X}{b:02X}), APS={existing['pattern']}"
         )
-        print("(re-run with --color N --force to change the color, or --hex #RRGGBB --force for a custom one)")
+        print(
+            "(re-run with --color N --force to change the color, or --hex #RRGGBB --force for a custom one)"
+        )
 
     # Combined palette feeds collision + current-marker detection so markers
     # work whether the existing color sits in the main band or the vivid section.
@@ -432,10 +440,14 @@ def render_palette(
         exclude_name=existing["name"] if existing else None,
     )
     current_idx = (
-        palette_index_near_rgb(combined, existing["rgb"]) if existing is not None else None
+        palette_index_near_rgb(combined, existing["rgb"])
+        if existing is not None
+        else None
     )
 
-    def _render_row(i_one_based: int, name: str, rgb: tuple[float, float, float]) -> None:
+    def _render_row(
+        i_one_based: int, name: str, rgb: tuple[float, float, float]
+    ) -> None:
         swatch = ansi_swatch(rgb, f"{label}  →  {name}")
         markers: list[str] = []
         if current_idx is not None and i_one_based - 1 == current_idx:
@@ -557,7 +569,9 @@ def pick_color_interactive(
 
     Returns the 0-based index into the combined `palette + vivid_section`.
     """
-    render_palette(name, palette, existing_colors, existing, vivid_section=vivid_section)
+    render_palette(
+        name, palette, existing_colors, existing, vivid_section=vivid_section
+    )
     combined = palette + (vivid_section or [])
     # Restrict default suggestions to the main palette — vivid is reserved for
     # opt-in special-case projects. (When --vivid is set, `palette` already IS
@@ -568,9 +582,13 @@ def pick_color_interactive(
     prompt_suffix = f" (default: {suggested + 1})"
     while True:
         try:
-            raw = input(f"Pick a color for {name!r} [1-{len(combined)}]{prompt_suffix}: ").strip()
+            raw = input(
+                f"Pick a color for {name!r} [1-{len(combined)}]{prompt_suffix}: "
+            ).strip()
         except EOFError as e:
-            raise InvalidColorIndexError("Stdin closed before a color was selected.") from e
+            raise InvalidColorIndexError(
+                "Stdin closed before a color was selected."
+            ) from e
         if not raw:
             return suggested
         try:
@@ -888,9 +906,7 @@ def _normalize_hex_color(hex_str: str) -> str:
     """Return canonical `#RRGGBB` uppercase. Raises on malformed input."""
     m = HEX_COLOR_RE.match(hex_str.strip())
     if not m:
-        raise GrootProjectTomlError(
-            f"color must be #RRGGBB hex; got {hex_str!r}"
-        )
+        raise GrootProjectTomlError(f"color must be #RRGGBB hex; got {hex_str!r}")
     return "#" + m.group(1).upper()
 
 
@@ -1044,22 +1060,66 @@ def _print_iterm_toml(path: Path) -> int:
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="iterm-setup",
+        prog="terminal-setup",
         description="Create an iTerm2 Dynamic Profile with Automatic Profile Switching for a project.",
     )
-    parser.add_argument("name", nargs="?", help="Profile name (default: basename of cwd).")
-    parser.add_argument("--color", type=int, metavar="N", help="Palette index (1-based); skips the picker.")
-    parser.add_argument("--hex", dest="hex_color", metavar="#RRGGBB", help="Custom hex color; bypasses the palette.")
-    parser.add_argument("--pattern", metavar="PAT", help="APS pattern (default: /*/<name>*).")
-    parser.add_argument("--force", action="store_true", help="Overwrite an existing profile file.")
-    parser.add_argument("--alias", metavar="NAME", help="Add `alias NAME='cd <cwd>'` to ~/.shrc (or ~/.zshrc as fallback). Idempotent.")
-    parser.add_argument("--no-alias", action="store_true", help="Skip the alias step entirely.")
-    parser.add_argument("--force-alias", action="store_true", help="Add the alias even if a different alias already targets cwd.")
-    parser.add_argument("--title-format", metavar="FORMAT", help=f"iTerm interpolated-string title format (default: {DEFAULT_TITLE_FORMAT!r}).")
-    parser.add_argument("--no-title", action="store_true", help="Don't set a custom title format; inherit from the Default profile.")
-    parser.add_argument("--list-colors", action="store_true", help="Print palette swatches and exit.")
-    parser.add_argument("--vivid", action="store_true", help="Use a fully-vivid main palette (brighter colors, no separate vivid section). For highlight projects.")
-    parser.add_argument("--cwd-aliases", action="store_true", help="Print alias names already targeting cwd (one per line) and exit.")
+    parser.add_argument(
+        "name", nargs="?", help="Profile name (default: basename of cwd)."
+    )
+    parser.add_argument(
+        "--color",
+        type=int,
+        metavar="N",
+        help="Palette index (1-based); skips the picker.",
+    )
+    parser.add_argument(
+        "--hex",
+        dest="hex_color",
+        metavar="#RRGGBB",
+        help="Custom hex color; bypasses the palette.",
+    )
+    parser.add_argument(
+        "--pattern", metavar="PAT", help="APS pattern (default: /*/<name>*)."
+    )
+    parser.add_argument(
+        "--force", action="store_true", help="Overwrite an existing profile file."
+    )
+    parser.add_argument(
+        "--alias",
+        metavar="NAME",
+        help="Add `alias NAME='cd <cwd>'` to ~/.shrc (or ~/.zshrc as fallback). Idempotent.",
+    )
+    parser.add_argument(
+        "--no-alias", action="store_true", help="Skip the alias step entirely."
+    )
+    parser.add_argument(
+        "--force-alias",
+        action="store_true",
+        help="Add the alias even if a different alias already targets cwd.",
+    )
+    parser.add_argument(
+        "--title-format",
+        metavar="FORMAT",
+        help=f"iTerm interpolated-string title format (default: {DEFAULT_TITLE_FORMAT!r}).",
+    )
+    parser.add_argument(
+        "--no-title",
+        action="store_true",
+        help="Don't set a custom title format; inherit from the Default profile.",
+    )
+    parser.add_argument(
+        "--list-colors", action="store_true", help="Print palette swatches and exit."
+    )
+    parser.add_argument(
+        "--vivid",
+        action="store_true",
+        help="Use a fully-vivid main palette (brighter colors, no separate vivid section). For highlight projects.",
+    )
+    parser.add_argument(
+        "--cwd-aliases",
+        action="store_true",
+        help="Print alias names already targeting cwd (one per line) and exit.",
+    )
     parser.add_argument(
         "--groot-toml-read",
         nargs="?",
@@ -1091,7 +1151,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
             "stays portable across worktrees with different basenames)."
         ),
     )
-    parser.add_argument("--dry-run", action="store_true", help="Print JSON to stdout; do not write profile or .zshrc.")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print JSON to stdout; do not write profile or .zshrc.",
+    )
     return parser.parse_args(argv)
 
 
@@ -1102,9 +1166,7 @@ def run(args: argparse.Namespace) -> int:
         return 0
 
     if args.groot_toml_read is not None:
-        return _print_iterm_toml(
-            Path(args.groot_toml_read) / GROOT_PROJECT_TOML_NAME
-        )
+        return _print_iterm_toml(Path(args.groot_toml_read) / GROOT_PROJECT_TOML_NAME)
 
     if args.groot_toml_write is not None:
         if args.hex_color is None:
@@ -1150,7 +1212,13 @@ def run(args: argparse.Namespace) -> int:
     existing = existing_profile_info(name)
 
     if args.list_colors:
-        render_palette(name, palette, existing_colors, existing, vivid_section=vivid_section or None)
+        render_palette(
+            name,
+            palette,
+            existing_colors,
+            existing,
+            vivid_section=vivid_section or None,
+        )
         return 0
 
     validate_profile_name(name)
@@ -1161,7 +1229,9 @@ def run(args: argparse.Namespace) -> int:
     if args.color is not None and args.hex_color is not None:
         raise ItermSetupError("Pass either --color N or --hex #RRGGBB, not both.")
     if args.title_format is not None and args.no_title:
-        raise ItermSetupError("Pass either --title-format FORMAT or --no-title, not both.")
+        raise ItermSetupError(
+            "Pass either --title-format FORMAT or --no-title, not both."
+        )
 
     chosen_rgb: tuple[float, float, float]
     chosen_label: str
@@ -1171,11 +1241,19 @@ def run(args: argparse.Namespace) -> int:
         chosen_label = f"{hue_bucket_name(h * 360.0)} (custom #{args.hex_color.lstrip('#').upper()})"
     elif args.color is not None:
         if not (1 <= args.color <= len(combined_palette)):
-            raise InvalidColorIndexError(f"--color must be 1-{len(combined_palette)}; got {args.color}")
+            raise InvalidColorIndexError(
+                f"--color must be 1-{len(combined_palette)}; got {args.color}"
+            )
         idx = args.color - 1
         chosen_label, chosen_rgb = combined_palette[idx]
     else:
-        idx = pick_color_interactive(name, palette, existing_colors, existing, vivid_section=vivid_section or None)
+        idx = pick_color_interactive(
+            name,
+            palette,
+            existing_colors,
+            existing,
+            vivid_section=vivid_section or None,
+        )
         chosen_label, chosen_rgb = combined_palette[idx]
 
     # Title format: explicit flag wins; --no-title opts out; otherwise prompt
@@ -1252,7 +1330,9 @@ def run(args: argparse.Namespace) -> int:
             status, line = add_alias_to_shell_config(args.alias, Path.cwd())
             if status == "added":
                 print(f"  Alias:   added to {primary} → {line}")
-                print(f"           run `source {primary}` (or open a new shell) to use it.")
+                print(
+                    f"           run `source {primary}` (or open a new shell) to use it."
+                )
             elif status == "noop":
                 print(f"  Alias:   already present in shell config → {line}")
             elif status == "conflict":
