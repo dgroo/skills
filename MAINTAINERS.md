@@ -16,43 +16,43 @@ If the table drifts, the git output wins. Re-sync the table; don't touch git his
 
 ## Derek-authored (live in this fork only)
 
-| Skill | First added | Notes |
-|---|---|---|
-| `claude-md-add` | 2026-05-10 | |
-| `cleanup-design` | 2026-05-11 | |
-| `groot-project` | 2026-05-10 | Wraps `/project-setup`; aware of gstack |
-| `helping-hands` | 2026-05-12 | Works the `design/helping-hands/` queue; user-invoked |
-| `idea` | 2026-05-14 | Captures sparks to `design/IDEAS.md` |
-| `integrate-comments` | 2026-05-12 | Comment-driven doc iteration (split from `/walkthrough`) |
-| `iterm-setup` | 2026-05-05 | Has `auto` mode used by `/groot-project --auto`; reads/writes `.groot-project.toml` |
-| `prior-art` | 2026-05-05 | |
-| `skill-add` | 2026-05-14 | Evaluation gate before creating a new skill |
-| `skills-review` | 2026-05-10 | |
-| `subagent` | 2026-05-14 | Four-check heuristic for spawning subagents |
-| `sup` | 2026-05-13 | Local fork of `/sitrep` with backlog scan + pick recommendation |
-| `walkthrough` | 2026-05-11 | |
+| Skill                | First added | Notes                                                                                                                                                                                                                                                    |
+| -------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `claude-md-add`      | 2026-05-10  |                                                                                                                                                                                                                                                          |
+| `cleanup-design`     | 2026-05-11  |                                                                                                                                                                                                                                                          |
+| `groot-project`      | 2026-05-10  | Wraps `/project-setup`; aware of gstack                                                                                                                                                                                                                  |
+| `helping-hands`      | 2026-05-12  | Works the `design/helping-hands/` queue; user-invoked                                                                                                                                                                                                    |
+| `idea`               | 2026-05-14  | Captures sparks to `design/IDEAS.md`                                                                                                                                                                                                                     |
+| `integrate-comments` | 2026-05-12  | Comment-driven doc iteration (split from `/walkthrough`)                                                                                                                                                                                                 |
+| `terminal-setup`     | 2026-05-18  | Renamed from `iterm-setup`; decoupled from iTerm Dynamic Profiles, now terminal-agnostic via OSC 11. Has `auto` mode used by `/groot-project --auto`; reads/writes `.groot-project.toml` (`[terminal].background`); migrates legacy `[iterm]` on the fly |
+| `prior-art`          | 2026-05-05  |                                                                                                                                                                                                                                                          |
+| `skill-add`          | 2026-05-14  | Evaluation gate before creating a new skill                                                                                                                                                                                                              |
+| `skills-review`      | 2026-05-10  |                                                                                                                                                                                                                                                          |
+| `subagent`           | 2026-05-14  | Four-check heuristic for spawning subagents                                                                                                                                                                                                              |
+| `sup`                | 2026-05-13  | Local fork of `/sitrep` with backlog scan + pick recommendation                                                                                                                                                                                          |
+| `walkthrough`        | 2026-05-11  |                                                                                                                                                                                                                                                          |
 
 ## Upstream (from `joewalnes/skills`)
 
-| Skill | Notes |
-|---|---|
-| `bug` | Alias for `/todo` |
-| `bug-bash` | |
-| `hello-world` | Test skill |
+| Skill           | Notes                                          |
+| --------------- | ---------------------------------------------- |
+| `bug`           | Alias for `/todo`                              |
+| `bug-bash`      |                                                |
+| `hello-world`   | Test skill                                     |
 | `project-setup` | Convention-layer companion to `/groot-project` |
-| `readme` | |
-| `release-setup` | |
-| `scorecard` | |
-| `sitrep` | |
-| `todo` | Reads/writes root-level `TODO.md` |
-| `tool-web` | |
+| `readme`        |                                                |
+| `release-setup` |                                                |
+| `scorecard`     |                                                |
+| `sitrep`        |                                                |
+| `todo`          | Reads/writes root-level `TODO.md`              |
+| `tool-web`      |                                                |
 
 ## Rules
 
 - **Don't edit upstream skills in place.** Pull from `upstream/main` periodically and merge. If you need to change behavior, fork-and-rename (e.g., `todo-derek`) so upstream merges stay clean.
 - **New skill from you?** Create at `skills/<name>/`, then add a row to the Derek-authored table.
 - **Promoted upstream?** If Joe ever merges one of yours, move the row to the upstream table.
-- **After every `upstream/main` merge: re-read `skills/project-setup/SKILL.md`** and reconcile with `skills/groot-project/SKILL.md`'s `## Project conventions` skeleton block. The block describes covered items semantically (by name, not item number) to survive renumbering, but if Joe *adds* a genuinely new convention, `groot-project` should pick it up explicitly or note it as a new genuine candidate.
+- **After every `upstream/main` merge: re-read `skills/project-setup/SKILL.md`** and reconcile with `skills/groot-project/SKILL.md`'s `## Project conventions` skeleton block. The block describes covered items semantically (by name, not item number) to survive renumbering, but if Joe _adds_ a genuinely new convention, `groot-project` should pick it up explicitly or note it as a new genuine candidate.
 
 ## Why not put origin in `SKILL.md` frontmatter?
 
