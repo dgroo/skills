@@ -1,67 +1,90 @@
 ---
-name: iterm-setup
-description: Create a uniquely-colored iTerm2 profile for a project with Automatic Profile Switching, plus an optional shell alias for quick `cd`. Use when starting a new project, asked to "set up iterm", "set terminal color", "iterm profile", "automatic profile switching", "color this terminal", "add a project alias", or when bootstrapping a new repo.
+name: terminal-setup
+description: Set a per-project terminal background color (and optional shell alias) that follows you across iTerm2, Ghostty, Alacritty, Kitty, WezTerm. The color is recorded in `.groot-project.toml` and applied via the OSC 11 chpwd hook in ~/.shrc. Use when starting a new project, asked to "set up terminal", "set terminal color", "color this project", "add a project alias", or when bootstrapping a new repo. Successor to /iterm-setup — handles `[iterm]` → `[terminal]` migration automatically.
 argument-hint: [name-or-alias | auto]
 ---
 
-# iTerm2 Per-Project Profile Setup
+# Per-Project Terminal Background + Alias
 
-Creates an iTerm2 Dynamic Profile with a custom background color and an Automatic Profile Switching (APS) rule that fires when the user `cd`s into the project's directory. Each project gets a visually distinct terminal so the user can tell at a glance which project they're in. Optionally also adds a shell alias to `~/.zshrc` for quick navigation.
+Each project gets a deterministic background color that the shell applies on `cd` via OSC 11. Visually distinct projects at a glance — without any terminal-specific configuration. Optionally also adds a shell alias to `~/.shrc` (or `~/.zshrc`) for quick navigation.
 
-The actual work is done by `~/.claude/skills/iterm-setup/iterm-setup.py`. This skill is a thin wrapper that walks the user through naming, color selection, and alias setup.
+The actual work is done by `~/.claude/skills/terminal-setup/terminal-setup.py`. This skill is the interactive wrapper.
+
+## How this differs from /iterm-setup (the predecessor)
+
+| Old (`/iterm-setup`)                                                   | New (`/terminal-setup`)                                                             |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Wrote iTerm2 Dynamic Profile JSON                                      | Writes only `.groot-project.toml`                                                   |
+| iTerm-only (used Automatic Profile Switching)                          | Any terminal supporting OSC 11                                                      |
+| State glyph via iTerm `OSC 1337 SetUserVar`                            | State glyph via shell precmd + OSC 2                                                |
+| Title format string `\(user.claudeState)…` lived in iTerm Custom Title | Shell precmd assembles the title from `~/.claude/state/<tty>.{glyph,project,topic}` |
+| `[iterm]` TOML section with `color` key                                | `[terminal]` TOML section with `background` key (legacy reads transparently)        |
+
+The chpwd + precmd plumbing lives in `~/.shrc` (block labeled "Claude terminal state"). It's installed once and works for every project.
 
 ## How to Invoke
 
 ```
-/iterm-setup              # use cwd basename as the project name
-/iterm-setup myproject    # explicit profile name (e.g., for worktree dirs)
-/iterm-setup mp           # if cwd basename is `myproject`, this is the alias shorthand
-/iterm-setup auto         # let the agent pick color + alias autonomously (no prompts)
+/terminal-setup              # use cwd basename as the project name
+/terminal-setup myproject    # explicit name (e.g., for worktree dirs)
+/terminal-setup mp           # if cwd basename is `myproject`, this is the alias shorthand
+/terminal-setup auto         # let the agent pick color + alias autonomously (no prompts)
 ```
 
 ## Process
 
 > **Personal-preference rule (read first).** Color and alias are personal preference — the **user** picks them. This holds **even when the session is operating under a "work without stopping for clarifying questions" / "no clarifying questions" directive**. That directive applies to ambiguities the agent can resolve from context, not to taste choices that are inherently the user's call. The whole purpose of this skill is to surface those choices.
 >
-> **The only exception:** the user explicitly invoked `/iterm-setup auto`. In that mode, the agent picks color + alias without asking and proceeds end-to-end. Any other invocation form **must** prompt.
+> **The only exception:** the user explicitly invoked `/terminal-setup auto`. In that mode, the agent picks color + alias without asking and proceeds end-to-end. Any other invocation form **must** prompt.
 
-0. **Check for `.groot-project.toml` (the persistence file).** Before anything else, run:
+0. **Check for `.groot-project.toml`.** Before anything else:
 
    ```
-   ~/.claude/skills/iterm-setup/iterm-setup.py --groot-toml-read
+   ~/.claude/skills/terminal-setup/terminal-setup.py --groot-toml-read
    ```
 
-   The script reads `./.groot-project.toml` and prints `KEY=VALUE` lines for the `[iterm]` section (empty output if file or section absent). Parse the output into a dict.
+   The script reads `./.groot-project.toml` and prints `KEY=VALUE` lines for the `[terminal]` section (empty output if file/section absent). **Legacy `[iterm]` sections read transparently** — the `color` key is renamed to `background` on the way out, so the parsed dict looks the same whether the file is old or new.
 
    **If non-empty** (file exists with recorded settings), prompt via AUQ — frame it around the recorded color, and include the recorded alias if present:
+   - **Option 1 — Apply recorded settings:** _"Apply `[terminal].background = <hex>` (and `alias = <alias>`, if present) — skip the palette."_ On selection, jump to **step 5** with `--hex <color>` and `--alias <alias>` (or `--no-alias` if absent). Don't prompt for color or alias.
+   - **Option 2 — Pick a new color:** _"Run the normal palette flow. File stays untouched until end-of-flow, then I'll ask whether to update it."_ Remember "file existed; may need update at end."
+   - **Option 3 — Cancel:** _"Don't change anything."_ Exit.
 
-   - **Option 1 — Apply recorded settings:** *"Apply `[iterm].color = <hex>` (and `alias = <alias>`, if present) from .groot-project.toml — skip the palette."* On selection, jump to **step 5** with `--hex <color>` and `--alias <alias>` from the file (or `--no-alias` if absent). Don't prompt for color or alias. Title format prompt (step 4) still runs normally unless `auto` mode.
-   - **Option 2 — Pick a new color:** *"Run the normal palette flow. File stays untouched until end-of-flow, then I'll ask whether to update it."* Remember "file existed; may need update at end."
-   - **Option 3 — Cancel:** *"Don't change anything."* Exit.
+   **Auto mode:** if the file exists with a valid background, apply it silently (no prompt).
 
-   **Auto mode:** if the file exists with a valid `[iterm].color`, apply it silently (no prompt). The persistence file is *exactly* the "already decided" signal that justifies auto-apply. If alias is absent in the file but the cwd has no matching alias yet, auto mode still skips the alias (no prompt, no add — match the existing auto-mode discipline of "lowest-friction defaults, never surprises").
+   **Legacy `[iterm]` files migrate automatically.** Step 5's write replaces the `[iterm]` block with a `[terminal]` block. If a user wants to migrate a project _without_ changing the color, they can run:
 
-   **If empty** (no file, or no `[iterm]` section): continue to step 1. Remember "no file" — step 7 (offer-to-write) will fire at the end.
+   ```
+   ~/.claude/skills/terminal-setup/terminal-setup.py --migrate-toml
+   ```
 
-1. **Determine the profile name and the alias name.**
-   - **Profile name** (used for the iTerm2 profile + APS rule): defaults to `basename $(pwd)`.
-   - **Alias name** (used for the `~/.zshrc` shell alias): defaults to the profile name.
+   directly. For a batch migration across `~/code/*`:
+
+   ```
+   find ~/code -name .groot-project.toml -maxdepth 2 -exec \
+     ~/.claude/skills/terminal-setup/terminal-setup.py --migrate-toml {} \;
+   ```
+
+   **If empty** (no file, or no `[terminal]`/`[iterm]` section): continue to step 1.
+
+1. **Determine the project name and the alias name.**
+   - **Project name** (used as the `name` field if explicitly persisted, and for the AUQ prompt): defaults to `basename $(pwd)`.
+   - **Alias name** (used for the `~/.shrc` shell alias): defaults to the project name.
    - If the user passed an arg, interpret as follows:
-     - **Arg is exactly `auto`** → enter auto mode (see step 2 / step 3). Profile name = cwd basename, alias = profile name. No further confirmation.
-     - **Arg looks like an abbreviation** of cwd basename (shorter, often a substring or initials, e.g. `mp` for `myproject`, `wa` for `webapp`) → treat arg as **alias**, profile name comes from cwd. Confirm.
-     - **Arg differs from cwd basename in a non-abbreviation way** (e.g. you're in `myproject-feature-x` and they pass `myproject`) → treat arg as **profile name** (worktree case). Confirm.
-     - **Arg matches cwd basename** → treat arg as profile name; ask separately whether they want a different alias.
-   - Confirm with the user when cwd is suspicious (`~`, `~/Downloads`, anywhere not obviously a project root) — this confirmation runs even in `auto` mode, since picking the wrong directory is a footgun, not a preference.
+     - **Arg is exactly `auto`** → enter auto mode (see step 2 / step 3).
+     - **Arg looks like an abbreviation** of cwd basename → treat arg as **alias**, project name comes from cwd. Confirm.
+     - **Arg differs from cwd basename in a non-abbreviation way** → treat arg as **project name** (worktree case). Confirm.
+     - **Arg matches cwd basename** → treat arg as project name; ask separately whether they want a different alias.
+   - Confirm with the user when cwd is suspicious (`~`, `~/Downloads`, anywhere not obviously a project root) — even in `auto` mode, since picking the wrong directory is a footgun, not a preference.
 
-   **Then check for an existing alias for this directory** before suggesting a new one:
+   **Then check for an existing alias for this directory:**
 
    ```
-   ~/.claude/skills/iterm-setup/iterm-setup.py --cwd-aliases
+   ~/.claude/skills/terminal-setup/terminal-setup.py --cwd-aliases
    ```
 
-   This prints alias names from `~/.zshrc` whose `cd` target resolves to the current directory (one per line; empty if none). Handles direct `cd ~/X` / `cd /abs/X` / `cd $HOME/X` and chained `code;cd X`-style aliases.
-
-   - **If the output is non-empty** (e.g. user is in `~/code/webapp` and `wa` already targets it): tell the user, default to **reusing the existing alias** (skip the alias step), and only add a new alias if they explicitly want one (then pass `--force-alias`).
+   This prints alias names from `~/.shrc` (and `~/.zshrc` as fallback) whose `cd` target resolves to the current directory. Handles direct `cd ~/X` / `cd /abs/X` / `cd $HOME/X` and chained `code;cd X`-style aliases.
+   - **If non-empty**: default to **reusing the existing alias** (skip the alias step), and only add a new alias if they explicitly want one (then pass `--force-alias`).
    - **If empty:** proceed with the alias suggestion as normal.
 
 2. **Present the palette via `AskUserQuestion` (AUQ).**
@@ -69,149 +92,118 @@ The actual work is done by `~/.claude/skills/iterm-setup/iterm-setup.py`. This s
    Gather palette data with two bash calls (can run in parallel):
 
    ```
-   ~/.claude/skills/iterm-setup/iterm-setup.py <profile> --list-colors
-   ~/.claude/skills/iterm-setup/iterm-setup.py <profile> --list-colors --vivid
+   ~/.claude/skills/terminal-setup/terminal-setup.py <project> --list-colors
+   ~/.claude/skills/terminal-setup/terminal-setup.py <project> --list-colors --vivid
    ```
 
    Parse both outputs to extract:
    - **Dark palette (1–14):** RGB tuples, names, and `used by:` annotations (from the first call).
-   - **Vivid palette (15–28):** RGB tuples and names (from the second call — the script numbers vivid 1–14 there; *re-number to 15–28* for continuous numbering in the AUQ).
-   - **Other existing profiles** (from the first call's footer): hex values from other projects that sit outside the palette — used for near-clash awareness when picking the suggested color.
+   - **Vivid palette (15–28):** RGB tuples and names (from the second call — the script numbers vivid 1–14 there; _re-number to 15–28_ for continuous numbering in the AUQ).
+   - **Other existing projects' colors** (from the first call's footer): hex values from sibling `~/code/*/.groot-project.toml` files that sit outside the palette — used for near-clash awareness when picking the suggested color.
 
-   **Dark-only rule for defaults.** The suggested color (Option 1) and any auto-mode pick **must come from the dark palette (1–14), never the vivid palette (15–28).** Vivid is reserved for special-case highlight projects the user explicitly opts into (e.g. `~/.claude` itself). The user can still *choose* vivid via the AUQ Notes — just don't ever *suggest* it.
+   **Dark-only rule for defaults.** The suggested color (Option 1) and any auto-mode pick **must come from the dark palette (1–14), never the vivid palette (15–28).** Vivid is reserved for special-case highlight projects the user explicitly opts into (e.g. `~/.claude` itself).
 
    Pick a **suggested color** (the first AUQ option) from the dark palette, preferring:
    - An unused color (no `used by:` annotation).
-   - A hue distinct from the "Other existing profiles" hexes (avoid near-clashes).
-   - A name/aesthetic that fits the project (warm/earthy for library-ish, cool/deep for systems, etc.).
+   - A hue distinct from the "Other existing projects" hexes (avoid near-clashes).
+   - A name/aesthetic that fits the project.
 
    Build the AUQ with **exactly 3 options**:
-
    - **Option 1 — `"<Name> (#<n>) — use suggested"`:** Preview shows the color's swatch + 2–3 line rationale.
    - **Option 2 — `"Browse dark palette (1–14)"`:** Preview shows all 14 dark swatches numbered 1–14 with their names, annotating `(used by ...)` on the used colors and marking the suggested one with `← suggested`.
    - **Option 3 — `"Browse vivid palette (15–28)"`:** Preview shows all 14 vivid swatches numbered 15–28.
 
    **AUQ formatting (learned the hard way — must follow):**
    - **Preview truncates around ~17 lines.** Don't combine palettes into a single preview — it gets cut off with a "N lines hidden" indicator.
-   - **Do not add an explicit "Other" / "Type something" option.** AUQ has a built-in `Notes` field (user presses `n`) — that *is* the free-text path. Mention it explicitly in each option's description: *"Press 'n' to type your choice in Notes."* The hint is easy to miss otherwise.
-   - **ANSI swatches DO render in previews.** Use a 6-space colored block: `\u001b[48;2;R;G;Bm      \u001b[0m` (write the literal text `\u001b` in the JSON string for AUQ — the JSON parser turns it into a real ESC byte).
-   - Each browse-preview's first line should remind: *"Press 'n' to type your choice (e.g. '20', 'Teal', 'vivid Indigo')."*
+   - **Do not add an explicit "Other" / "Type something" option.** AUQ has a built-in `Notes` field (user presses `n`) — that _is_ the free-text path. Mention it explicitly in each option's description: _"Press 'n' to type your choice in Notes."_
+   - **ANSI swatches DO render in previews.** Use a 6-space colored block: `[48;2;R;G;Bm      [0m` (write the literal text `` in the JSON string for AUQ — the JSON parser turns it into a real ESC byte).
+   - Each browse-preview's first line should remind: _"Press 'n' to type your choice (e.g. '20', 'Teal', 'vivid Indigo')."_
 
    **Interpreting the response:**
    - **Option 1 selected, no notes** → use the suggested color.
    - **Notes contain a number 1–14** → dark palette at that index.
    - **Notes contain a number 15–28** → vivid palette; pass `--vivid --color <N−14>` to the script in step 5.
-   - **Notes contain a color name** (e.g. `Teal`, `Crimson 2`) → default to dark. Prefix `vivid ` or `v ` means vivid (e.g. `vivid Teal`).
+   - **Notes contain a color name** → default to dark. Prefix `vivid ` or `v ` means vivid.
    - **Option 2 or 3 selected with no notes** → ask in a follow-up message for the specific number.
 
-   **Auto mode (only when invoked as `/iterm-setup auto`):** skip the AUQ. Still run the two bash calls to read the palette data, then pick the lowest-numbered swatch in the dark palette with no `used by:` annotation and no near-clash with "Other existing profiles." Proceed straight to step 3. Mention the chosen color in the wrap-up so the user can override on a follow-up turn.
+   **Auto mode (only when invoked as `/terminal-setup auto`):** skip the AUQ. Still run the two bash calls to read the palette data, then pick the lowest-numbered swatch in the dark palette with no `used by:` annotation and no near-clash with other projects' colors. Proceed straight to step 3.
 
-   **Change-color path (profile for `<profile>` already exists):** the first bash call's output begins with a banner like `Existing profile 'myproject': Plum (#4), APS=/*/myproject*` and the current color is marked `★ current` in the palette. In this case:
-   - Frame the AUQ question as *"You're already on Plum — change to?"*
-   - Pick a *different* unused color as the suggestion (don't suggest the current one).
-   - Pass `--force` in **step 5** (the script otherwise refuses to overwrite).
+   **Change-color path (project's `.groot-project.toml` already has a `background`):** the first bash call's output begins with a banner like `Existing background for 'myproject': Plum (#3A5F2C)` and the current color is marked `★ current` in the palette. In this case:
+   - Frame the AUQ question as _"You're already on Plum — change to?"_
+   - Pick a _different_ unused color as the suggestion.
    - The alias is almost certainly already set up (step 1's `--cwd-aliases` will have caught it) — default to `--no-alias`.
-   - The script preserves the existing APS pattern when `--force` is used without `--pattern`. You don't need to re-pass the binding.
 
 3. **Confirm the alias (or skip).**
-   - If the user already implied an alias name in step 1, confirm: *"Adding `alias <name>='cd ...'` to ~/.zshrc — sound good?"*
-   - If no alias name yet, ask: *"Want a shell alias too? Default would be `<profile>`. Type a different name, ENTER to accept, or 'no' to skip."*
-   - If they skip, pass `--no-alias` in step 4.
-   - **Auto mode:** use the profile name as the alias and proceed without confirmation. (If the alias name turns out to be awkward, the user can rename it later — `auto` is opt-in convenience, not perfection.)
+   - If the user already implied an alias name in step 1, confirm: _"Adding `alias <name>='cd ...'` to ~/.shrc — sound good?"_
+   - If no alias name yet, ask: _"Want a shell alias too? Default would be `<project>`. Type a different name, ENTER to accept, or 'no' to skip."_
+   - If they skip, pass `--no-alias` in step 5.
+   - **Auto mode:** use the project name as the alias and proceed without confirmation.
 
-4. **Confirm the title format (or skip / customize).** The script sets a Custom tab/window title that pairs with the Claude Code state hooks (`🟢` / `❓` / `☑️`). Default format:
+4. _(no separate title-format step — the shell handles title assembly now)_
 
-   ```
-   \(user.claudeState)\(session.profileName) - \(session.name)
-   ```
-
-   When run interactively, the script prompts: *Accept default? [Y/n=skip/c=customize]*. The skill normally lets that interactive prompt do its job — only steer the user when they want a non-default for a specific project (uncommon).
-   - **Default (just hit ENTER):** title format is set on this profile.
-   - **`n` / skip:** profile inherits the Default profile's title (use this if the user has already configured a global Custom Title on the iTerm Default profile and doesn't want per-project overrides).
-   - **`c` / customize:** prompt for a different interpolated string.
-
-   **Non-interactive equivalents:**
-   - `--title-format '\(custom format)'` — explicit format.
-   - `--no-title` — don't set title keys at all (inherit).
-
-5. **Create the profile (and alias).** Run:
+5. **Write `.groot-project.toml` (and the alias).** Run:
 
    ```
-   ~/.claude/skills/iterm-setup/iterm-setup.py <profile> --color <N> --alias <alias>
+   ~/.claude/skills/terminal-setup/terminal-setup.py <project> --color <N> --alias <alias>
    ```
 
-   Or with `--no-alias` to skip the alias. Add `--force` only if the user explicitly wants to overwrite an existing profile. Add `--pattern <PAT>` if they want a non-default APS rule (default is `/*/<profile>*`). Add `--title-format` / `--no-title` if step 4 resolved non-interactively.
-
-   The script will:
-   - Write the iTerm2 profile JSON to `~/Library/Application Support/iTerm2/DynamicProfiles/`.
-   - Pick the right alias body. If `~/.zshrc` contains `alias code='cd ~/code'` (or its `$HOME` variant) AND the target is a direct child of `~/code/`, it'll use the `'code;cd <project>'` shorthand. Otherwise it falls back to `'cd ~/<rel>'` for paths under `$HOME`, or `'cd <abs>'`. No `alias code=` required — the shorthand is an optimization, not a dependency.
-   - Insert the alias after `alias code='cd ~/code'` in `~/.zshrc` when that line is present (clusters with existing nav aliases); otherwise appends at end of file. Idempotent — skips silently if the exact line is already there.
+   Or with `--no-alias` to skip the alias. The script will:
+   - Write `[terminal].background` (and `alias`) to `./.groot-project.toml`. If a legacy `[iterm]` block exists, it's removed in the same pass.
+   - Pick the right alias body. If `~/.shrc` (or `~/.zshrc`) contains `alias code='cd ~/code'` AND the target is a direct child of `~/code/`, it uses the `'code;cd <project>'` shorthand. Otherwise falls back to `'cd ~/<rel>'` for paths under `$HOME`, or `'cd <abs>'`.
+   - Insert the alias after `alias code='cd ~/code'` when present (clusters with existing nav aliases); otherwise appends at end of file. Idempotent.
    - Warn (not overwrite) if a different alias with the same name already exists.
-   - **Refuse to add the alias** (without `--force-alias`) if a *different* alias in `~/.zshrc` already resolves to the current cwd. Prevents duplicates like adding `webapp` when `wa='cd ~/webapp'` already exists. The skill should normally have already caught this in step 1, but this is the safety net.
+   - **Refuse to add the alias** (without `--force-alias`) if a _different_ alias already resolves to the current cwd.
 
 6. **Verify.**
-   - For the profile: open a new tab and `cd` into the project — the background color should switch automatically.
-   - For the alias: tell the user to `source ~/.zshrc` or open a new shell.
-   - For the title: a fresh shell with the new profile should show `<state> <project> - <topic>` once Claude Code's state hooks have fired at least once (the `claudeState` user variable is empty until the first hook runs, in which case the prefix is just blank).
-   - The script warns if iTerm2 shell integration isn't detected (APS won't fire without it).
+   - **Background**: open a new tab and `cd` into the project — the background color should change immediately (the chpwd hook in `~/.shrc` emits OSC 11). Or run `cd .` in the current shell to retrigger the hook.
+   - **Alias**: tell the user to `source ~/.shrc` or open a new shell.
+   - **Title state**: a fresh shell with Claude Code running should show `<state> <project> - <topic>` once the state hooks have fired. The `<state>` prefix comes from `~/.claude/state/<tty_slug>.glyph` (updated by Claude's status hooks); the rest is assembled by the precmd in `~/.shrc`.
 
-7. **Offer to write `.groot-project.toml` (persistence).** After a successful create / change-color, prompt to record the current settings so a fresh clone on another machine can reproduce them. Decide what to offer based on the file's state at step 0:
+## One-time install: ~/.shrc plumbing
 
-   - **No file at step 0** (fresh setup, or already-configured project that's never been persisted): always offer. AUQ with three options — *Write color + alias / Write color only (skip alias) / Skip*. On accept, run:
+The chpwd + precmd functions live in `~/.shrc`, under a block headed `# Claude terminal state (terminal-agnostic; replaces iTerm Dynamic Profiles)`. This is installed once per machine — re-running `/terminal-setup` per project does _not_ touch `~/.shrc` beyond the alias insertion. If you're setting up a brand-new machine, copy the block from a working machine or re-run the rework recipe.
 
-     ```
-     ~/.claude/skills/iterm-setup/iterm-setup.py --hex <chosen-hex> [--alias <alias>] --groot-toml-write
-     ```
-
-     The script prints `written <path>` or `unchanged <path>`.
-
-   - **File existed at step 0 and user picked "Apply recorded settings"**: no prompt — the file already matches. Skip.
-
-   - **File existed at step 0 and user picked "Pick a new color"**: settings just diverged from the file. Prompt: *"Update .groot-project.toml from `<old-hex>` → `<new-hex>`?"*. On accept, run the same `--groot-toml-write` invocation; it'll merge into the existing file and report `updated <path>`.
-
-   The persistence file also covers the *backfill* case: if the user runs `/iterm-setup` on a project that has an existing iTerm profile already (the change-color path) and no `.groot-project.toml`, this step is the moment to capture the current settings into the file for the first time. Phrase the prompt accordingly: *"This project's profile isn't recorded in .groot-project.toml yet. Write it so a fresh clone can reproduce the setup?"*
-
-   **Auto mode:** if the file is absent at step 0, write it automatically using the just-applied color and alias. (Auto mode's contract is "no prompts, sensible defaults" — and persisting the choice you just made is the sensible default.)
-
-   **What gets written.** The script stores `color` (always), `alias` (if you pass `--alias`), and `name` only if you pass `--groot-toml-write-name` together with a positional name. **Default is to omit `name`** — the profile name almost always equals `basename $(pwd)` and storing it in the file makes the file non-portable across worktrees with different basenames. Only set it when the project has a genuine reason for a fixed profile name (rare).
-
-## One-time iTerm Default profile setup
-
-The state-glyph behavior also works for sessions that *don't* have a per-project profile (i.e. running under iTerm's Default profile). To enable it: open iTerm Preferences → Profiles → **Default** → General, set the Title dropdown to **Custom**, and use the same format string as above. All Dynamic Profiles inherit this unless they explicitly override it (which is what `iterm-setup.py` does by default — you can opt out with `--no-title` to inherit instead).
+The block depends on `~/.shrc` being sourced by `~/.zshrc` (and optionally `~/.bashrc`). The `direnv hook` line right below it confirms that pattern is in place.
 
 ## What this does NOT do
 
-- Doesn't manage profiles created via the iTerm2 GUI.
-- Doesn't list or remove profiles. To remove: `rm ~/Library/Application\ Support/iTerm2/DynamicProfiles/<name>.json`.
-- Doesn't remove aliases from `~/.zshrc` when a profile is deleted — left as a manual step so we never edit shell config destructively.
-- Doesn't auto-fire on `git init` or `git clone` — invocation is always explicit.
-- Doesn't auto-fire on `cd` either. `.groot-project.toml` is the *recorded preference*; `/iterm-setup` (or `/groot-project` during bootstrap) is what reads it and applies.
+- Doesn't write iTerm Dynamic Profile JSON. (Old JSON at `~/Library/Application Support/iTerm2/DynamicProfiles/<project>.json` is harmless to leave in place — it's superseded but not load-bearing. Delete manually if cleanup is wanted.)
+- Doesn't manage profiles created via any terminal's GUI.
+- Doesn't auto-fire on `cd`, `git init`, or `git clone` — invocation is always explicit. `.groot-project.toml` is the _recorded preference_; `/terminal-setup` (or `/groot-project` during bootstrap) is what writes it and applies the alias.
+- Doesn't restore the iTerm cross-tab waiting-queue feature on non-iTerm terminals (that's iTerm-AppleScript-bridge-only; see `~/.claude/hooks/_waiting_queue.py`). Switching to Ghostty temporarily disables `cwcycle`-style cross-tab cycling.
 
 ## `.groot-project.toml` — the persistence file
 
-A tracked-in-git, per-project TOML at repo root that records the iTerm choices (and, later, other workstation-conventions sections). The point: a fresh clone on another machine can reproduce the per-project terminal setup via `/iterm-setup` without re-picking a color.
+A tracked-in-git, per-project TOML at repo root that records the terminal choices. A fresh clone on another machine reproduces the per-project setup via `/terminal-setup`.
 
-Schema (v1 — `[iterm]` only):
+Schema (current):
+
+```toml
+[terminal]
+background = "#3A5F2C"   # always uppercase #RRGGBB after write
+# alias = "mp"           # optional; what to add to ~/.shrc
+# name  = "myproject"    # optional; project-name override (rare)
+```
+
+Legacy schema (still readable; auto-migrated on next write):
 
 ```toml
 [iterm]
-color = "#3A5F2C"       # background; always uppercase #RRGGBB after write
-# alias = "mp"          # optional; what to add to ~/.zshrc
-# name  = "myproject"   # optional; profile-name override (rare — see step 7 caveat)
+color = "#3A5F2C"
+# alias = "mp"
 ```
 
-Other top-level sections are preserved verbatim by the write helper. Unknown keys inside `[iterm]` are silently dropped on read (forward-compatible).
+Other top-level sections are preserved verbatim by the write helper. Unknown keys inside `[terminal]` are silently dropped on read.
 
-Helper flags on `iterm-setup.py`:
+Helper flags on `terminal-setup.py`:
 
-- `--groot-toml-read [DIR]` — print `[iterm]` as `KEY=VALUE` lines (default cwd; empty output if file/section absent; exit 1 on malformed TOML).
-- `--groot-toml-write [DIR] --hex #RRGGBB [--alias NAME] [--groot-toml-write-name]` — standalone (does NOT create a profile); merges into existing file, preserves other sections, normalizes color to uppercase, prints `written|updated|unchanged <path>`.
+- `--groot-toml-read [DIR]` — print `[terminal]` (or translated `[iterm]`) as `KEY=VALUE` lines. Default cwd; empty output if file/section absent; exit 1 on malformed TOML.
+- `--groot-toml-write [DIR] --hex #RRGGBB [--alias NAME] [--groot-toml-write-name]` — standalone (does NOT run the picker); merges into existing file, removes legacy `[iterm]`, preserves other sections, normalizes color to uppercase.
+- `--migrate-toml [DIR-or-FILE]` — standalone migration of `[iterm]` → `[terminal]`; prints `migrated <path>` / `already-current <path>` / `no-file <path>`.
 
 ## Reference
 
-- Profile output dir: `~/Library/Application Support/iTerm2/DynamicProfiles/`
-- Color usage is read directly from on-disk profiles (matches background RGB to palette) — no separate state file to drift.
-- `.groot-project.toml` lives at the project root, tracked in git, format described above.
-- iTerm2 Dynamic Profiles: https://iterm2.com/documentation-dynamic-profiles.html
-- iTerm2 names and titles (interpolated string variables like `\(session.name)`, `\(user.foo)`): https://iterm2.com/documentation-session-title.html
-- The `claudeState` user variable is set by `~/.claude/hooks/{stop,notify,submit}-status.py` via the iTerm `OSC 1337;SetUserVar` escape sequence.
+- Persistence: `<project>/.groot-project.toml` (`[terminal]` section, schema above).
+- Color application: OSC 11 emitted by `_claude_project_bg_chpwd` in `~/.shrc`.
+- Title state: per-TTY files under `~/.claude/state/`, assembled into OSC 2 by `_claude_title_assemble` in `~/.shrc`. Written by `~/.claude/hooks/_terminal_state.py`.
+- Color usage is read from sibling `~/code/*/.groot-project.toml` files (no separate state file to drift).

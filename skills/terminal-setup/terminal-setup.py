@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
-"""Generate iTerm2 Dynamic Profile JSON for per-project Automatic Profile Switching.
+"""Per-project terminal background colors + shell alias, terminal-agnostic.
 
-Writes a JSON file to ~/Library/Application Support/iTerm2/DynamicProfiles/.
-iTerm2 watches that directory and loads new/changed profiles live. Each profile
-inherits from "Default" so only colors and the APS rule are overridden.
+Writes a `[terminal]` section to `<project>/.groot-project.toml` recording the
+chosen background color (always) and shell alias (optional). The color takes
+effect on `cd` into the project, via the OSC 11 emit in ~/.shrc's chpwd hook
+(see hook block "Claude terminal state" in ~/.shrc). Works in iTerm2, Ghostty,
+Alacritty, Kitty, WezTerm — anything that honors OSC 11.
 
-Optionally adds a shell alias for quick `cd` to the project. The alias goes
-to ~/.shrc when it exists and is sourced by ~/.zshrc or ~/.bashrc (the
-"shared shell config" convention — aliases that work across zsh and bash);
-otherwise falls back to ~/.zshrc.
+The shell alias goes to ~/.shrc when it exists and is sourced by ~/.zshrc or
+~/.bashrc (the "shared shell config" convention — aliases that work across
+zsh and bash); otherwise falls back to ~/.zshrc.
 
 Color palette: project-seeded random generation. Each project name produces a
-deterministic palette of 10 dark, saturated colors with hue spread, named by
+deterministic palette of 14 dark, saturated colors with hue spread, named by
 hue bucket (Crimson, Forest, Indigo, etc.). Same project always shows the same
-palette across runs; different projects get different palettes. Solves the
-"fixed 10 colors run out" problem while staying stable for re-runs. A `--hex`
-flag bypasses the palette for one-off custom colors.
+palette across runs; different projects get different palettes. A `--hex` flag
+bypasses the palette for one-off custom colors.
 
-Color usage is read from existing on-disk profiles (no separate state file)
-so the picker can flag candidate colors that overlap (RGB-near) with colors
-already in use by neighboring projects.
+"In-use" awareness for the picker comes from scanning sibling
+`~/code/*/.groot-project.toml` files — the same source of truth that drives
+the per-project color, so there's no separate state to drift.
 """
 
 from __future__ import annotations
@@ -27,33 +27,14 @@ from __future__ import annotations
 import argparse
 import colorsys
 import hashlib
-import json
 import random
 import re
 import sys
 import tomllib
 from pathlib import Path
 
-PARENT_PROFILE = "Default"
-GUID_PREFIX = "iterm-setup-"
-
 DEFAULT_PALETTE_SIZE = 14
 VIVID_PALETTE_SIZE = 4
-
-# Tab/window title rendered by iTerm via the profile's "Custom" title slot.
-# Pairs with the Claude Code Stop / Notification / UserPromptSubmit hooks,
-# which set the iTerm user variable `claudeState` to a state glyph
-# (🟢 working, ❓ waiting, ☑️ done). `\(session.name)` is whatever CC
-# renames the session to (the topic). `\(session.profileName)` is this
-# profile's Name (the project), so the title reads e.g.
-#     🟢 myproject - Refactor login flow
-DEFAULT_TITLE_FORMAT = r"\(user.claudeState)\(session.profileName) - \(session.name)"
-
-# iTermTitleComponentsCustom = 1 << 4 (from iTerm's iTermTitleComponents enum
-# in sources/Settings/Profiles/ITAddressBookMgr.h). Sets bit so iTerm renders
-# the "Custom Tab Title" / "Custom Window Title" interpolated strings instead
-# of one of the built-in components (Job / Session Name / etc).
-ITERM_TITLE_COMPONENTS_CUSTOM = 16
 
 # Hue buckets at 22.5° intervals around the wheel; each generated palette
 # entry takes its name from whichever bucket is closest to its hue.
@@ -94,11 +75,7 @@ VIVID_SATURATION_MIN = 0.55
 VIVID_SATURATION_MAX = 0.90
 
 DEFAULT_FOREGROUND = (0.88, 0.86, 0.82)
-DEFAULT_CURSOR = (0.88, 0.86, 0.82)
 
-DYNAMIC_PROFILES_DIR = (
-    Path.home() / "Library" / "Application Support" / "iTerm2" / "DynamicProfiles"
-)
 ZSHRC_PATH = Path.home() / ".zshrc"
 SHRC_PATH = Path.home() / ".shrc"
 BASHRC_PATH = Path.home() / ".bashrc"
@@ -117,27 +94,26 @@ _SHRC_SOURCE_RE = re.compile(
 )
 
 # Per-project workstation-setup file, checked into git so a fresh clone on
-# another machine can reproduce the iTerm profile (and, later, other
-# per-project workstation conventions). See `read_groot_project_iterm` /
-# `write_groot_project_iterm` for the read/write seam and SKILL.md for the
-# prompting flow.
+# another machine reproduces this project's terminal setup. See
+# `read_groot_project_terminal` / `write_groot_project_terminal` for the
+# read/write seam and SKILL.md for the prompting flow.
 GROOT_PROJECT_TOML_NAME = ".groot-project.toml"
 GROOT_PROJECT_TOML_HEADER = (
     "# .groot-project.toml — per-project workstation conventions.\n"
     "# Tracked in git so a fresh clone reproduces this project's setup on a\n"
-    "# new machine. Read/written by /iterm-setup (and /groot-project).\n"
+    "# new machine. Read/written by /terminal-setup (and /groot-project).\n"
 )
-ITERM_TOML_FIELDS = ("color", "alias", "name")
+# Modern key names. Legacy [iterm] with `color` key is still readable; the
+# writer always emits [terminal] with `background` and removes any leftover
+# [iterm] block.
+TERMINAL_TOML_FIELDS = ("background", "alias", "name")
+TERMINAL_TOML_SECTION = "terminal"
+LEGACY_TOML_SECTION = "iterm"
+LEGACY_COLOR_KEY = "color"  # legacy synonym for `background`
 
 VALID_PROFILE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 VALID_ALIAS_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 HEX_COLOR_RE = re.compile(r"^#?([0-9a-fA-F]{6})$")
-
-SHELL_INTEGRATION_PATHS = [
-    Path.home() / ".iterm2_shell_integration.zsh",
-    Path.home() / ".iterm2_shell_integration.bash",
-    Path.home() / ".iterm2_shell_integration.fish",
-]
 
 # RGB distance threshold (in 0-1 float space) for considering two colors
 # "the same" when detecting overlap with existing profiles. ~0.05 ≈ 13/255
@@ -152,39 +128,39 @@ ALIAS_LINE_RE = re.compile(
 ALIAS_CHAIN_RESOLVE_PASSES = 5
 
 
-class ItermSetupError(RuntimeError):
+class TerminalSetupError(RuntimeError):
     pass
 
 
-class InvalidProfileNameError(ItermSetupError):
+# Back-compat alias — anything that still imports the old name keeps working.
+ItermSetupError = TerminalSetupError
+
+
+class InvalidProfileNameError(TerminalSetupError):
     pass
 
 
-class InvalidAliasNameError(ItermSetupError):
+class InvalidAliasNameError(TerminalSetupError):
     pass
 
 
-class ProfileExistsError(ItermSetupError):
+class InvalidColorIndexError(TerminalSetupError):
     pass
 
 
-class InvalidColorIndexError(ItermSetupError):
+class InvalidHexColorError(TerminalSetupError):
     pass
 
 
-class InvalidHexColorError(ItermSetupError):
+class AliasConflictError(TerminalSetupError):
     pass
 
 
-class AliasConflictError(ItermSetupError):
+class AliasTargetCollisionError(TerminalSetupError):
     pass
 
 
-class AliasTargetCollisionError(ItermSetupError):
-    pass
-
-
-class GrootProjectTomlError(ItermSetupError):
+class GrootProjectTomlError(TerminalSetupError):
     pass
 
 
@@ -311,34 +287,33 @@ def ansi_swatch(rgb: tuple[float, float, float], text: str, width: int = 36) -> 
     return f"\x1b[48;2;{r};{g};{b}m\x1b[38;2;{fr};{fg_};{fb}m{padded}\x1b[0m"
 
 
-def all_existing_profile_colors() -> list[tuple[str, tuple[float, float, float]]]:
-    """Return [(profile_name, rgb), ...] for every iterm-setup-authored profile.
+def all_existing_profile_colors(
+    code_dir: Path | None = None,
+) -> list[tuple[str, tuple[float, float, float]]]:
+    """Return [(project_name, rgb), ...] for every project under ~/code/ that has
+    a `.groot-project.toml` recording a background color.
 
-    Replaces the old `color_usage_from_disk` (which was keyed by fixed-palette
-    index). With per-project palettes we just collect raw RGBs and let callers
-    do distance-based matching.
+    Source of truth: the git-tracked `.groot-project.toml` at each project root.
+    Replaces the old DynamicProfiles-dir scan — same shape of data, but pulled
+    from the file the user actually maintains rather than an iTerm side-effect.
     """
     results: list[tuple[str, tuple[float, float, float]]] = []
-    if not DYNAMIC_PROFILES_DIR.exists():
+    root = code_dir or CODE_DIR
+    if not root.exists():
         return results
-    for json_path in sorted(DYNAMIC_PROFILES_DIR.glob("*.json")):
+    for toml_path in sorted(root.glob("*/.groot-project.toml")):
         try:
-            data = json.loads(json_path.read_text())
-        except (json.JSONDecodeError, OSError):
+            recorded = read_groot_project_terminal(toml_path)
+        except GrootProjectTomlError:
             continue
-        for profile in data.get("Profiles", []):
-            if not profile.get("Guid", "").startswith(GUID_PREFIX):
-                continue
-            bg = profile.get("Background Color") or {}
-            try:
-                rgb = (
-                    float(bg["Red Component"]),
-                    float(bg["Green Component"]),
-                    float(bg["Blue Component"]),
-                )
-            except (KeyError, TypeError, ValueError):
-                continue
-            results.append((profile.get("Name", json_path.stem), rgb))
+        if not recorded or "background" not in recorded:
+            continue
+        try:
+            rgb = hex_to_rgb(recorded["background"])
+        except InvalidHexColorError:
+            continue
+        project = toml_path.parent.name
+        results.append((project, rgb))
     return results
 
 
@@ -361,40 +336,32 @@ def palette_collisions(
     return out
 
 
-def existing_profile_info(name: str) -> dict | None:
-    """Current RGB/name for an existing profile, or None if absent.
+def existing_profile_info(name: str, cwd: Path | None = None) -> dict | None:
+    """Current RGB/name for this project's recorded background, or None.
 
-    With generated palettes there's no canonical "color name" — we derive a
-    human label from the hue bucket of the stored RGB.
+    Reads `<cwd>/.groot-project.toml`. If the file is present and its [terminal]
+    (or legacy [iterm]) section has a `background` (or `color`), returns a dict
+    with the RGB, a human label derived from the hue bucket, and the project name.
+    `name` is the proposed name (typically basename of cwd); the returned `name`
+    is whatever the TOML recorded if it set one, else `name`.
     """
-    path = DYNAMIC_PROFILES_DIR / f"{name}.json"
-    if not path.exists():
+    project_dir = cwd or Path.cwd()
+    path = project_dir / GROOT_PROJECT_TOML_NAME
+    try:
+        recorded = read_groot_project_terminal(path)
+    except GrootProjectTomlError:
+        return None
+    if not recorded or "background" not in recorded:
         return None
     try:
-        data = json.loads(path.read_text())
-    except (json.JSONDecodeError, OSError):
+        rgb = hex_to_rgb(recorded["background"])
+    except InvalidHexColorError:
         return None
-    profiles = data.get("Profiles") or []
-    if not profiles:
-        return None
-    profile = profiles[0]
-    bg = profile.get("Background Color") or {}
-    try:
-        rgb = (
-            float(bg["Red Component"]),
-            float(bg["Green Component"]),
-            float(bg["Blue Component"]),
-        )
-    except (KeyError, TypeError, ValueError):
-        return None
-    h, light, s = colorsys.rgb_to_hls(*rgb)
-    color_label = hue_bucket_name(h * 360.0)
-    bound = profile.get("Bound Hosts") or [None]
+    h, _, _ = colorsys.rgb_to_hls(*rgb)
     return {
-        "name": profile.get("Name", name),
+        "name": recorded.get("name", name),
         "rgb": rgb,
-        "color_label": color_label,
-        "pattern": bound[0],
+        "color_label": hue_bucket_name(h * 360.0),
         "path": path,
     }
 
@@ -513,35 +480,6 @@ def suggest_default_color_index(
     return best_i
 
 
-def color_components(rgb: tuple[float, float, float]) -> dict[str, float]:
-    r, g, b = rgb
-    return {"Red Component": r, "Green Component": g, "Blue Component": b}
-
-
-def build_profile(
-    name: str,
-    rgb: tuple[float, float, float],
-    pattern: str,
-    title_format: str | None = None,
-) -> dict:
-    profile: dict = {
-        "Name": name,
-        "Guid": f"{GUID_PREFIX}{name}",
-        "Dynamic Profile Parent Name": PARENT_PROFILE,
-        "Bound Hosts": [pattern],
-        "Background Color": color_components(rgb),
-        "Foreground Color": color_components(DEFAULT_FOREGROUND),
-        "Cursor Color": color_components(DEFAULT_CURSOR),
-    }
-    if title_format is not None:
-        # Set both Tab and Window title; iTerm uses each on different surfaces.
-        profile["Title Components"] = ITERM_TITLE_COMPONENTS_CUSTOM
-        profile["Custom Tab Title"] = title_format
-        profile["Custom Window Title"] = title_format
-        profile["Use Custom Window Title"] = True
-    return {"Profiles": [profile]}
-
-
 def validate_profile_name(name: str) -> None:
     if not VALID_PROFILE_NAME_RE.match(name):
         raise InvalidProfileNameError(
@@ -599,41 +537,6 @@ def pick_color_interactive(
         if 1 <= idx <= len(combined):
             return idx - 1
         print(f"  Out of range; try 1-{len(combined)}.")
-
-
-def pick_title_format_interactive() -> str | None:
-    """Default title format unless the user wants to customize/skip.
-
-    Returns the chosen format string, or None to skip the custom-title keys
-    entirely (profile inherits whatever the Default profile has). Defaults
-    to DEFAULT_TITLE_FORMAT on EOF / blank input — accepting is the cheap
-    path so users can ENTER through.
-    """
-    print(f"\nTitle format default:\n  {DEFAULT_TITLE_FORMAT}")
-    print(
-        "(rendered by iTerm — '\\(user.claudeState)' is set by the Claude Code\n"
-        " hooks to a 🟢/❓/☑️ glyph; '\\(session.name)' is CC's auto-topic)"
-    )
-    while True:
-        try:
-            raw = input("Accept default? [Y/n=skip/c=customize]: ").strip().lower()
-        except EOFError:
-            return DEFAULT_TITLE_FORMAT
-        if raw in ("", "y", "yes"):
-            return DEFAULT_TITLE_FORMAT
-        if raw in ("n", "no", "skip"):
-            return None
-        if raw in ("c", "customize"):
-            try:
-                fmt = input("Custom format (ENTER to use default): ").strip()
-            except EOFError:
-                return DEFAULT_TITLE_FORMAT
-            return fmt or DEFAULT_TITLE_FORMAT
-        print("  Please enter Y (default), n (skip), or c (customize).")
-
-
-def shell_integration_installed() -> bool:
-    return any(p.exists() for p in SHELL_INTEGRATION_PATHS)
 
 
 CODE_ALIAS_PATTERN = re.compile(
@@ -910,12 +813,15 @@ def _normalize_hex_color(hex_str: str) -> str:
     return "#" + m.group(1).upper()
 
 
-def read_groot_project_iterm(path: Path) -> dict | None:
-    """Return the `[iterm]` section as a dict, or None if file/section absent.
+def read_groot_project_terminal(path: Path) -> dict | None:
+    """Return the recorded terminal section as a dict, or None if absent.
 
-    Recognized keys: `color` (required when section present), `alias`, `name`.
-    Unknown keys are silently dropped — newer writers can add fields without
-    breaking older readers.
+    Prefers the modern `[terminal]` section. If only the legacy `[iterm]`
+    section exists, returns its data with the `color` key translated to
+    `background` so callers see a single shape. Unknown keys are silently
+    dropped (forward compatibility).
+
+    Returned keys: `background` (when section present), `alias`, `name`.
 
     Raises `GrootProjectTomlError` on malformed TOML or wrong-typed values.
     """
@@ -927,34 +833,56 @@ def read_groot_project_iterm(path: Path) -> dict | None:
         data = tomllib.loads(text)
     except tomllib.TOMLDecodeError as e:
         raise GrootProjectTomlError(f"malformed TOML in {path}: {e}") from e
-    iterm = data.get("iterm")
-    if iterm is None:
-        return None
-    if not isinstance(iterm, dict):
+
+    section_name = TERMINAL_TOML_SECTION
+    section = data.get(TERMINAL_TOML_SECTION)
+    if section is None:
+        section = data.get(LEGACY_TOML_SECTION)
+        if section is None:
+            return None
+        section_name = LEGACY_TOML_SECTION
+    if not isinstance(section, dict):
         raise GrootProjectTomlError(
-            f"[iterm] in {path} must be a table; got {type(iterm).__name__}"
+            f"[{section_name}] in {path} must be a table; got {type(section).__name__}"
         )
+
     out: dict = {}
-    for key in ITERM_TOML_FIELDS:
-        if key not in iterm:
+    if section_name == LEGACY_TOML_SECTION:
+        # Translate legacy `color` key to canonical `background` so callers
+        # don't need to know which section was used.
+        legacy_keys = (LEGACY_COLOR_KEY, "alias", "name")
+        for key in legacy_keys:
+            if key not in section:
+                continue
+            value = section[key]
+            if not isinstance(value, str):
+                raise GrootProjectTomlError(
+                    f"[{section_name}].{key} in {path} must be a string; "
+                    f"got {type(value).__name__}"
+                )
+            canonical = "background" if key == LEGACY_COLOR_KEY else key
+            out[canonical] = value
+        return out
+
+    for key in TERMINAL_TOML_FIELDS:
+        if key not in section:
             continue
-        value = iterm[key]
+        value = section[key]
         if not isinstance(value, str):
             raise GrootProjectTomlError(
-                f"[iterm].{key} in {path} must be a string; got {type(value).__name__}"
+                f"[{section_name}].{key} in {path} must be a string; "
+                f"got {type(value).__name__}"
             )
         out[key] = value
     return out
 
 
-def _format_iterm_block(iterm: dict) -> str:
-    """Render an [iterm] section. Caller has already validated/normalized values."""
-    lines = ["[iterm]"]
-    # Stable key order — color first (the always-present field), then optional
-    # fields in the same order as ITERM_TOML_FIELDS.
-    for key in ITERM_TOML_FIELDS:
-        if key in iterm:
-            lines.append(f'{key} = "{iterm[key]}"')
+def _format_terminal_block(terminal: dict) -> str:
+    """Render a [terminal] section. Caller has already validated/normalized values."""
+    lines = [f"[{TERMINAL_TOML_SECTION}]"]
+    for key in TERMINAL_TOML_FIELDS:
+        if key in terminal:
+            lines.append(f'{key} = "{terminal[key]}"')
     return "\n".join(lines) + "\n"
 
 
@@ -962,24 +890,32 @@ def _format_iterm_block(iterm: dict) -> str:
 _TOML_SECTION_RE = re.compile(r"^\[([^\[\]]+)\]\s*$", re.MULTILINE)
 
 
-def _splice_iterm_block(existing: str, new_block: str) -> str:
-    """Replace an existing [iterm] block in `existing` with `new_block`, or append.
+def _splice_terminal_block(existing: str, new_block: str) -> str:
+    """Replace the [terminal] block, append if missing, and drop any [iterm] block.
 
-    A "block" runs from `[iterm]` up to (but not including) the next top-level
-    `[section]` header, or to end-of-file. Preserves all other sections and any
-    leading content (comments, blank lines).
+    Migrating away from [iterm] is part of the write contract — if we leave the
+    legacy section in place, the next read could find conflicting state. Always
+    consolidate to [terminal].
+
+    A "block" runs from its section header up to (but not including) the next
+    top-level `[section]` header, or to end-of-file. Other sections are
+    preserved verbatim.
     """
+    # Drop the legacy [iterm] block first so subsequent edits operate on a
+    # consolidated file. Idempotent if [iterm] isn't present.
+    existing = _remove_section_block(existing, LEGACY_TOML_SECTION)
+
     matches = list(_TOML_SECTION_RE.finditer(existing))
-    iterm_match: re.Match | None = None
+    terminal_match: re.Match | None = None
     next_match: re.Match | None = None
     for i, m in enumerate(matches):
-        if m.group(1).strip() == "iterm":
-            iterm_match = m
+        if m.group(1).strip() == TERMINAL_TOML_SECTION:
+            terminal_match = m
             if i + 1 < len(matches):
                 next_match = matches[i + 1]
             break
 
-    if iterm_match is None:
+    if terminal_match is None:
         # Append. Ensure exactly one blank line between previous content and the
         # new section so the file stays readable.
         prefix = existing
@@ -989,82 +925,157 @@ def _splice_iterm_block(existing: str, new_block: str) -> str:
             prefix += "\n"
         return prefix + new_block
 
-    start = iterm_match.start()
+    start = terminal_match.start()
     end = next_match.start() if next_match else len(existing)
-    # Preserve a separating blank line between [iterm] and the next section,
-    # if there was one.
     block = new_block
     if next_match and not block.endswith("\n\n"):
         block = block.rstrip("\n") + "\n\n"
     return existing[:start] + block + existing[end:]
 
 
-def write_groot_project_iterm(path: Path, iterm: dict) -> str:
-    """Write/merge the `[iterm]` section into `path`. Returns status.
+def _remove_section_block(existing: str, section: str) -> str:
+    """Remove a `[section]` block (header + body) from the file, if present.
 
-    `iterm` is the *full intended state* of the section, not a patch — fields
-    omitted here are dropped from the file. Always includes `color`; `alias`
-    and `name` are optional. Color is normalized to canonical `#RRGGBB` upper.
+    Used during write to consolidate away the legacy [iterm] block. If the
+    section isn't there, returns `existing` unchanged.
+    """
+    matches = list(_TOML_SECTION_RE.finditer(existing))
+    target: re.Match | None = None
+    next_match: re.Match | None = None
+    for i, m in enumerate(matches):
+        if m.group(1).strip() == section:
+            target = m
+            if i + 1 < len(matches):
+                next_match = matches[i + 1]
+            break
+    if target is None:
+        return existing
+    start = target.start()
+    end = next_match.start() if next_match else len(existing)
+    # Also consume any trailing blank line(s) so we don't accumulate them.
+    return (
+        (existing[:start].rstrip("\n") + "\n\n" + existing[end:]).lstrip("\n")
+        if existing[:start].strip()
+        else existing[end:].lstrip("\n")
+    )
 
-    Other sections in the file are preserved untouched. If the file doesn't
-    exist, it's created with a one-line header comment.
+
+def write_groot_project_terminal(path: Path, terminal: dict) -> str:
+    """Write/merge the `[terminal]` section into `path`. Returns status.
+
+    `terminal` is the *full intended state* of the section, not a patch — fields
+    omitted here are dropped from the file. Always includes `background`;
+    `alias` and `name` are optional. Color is normalized to canonical `#RRGGBB`
+    upper. If the file has a legacy `[iterm]` section, the writer removes it
+    (silent in-place migration).
 
     Returns one of: `"written"` (new file), `"updated"` (file existed, content
     changed), `"unchanged"` (file existed, byte-identical after merge).
     """
-    if "color" not in iterm:
-        raise GrootProjectTomlError("write requires a 'color' field")
-    normalized: dict = {"color": _normalize_hex_color(iterm["color"])}
+    if "background" not in terminal:
+        raise GrootProjectTomlError("write requires a 'background' field")
+    normalized: dict = {"background": _normalize_hex_color(terminal["background"])}
     try:
-        if "alias" in iterm:
-            validate_alias_name(iterm["alias"])
-            normalized["alias"] = iterm["alias"]
-        if "name" in iterm:
-            validate_profile_name(iterm["name"])
-            normalized["name"] = iterm["name"]
+        if "alias" in terminal:
+            validate_alias_name(terminal["alias"])
+            normalized["alias"] = terminal["alias"]
+        if "name" in terminal:
+            validate_profile_name(terminal["name"])
+            normalized["name"] = terminal["name"]
     except (InvalidAliasNameError, InvalidProfileNameError) as e:
         raise GrootProjectTomlError(str(e)) from e
 
-    new_block = _format_iterm_block(normalized)
+    new_block = _format_terminal_block(normalized)
 
     if not path.exists():
         path.write_text(GROOT_PROJECT_TOML_HEADER + "\n" + new_block)
         return "written"
 
     existing_text = path.read_text()
-    new_text = _splice_iterm_block(existing_text, new_block)
+    new_text = _splice_terminal_block(existing_text, new_block)
     if new_text == existing_text:
         return "unchanged"
     path.write_text(new_text)
     return "updated"
 
 
-def _print_iterm_toml(path: Path) -> int:
-    """Emit `[iterm]` fields as `KEY=VALUE` lines for the SKILL.md to parse.
+def migrate_groot_project_toml(path: Path) -> str:
+    """Standalone migration: rewrite legacy `[iterm]` as `[terminal]` in place.
 
-    Empty output if file or section absent. Exits 1 with a stderr message on
-    a malformed file (so the caller can distinguish absent from corrupt).
+    Returns one of:
+      - `"migrated"`  — file had [iterm] (no [terminal]) and was rewritten
+      - `"already-current"` — file already has [terminal] (or no relevant section)
+      - `"no-file"`   — file doesn't exist
+
+    Lossless: every key in [iterm] is preserved under [terminal] with `color`
+    renamed to `background`. Other sections in the file are left alone.
+    """
+    if not path.exists():
+        return "no-file"
+    try:
+        recorded = read_groot_project_terminal(path)
+    except GrootProjectTomlError as e:
+        raise GrootProjectTomlError(f"{path}: {e}") from e
+    # If reader returned nothing, there's no relevant section — nothing to migrate.
+    if not recorded:
+        return "already-current"
+    text = path.read_text()
+    try:
+        data = tomllib.loads(text)
+    except tomllib.TOMLDecodeError as e:
+        raise GrootProjectTomlError(f"malformed TOML in {path}: {e}") from e
+    if TERMINAL_TOML_SECTION in data:
+        # New section already present; the writer would just drop [iterm].
+        # Only migrate if [iterm] is actually still present.
+        if LEGACY_TOML_SECTION not in data:
+            return "already-current"
+    # Use the writer to rewrite the file in canonical form. It strips [iterm]
+    # and writes [terminal] from the in-memory dict.
+    write_groot_project_terminal(path, recorded)
+    return "migrated"
+
+
+# Back-compat aliases for any caller still using the legacy names.
+read_groot_project_iterm = read_groot_project_terminal
+write_groot_project_iterm = write_groot_project_terminal
+
+
+def _print_terminal_toml(path: Path) -> int:
+    """Emit recorded fields as `KEY=VALUE` lines for the SKILL.md to parse.
+
+    Reads via `read_groot_project_terminal` so legacy `[iterm]` files print
+    with the canonical `background` key. Empty output if file or section
+    absent. Exits 1 with a stderr message on a malformed file (so the caller
+    can distinguish absent from corrupt).
     """
     try:
-        iterm = read_groot_project_iterm(path)
+        terminal = read_groot_project_terminal(path)
     except GrootProjectTomlError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
-    if iterm is None:
+    if terminal is None:
         return 0
-    for key in ITERM_TOML_FIELDS:
-        if key in iterm:
-            print(f"{key}={iterm[key]}")
+    for key in TERMINAL_TOML_FIELDS:
+        if key in terminal:
+            print(f"{key}={terminal[key]}")
     return 0
+
+
+# Back-compat alias.
+_print_iterm_toml = _print_terminal_toml
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="terminal-setup",
-        description="Create an iTerm2 Dynamic Profile with Automatic Profile Switching for a project.",
+        description=(
+            "Record a per-project terminal background color (and optional shell "
+            "alias) into .groot-project.toml. The shell applies the color via "
+            "OSC 11 on cd — terminal-agnostic, no Dynamic Profile JSON."
+        ),
     )
     parser.add_argument(
-        "name", nargs="?", help="Profile name (default: basename of cwd)."
+        "name", nargs="?", help="Project name (default: basename of cwd)."
     )
     parser.add_argument(
         "--color",
@@ -1079,12 +1090,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Custom hex color; bypasses the palette.",
     )
     parser.add_argument(
-        "--pattern", metavar="PAT", help="APS pattern (default: /*/<name>*)."
-    )
-    parser.add_argument(
-        "--force", action="store_true", help="Overwrite an existing profile file."
-    )
-    parser.add_argument(
         "--alias",
         metavar="NAME",
         help="Add `alias NAME='cd <cwd>'` to ~/.shrc (or ~/.zshrc as fallback). Idempotent.",
@@ -1096,16 +1101,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--force-alias",
         action="store_true",
         help="Add the alias even if a different alias already targets cwd.",
-    )
-    parser.add_argument(
-        "--title-format",
-        metavar="FORMAT",
-        help=f"iTerm interpolated-string title format (default: {DEFAULT_TITLE_FORMAT!r}).",
-    )
-    parser.add_argument(
-        "--no-title",
-        action="store_true",
-        help="Don't set a custom title format; inherit from the Default profile.",
     )
     parser.add_argument(
         "--list-colors", action="store_true", help="Print palette swatches and exit."
@@ -1126,8 +1121,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         const=".",
         metavar="DIR",
         help=(
-            "Read [iterm] from <DIR>/.groot-project.toml (default cwd) and print "
-            "KEY=VALUE lines. Empty output if file/section absent. Exits 0."
+            "Read [terminal] from <DIR>/.groot-project.toml (default cwd) and "
+            "print KEY=VALUE lines (legacy [iterm] sections are read transparently "
+            "with `color` printed as `background`). Empty output if file/section "
+            "absent. Exits 0."
         ),
     )
     parser.add_argument(
@@ -1136,10 +1133,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         const=".",
         metavar="DIR",
         help=(
-            "Write [iterm] to <DIR>/.groot-project.toml (default cwd) using "
-            "--hex (required), --alias (optional), and the positional name "
-            "as the iterm.name field if explicitly passed. Standalone — does "
-            "not create a profile. Exits 0."
+            "Write [terminal] to <DIR>/.groot-project.toml (default cwd) using "
+            "--hex (required), --alias (optional), and the positional name as "
+            "the terminal.name field if explicitly passed. Removes any legacy "
+            "[iterm] block. Standalone — does not run the picker. Exits 0."
         ),
     )
     parser.add_argument(
@@ -1147,14 +1144,26 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         action="store_true",
         help=(
             "Used with --groot-toml-write: include the positional `name` arg "
-            "as `iterm.name` in the file. Default is to omit it (so the file "
+            "as `terminal.name` in the file. Default is to omit it (so the file "
             "stays portable across worktrees with different basenames)."
+        ),
+    )
+    parser.add_argument(
+        "--migrate-toml",
+        nargs="?",
+        const=".",
+        metavar="DIR",
+        help=(
+            "Standalone: rewrite a legacy [iterm] section as [terminal] in "
+            "<DIR>/.groot-project.toml. Lossless (`color` becomes `background`). "
+            "Prints `migrated <path>` / `already-current <path>` / `no-file <path>`. "
+            "Useful in a find -exec batch over ~/code."
         ),
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Print JSON to stdout; do not write profile or .zshrc.",
+        help="Print what would change; do not write the TOML or shell config.",
     )
     return parser.parse_args(argv)
 
@@ -1166,27 +1175,38 @@ def run(args: argparse.Namespace) -> int:
         return 0
 
     if args.groot_toml_read is not None:
-        return _print_iterm_toml(Path(args.groot_toml_read) / GROOT_PROJECT_TOML_NAME)
+        return _print_terminal_toml(
+            Path(args.groot_toml_read) / GROOT_PROJECT_TOML_NAME
+        )
+
+    if args.migrate_toml is not None:
+        toml_path = Path(args.migrate_toml)
+        # Accept either a directory (default: cwd) or a direct path to a TOML.
+        if toml_path.is_dir() or not toml_path.name.endswith(".toml"):
+            toml_path = toml_path / GROOT_PROJECT_TOML_NAME
+        status = migrate_groot_project_toml(toml_path)
+        print(f"{status} {toml_path}")
+        return 0
 
     if args.groot_toml_write is not None:
         if args.hex_color is None:
-            raise ItermSetupError(
+            raise TerminalSetupError(
                 "--groot-toml-write requires --hex #RRGGBB (the color to record)."
             )
         # Validate via the existing hex parser; store the canonical form.
         hex_to_rgb(args.hex_color)
-        iterm: dict = {"color": args.hex_color}
+        terminal: dict = {"background": args.hex_color}
         if args.alias:
             validate_alias_name(args.alias)
-            iterm["alias"] = args.alias
+            terminal["alias"] = args.alias
         if args.groot_toml_write_name:
             if not args.name:
-                raise ItermSetupError(
+                raise TerminalSetupError(
                     "--groot-toml-write-name requires the positional name argument."
                 )
-            iterm["name"] = args.name
+            terminal["name"] = args.name
         toml_path = Path(args.groot_toml_write) / GROOT_PROJECT_TOML_NAME
-        status = write_groot_project_iterm(toml_path, iterm)
+        status = write_groot_project_terminal(toml_path, terminal)
         print(f"{status} {toml_path}")
         return 0
 
@@ -1225,13 +1245,9 @@ def run(args: argparse.Namespace) -> int:
     if args.alias:
         validate_alias_name(args.alias)
     if args.alias and args.no_alias:
-        raise ItermSetupError("Pass either --alias NAME or --no-alias, not both.")
+        raise TerminalSetupError("Pass either --alias NAME or --no-alias, not both.")
     if args.color is not None and args.hex_color is not None:
-        raise ItermSetupError("Pass either --color N or --hex #RRGGBB, not both.")
-    if args.title_format is not None and args.no_title:
-        raise ItermSetupError(
-            "Pass either --title-format FORMAT or --no-title, not both."
-        )
+        raise TerminalSetupError("Pass either --color N or --hex #RRGGBB, not both.")
 
     chosen_rgb: tuple[float, float, float]
     chosen_label: str
@@ -1256,36 +1272,20 @@ def run(args: argparse.Namespace) -> int:
         )
         chosen_label, chosen_rgb = combined_palette[idx]
 
-    # Title format: explicit flag wins; --no-title opts out; otherwise prompt
-    # interactively when the color picker was also interactive (so non-interactive
-    # invocations like `--color 3 --alias foo` stay quiet and just use the default).
-    title_format: str | None
-    if args.title_format is not None:
-        title_format = args.title_format
-    elif args.no_title:
-        title_format = None
-    elif args.color is None and args.hex_color is None:
-        title_format = pick_title_format_interactive()
-    else:
-        title_format = DEFAULT_TITLE_FORMAT
-
-    if args.pattern:
-        pattern = args.pattern
-    elif existing is not None and existing.get("pattern"):
-        pattern = existing["pattern"]
-    else:
-        pattern = f"/*/{name}*"
-    profile = build_profile(name, chosen_rgb, pattern, title_format)
-    rendered = json.dumps(profile, indent=2)
+    r, g, b = rgb_float_to_8bit(chosen_rgb)
+    chosen_hex = f"#{r:02X}{g:02X}{b:02X}"
+    toml_path = Path.cwd() / GROOT_PROJECT_TOML_NAME
 
     if args.dry_run:
-        print(rendered)
+        print(f"Would write {toml_path}")
+        print(f"  Name:        {name}")
+        print(f"  Background:  {chosen_label}  {chosen_hex}")
         if args.alias:
             combined_text = _combined_shell_config_text()
             body = alias_body_for_target(Path.cwd(), combined_text)
             primary = primary_shell_config_file()
             existing_for_cwd = [a for a in aliases_targeting_cwd() if a != args.alias]
-            print(f"\nWould add to {primary}: alias {args.alias}={body}")
+            print(f"  Would add to {primary}: alias {args.alias}={body}")
             if existing_for_cwd and not args.force_alias:
                 print(
                     f"  ⚠ existing alias(es) already target this cwd: "
@@ -1293,60 +1293,45 @@ def run(args: argparse.Namespace) -> int:
                 )
         return 0
 
-    DYNAMIC_PROFILES_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = DYNAMIC_PROFILES_DIR / f"{name}.json"
-    if out_path.exists() and not args.force:
-        current = (
-            f" (current color: {existing['color_label']})"
-            if existing is not None
-            else ""
-        )
-        raise ProfileExistsError(
-            f"Profile {name!r} already exists{current}. "
-            f"Re-run with --force to change it."
-        )
+    # Write .groot-project.toml — this is the single source of truth. The
+    # shell's chpwd hook reads it on `cd` and emits OSC 11 to apply the color.
+    terminal_data: dict = {"background": chosen_hex}
+    if args.alias and not args.no_alias:
+        terminal_data["alias"] = args.alias
+    toml_status = write_groot_project_terminal(toml_path, terminal_data)
+    print(f"{toml_status} {toml_path}")
+    print(f"  Name:        {name}")
+    print(f"  Background:  {chosen_label}  {chosen_hex}")
 
-    out_path.write_text(rendered + "\n")
-    r, g, b = rgb_float_to_8bit(chosen_rgb)
-    print(f"Wrote {out_path}")
-    print(f"  Name:    {name}")
-    print(f"  Color:   {chosen_label}  #{r:02X}{g:02X}{b:02X}")
-    print(f"  APS:     {pattern}")
-    if title_format is not None:
-        print(f"  Title:   {title_format}")
-    else:
-        print("  Title:   (inheriting from Default profile)")
-
-    if args.alias:
+    if args.alias and not args.no_alias:
         existing_for_cwd = [a for a in aliases_targeting_cwd() if a != args.alias]
         if existing_for_cwd and not args.force_alias:
             print(
-                f"  Alias:   ⚠ skipped — alias(es) already target this cwd: "
+                f"  Alias:       ⚠ skipped — alias(es) already target this cwd: "
                 f"{', '.join(existing_for_cwd)}.\n"
-                f"             use one of those, or pass --force-alias to add '{args.alias}' anyway."
+                f"               use one of those, or pass --force-alias to add '{args.alias}' anyway."
             )
         else:
             primary = primary_shell_config_file()
             status, line = add_alias_to_shell_config(args.alias, Path.cwd())
             if status == "added":
-                print(f"  Alias:   added to {primary} → {line}")
+                print(f"  Alias:       added to {primary} → {line}")
                 print(
-                    f"           run `source {primary}` (or open a new shell) to use it."
+                    f"               run `source {primary}` (or open a new shell) to use it."
                 )
             elif status == "noop":
-                print(f"  Alias:   already present in shell config → {line}")
+                print(f"  Alias:       already present in shell config → {line}")
             elif status == "conflict":
                 print(
-                    f"  Alias:   ⚠ '{args.alias}' already in shell config with a different target:\n"
-                    f"             existing: {line}\n"
-                    f"             not overwriting. Edit the shell config by hand to reconcile."
+                    f"  Alias:       ⚠ '{args.alias}' already in shell config with a different target:\n"
+                    f"               existing: {line}\n"
+                    f"               not overwriting. Edit the shell config by hand to reconcile."
                 )
 
-    if not shell_integration_installed():
-        print(
-            "\nNote: iTerm2 shell integration not detected. APS rules need shell "
-            "integration to fire. Install via iTerm2 menu → Install Shell Integration."
-        )
+    print(
+        "\nOpen a new tab in this directory, or `cd .` from a current shell, "
+        "to apply the background color."
+    )
     return 0
 
 
@@ -1354,7 +1339,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv if argv is not None else sys.argv[1:])
     try:
         return run(args)
-    except ItermSetupError as e:
+    except TerminalSetupError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
 
