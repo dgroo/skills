@@ -12,7 +12,7 @@ Audit the installed skill catalog and produce an actionable HTML report. Three m
 
 **(no args) — review.** Regenerate the catalog report. Default behavior.
 
-**`research` — project-aware analysis.** Same report plus a "Suggested for this project" section that walks the *current* project's CLAUDE.md, README, package manifests, and recent git activity to recommend skills the user is leaving on the table.
+**`research` — project-aware analysis.** Same report plus a "Suggested for this project" section that walks the _current_ project's CLAUDE.md, README, package manifests, and recent git activity to recommend skills the user is leaving on the table.
 
 **`do recommended` / `apply recommendations` / `apply <ID>` / `do <ID> and <ID>` — act.** Re-read the existing report, execute the requested actions. IDs use the form `A1`, `E1`, `D1` etc., taken from the action list in the prior report.
 
@@ -32,6 +32,7 @@ For each skill found, capture: name, source (gstack / superpowers / plugin / loc
 ### Step 2 — Read user context
 
 Read `~/.claude/CLAUDE.md`. Extract:
+
 - Stated languages / stack (Python, TypeScript, etc.)
 - Workflow preferences (TDD, plan-before-implement, evidence-over-claims, etc.)
 - Safety / destructive-command preferences
@@ -43,14 +44,14 @@ These drive the per-skill rating.
 
 Group skills into these buckets (skip empty ones):
 
-1. Discovery & Planning — brainstorming, office-hours, prior-art, plan-*, writing-plans, autoplan
-2. Design — design-*, frontend-design, devex-review
+1. Discovery & Planning — brainstorming, office-hours, prior-art, plan-\*, writing-plans, autoplan
+2. Design — design-\*, frontend-design, devex-review
 3. Implementation — TDD, executing-plans, subagent-driven-development, dispatching-parallel-agents, using-git-worktrees, claude-api, tool-web
 4. Debugging & Quality — investigate, systematic-debugging, verification-before-completion, simplify, scorecard, health, learn, retro
 5. Code & Plan Review — review (gstack + native), codex, requesting/receiving-code-review, finishing-a-development-branch, cso, security-review
-6. Ship & Deploy — ship, land-and-deploy, canary, document-release, landing-report, benchmark*, release-setup
+6. Ship & Deploy — ship, land-and-deploy, canary, document-release, landing-report, benchmark\*, release-setup
 7. Browser & QA — browse, gstack, qa, qa-only, scrape, skillify, pair-agent, open-gstack-browser, setup-browser-cookies
-8. Setup & Config — project-setup, iterm-setup, setup-deploy, setup-gbrain, sync-gbrain, gstack-upgrade, init, update-config, fewer-permission-prompts, keybindings-help
+8. Setup & Config — project-setup, terminal-setup, setup-deploy, setup-gbrain, sync-gbrain, gstack-upgrade, init, update-config, fewer-permission-prompts, keybindings-help
 9. Safety — careful, freeze, unfreeze, guard
 10. Context & Memory — context-save, context-restore, sitrep
 11. Meta & Skill-Authoring — using-superpowers, writing-skills, loop, schedule, skills-review
@@ -67,6 +68,7 @@ This keeps the most useful skills at the top of every section and makes scanning
 ### Step 4 — Rate each skill
 
 Four ratings, plus a "—" (gray) for required/unrateable framework skills:
+
 - **High (green)** — fits the user's stack, preferences, and recent activity directly.
 - **Situational (yellow)** — domain-specific (UI work, deploys, etc.). Useful when the situation arises.
 - **Niche (orange)** — narrow application or rarely needed.
@@ -77,6 +79,7 @@ Don't bake ratings into the skill — re-derive them each run from the user's cu
 ### Step 5 — Find duplicates and conflicts
 
 Scan for:
+
 - Identical or near-identical descriptions (e.g. `gstack` ≡ `browse`).
 - Skills whose own description says "alias for" or "subset of" another.
 - Workflow overlaps (two skills that fire on the same trigger).
@@ -95,17 +98,19 @@ Scope: **local skills only.** Plugin, gstack, superpowers, and built-in skills a
 A skill is flagged if **both** are absent. Skills with one but not the other are flagged as "partial" and surfaced with a smaller draft.
 
 For each flagged skill, produce a 🔵 Suggested-edit finding (`E<n>`) with:
+
 - The skill name and a one-line diagnosis ("no help verb defined" / "routing entry but no Help section" / etc.).
 - A draft help block inline, populated from the skill's frontmatter `description` and whatever verb structure already exists (Routing table, Quick reference, Subcommand headers, or prose modes). See `/skill-add`'s [Help verb convention] for the format.
 - The target file path so the user can apply the edit with a single Edit call.
 
-**Verb-doc dialect drift (informational).** Local skills currently document their verbs in several incompatible ways: `## Routing` tables, `## Quick reference` tables, `## Subcommand:` headers, or free-form prose. Note this in the report as a "Convention drift" sub-section under "Redundancy & Conflicts" (Step 7) — but **don't auto-recommend rewriting**. The help-verb convention works on top of any of these shapes; only a Routing-table-style scaffold is recommended for *new* skills (handled by `/skill-add`).
+**Verb-doc dialect drift (informational).** Local skills currently document their verbs in several incompatible ways: `## Routing` tables, `## Quick reference` tables, `## Subcommand:` headers, or free-form prose. Note this in the report as a "Convention drift" sub-section under "Redundancy & Conflicts" (Step 7) — but **don't auto-recommend rewriting**. The help-verb convention works on top of any of these shapes; only a Routing-table-style scaffold is recommended for _new_ skills (handled by `/skill-add`).
 
 The check is read-only — do not modify any skill files. Findings land in 🔵 (Step 6).
 
 ### Step 6 — Build action list
 
 Group recommendations into three tiers:
+
 - **🟢 Safe to auto-apply** — concrete `rm` / `make install` commands that delete clear-no-value skills (test skills, stale dirs, alias skills the user explicitly opts to drop). Each gets an ID (`A1`, `A2`, ...).
 - **🔵 Suggested edit** — drafts of CLAUDE.md additions or settings changes. Each gets an ID (`E1`, `E2`, ...).
 - **🟡 Needs your call** — overlapping skills where the user has to choose. Each gets an ID (`D1`, `D2`, ...). No commands until decided.
@@ -135,7 +140,7 @@ Print one line of text: `Wrote ~/.claude/design/skills-review.html (N skills, M 
 
 ## Mode 2: Research (project-aware)
 
-Run Mode 1's enumeration + categorization first (steps 1–5 — you need the catalog). **But don't write the global report yet.** Mode 2 produces a *project-specific* report at `<project-root>/design/skills-review.html`, not the global one.
+Run Mode 1's enumeration + categorization first (steps 1–5 — you need the catalog). **But don't write the global report yet.** Mode 2 produces a _project-specific_ report at `<project-root>/design/skills-review.html`, not the global one.
 
 The goal: find 3–5 skills that fit this project's stack and recent work but the user hasn't been invoking. Evidence-backed, not vibes.
 
@@ -176,10 +181,11 @@ git -C "$project_root" worktree list 2>/dev/null
 ```
 
 Extract patterns:
+
 - Commit subject prefixes (`fix:`, `feat:`, `refactor:`, `test:`, `docs:`) — what kinds of work?
 - Repeat fix subjects on the same area → debugging gap (signals `/investigate` or `/systematic-debugging`).
 - Commits that look like deploys/releases without VERSION/CHANGELOG churn → `/ship` gap.
-- Files touched: lots of `.tsx` / `.css` → design-* signal; lots of `_test.py` / `*.test.ts` → TDD already in flow; lots of `.md` doc churn → `/document-release` signal.
+- Files touched: lots of `.tsx` / `.css` → design-_ signal; lots of `_test.py` / `_.test.ts`→ TDD already in flow; lots of`.md`doc churn →`/document-release` signal.
 
 ### Step R5 — Skill invocation history (the gold signal)
 
@@ -213,6 +219,7 @@ Pick at most 5 skills. Each must have **at least one** of these signals:
 5. **Inferred from recent CC commits** — if recent commits mention skills, hooks, settings.json, suggest `/update-config` or `/writing-skills`.
 
 **Disqualify a recommendation if:**
+
 - The user's CLAUDE.md (global or project) explicitly opts out of this skill or its category.
 - The skill is rated red in the global review (redundant).
 - The user has invoked this skill ≥3 times in the last 60 days (they already know about it).
@@ -250,7 +257,7 @@ Same structure as the global report, with the executive summary's first panel re
 </section>
 ```
 
-After the suggestions panel, include the *same* global catalog from Mode 1 (categorized tables, redundancy section) for reference — but mark which rows in the tables have been invoked in *this* project (e.g. a small badge `· used 4× here` next to the rating column).
+After the suggestions panel, include the _same_ global catalog from Mode 1 (categorized tables, redundancy section) for reference — but mark which rows in the tables have been invoked in _this_ project (e.g. a small badge `· used 4× here` next to the rating column).
 
 ### Step R8 — Open it
 
@@ -278,6 +285,7 @@ Read `~/.claude/design/skills-review.html`. If missing, run Mode 1 first.
 ### Step 2 — Parse action items
 
 Extract each `<li class="actions ...">` block. Each has:
+
 - An ID (A1, E1, D1, ...) in `<span class="marker">`.
 - A "what" line.
 - A "why" line.
@@ -294,6 +302,7 @@ Extract each `<li class="actions ...">` block. Each has:
 Print the planned actions as a numbered list, with the exact commands that will run. Ask for a single confirmation: `Apply these N actions? (y/N)`.
 
 On `y`:
+
 - 🟢 actions: run the commands. Show output for each. If a `make install` or git commit is in the command, run those too.
 - 🔵 actions: print the draft block, ask the user to paste it into the file (or offer to apply via Edit if the target file is unambiguous, e.g. `~/.claude/CLAUDE.md`).
 - 🟡 actions: print the question for each, wait for user's choice, then act per their answer (which may itself become a new auto-apply step).

@@ -1,7 +1,7 @@
 # .groot-project.toml — per-project workstation conventions.
 # Tracked in git so a fresh clone reproduces this project's setup on a
-# new machine. Read/written by /iterm-setup (and /groot-project).
+# new machine. Read/written by /terminal-setup (and /groot-project).
 
-[iterm]
-color = "#280F8C"
+[terminal]
+background = "#280F8C"
 alias = "skills"
