@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import colorsys
 import hashlib
+import json
 import random
 import re
 import sys
@@ -80,6 +81,14 @@ ZSHRC_PATH = Path.home() / ".zshrc"
 SHRC_PATH = Path.home() / ".shrc"
 BASHRC_PATH = Path.home() / ".bashrc"
 CODE_DIR = Path.home() / "code"
+
+# Legacy iTerm2 Dynamic Profile location. Read-only — we no longer write
+# here, but projects set up under the old /iterm-setup skill have a JSON
+# file we can import the background color from on a one-time basis when
+# /terminal-setup first runs without a .groot-project.toml.
+ITERM_DYNAMIC_PROFILES_DIR = (
+    Path.home() / "Library" / "Application Support" / "iTerm2" / "DynamicProfiles"
+)
 
 # Matches `source ~/.shrc` or `. ~/.shrc` (with optional $HOME variant)
 # anywhere on a line, ignoring commented-out lines. Permissive on what
@@ -1040,6 +1049,51 @@ read_groot_project_iterm = read_groot_project_terminal
 write_groot_project_iterm = write_groot_project_terminal
 
 
+def read_legacy_iterm_profile(
+    name: str, profiles_dir: Path | None = None
+) -> dict | None:
+    """Read a legacy iTerm Dynamic Profile JSON and return its background as
+    `{"background": "#RRGGBB"}`, or None if the file is absent / malformed.
+
+    Used as a one-time import path: when /terminal-setup runs on a project
+    that has an iTerm-era Dynamic Profile but no .groot-project.toml, we
+    can offer to migrate the recorded color into the TOML rather than
+    forcing a fresh palette pick.
+    """
+    base = profiles_dir or ITERM_DYNAMIC_PROFILES_DIR
+    path = base / f"{name}.json"
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+    profiles = data.get("Profiles") or []
+    if not profiles:
+        return None
+    bg = profiles[0].get("Background Color") or {}
+    try:
+        rgb = (
+            float(bg["Red Component"]),
+            float(bg["Green Component"]),
+            float(bg["Blue Component"]),
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
+    r, g, b = rgb_float_to_8bit(rgb)
+    return {"background": f"#{r:02X}{g:02X}{b:02X}"}
+
+
+def _print_legacy_iterm(name: str) -> int:
+    """Print KEY=VALUE lines for a legacy iTerm Dynamic Profile, or nothing
+    if no such file exists. Mirrors `_print_terminal_toml` for SKILL.md use."""
+    info = read_legacy_iterm_profile(name)
+    if info is None:
+        return 0
+    print(f"background={info['background']}")
+    return 0
+
+
 def _print_terminal_toml(path: Path) -> int:
     """Emit recorded fields as `KEY=VALUE` lines for the SKILL.md to parse.
 
@@ -1161,6 +1215,20 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--legacy-iterm-read",
+        nargs="?",
+        const="",
+        default=None,
+        metavar="NAME",
+        help=(
+            "Read a legacy iTerm Dynamic Profile JSON at "
+            "~/Library/Application Support/iTerm2/DynamicProfiles/<NAME>.json "
+            "(default NAME: basename of cwd) and print `background=#RRGGBB` "
+            "if found. Empty output if no JSON. Used by SKILL.md to offer "
+            "a one-time import when no .groot-project.toml exists yet."
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Print what would change; do not write the TOML or shell config.",
@@ -1178,6 +1246,10 @@ def run(args: argparse.Namespace) -> int:
         return _print_terminal_toml(
             Path(args.groot_toml_read) / GROOT_PROJECT_TOML_NAME
         )
+
+    if args.legacy_iterm_read is not None:
+        name = args.legacy_iterm_read or Path.cwd().name
+        return _print_legacy_iterm(name)
 
     if args.migrate_toml is not None:
         toml_path = Path(args.migrate_toml)

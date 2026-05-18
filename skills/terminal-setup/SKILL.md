@@ -65,7 +65,20 @@ The chpwd + precmd plumbing lives in `~/.shrc` (block labeled "Claude terminal s
      ~/.claude/skills/terminal-setup/terminal-setup.py --migrate-toml {} \;
    ```
 
-   **If empty** (no file, or no `[terminal]`/`[iterm]` section): continue to step 1.
+   **If empty** (no file, or no `[terminal]`/`[iterm]` section): check for a legacy iTerm2 Dynamic Profile before falling through to a fresh palette pick.
+
+   ```
+   ~/.claude/skills/terminal-setup/terminal-setup.py --legacy-iterm-read
+   ```
+
+   This reads `~/Library/Application Support/iTerm2/DynamicProfiles/<basename>.json` and prints `background=#RRGGBB` if found. **If non-empty** — the user has an existing iTerm-era color for this project but no `.groot-project.toml` yet — prompt via AUQ:
+   - **Option 1 — Import iTerm color (recommended):** _"Found `<hex>` recorded for this project in iTerm. Save it to `.groot-project.toml` so it follows you to other terminals."_ On selection, jump to **step 5** with `--hex <color>` (and `--no-alias` if step 1 found an existing alias targeting cwd; otherwise let the alias prompt run).
+   - **Option 2 — Pick a new color:** Run the normal palette flow.
+   - **Option 3 — Cancel:** Exit.
+
+   **Auto mode:** if a legacy iTerm color exists, import it silently — same contract as "the file is the recorded preference" applied to the iTerm-era source of truth.
+
+   **If both are empty** (no TOML, no iTerm JSON for this project): continue to step 1, the normal new-project flow.
 
 1. **Determine the project name and the alias name.**
    - **Project name** (used as the `name` field if explicitly persisted, and for the AUQ prompt): defaults to `basename $(pwd)`.
@@ -116,7 +129,7 @@ The chpwd + precmd plumbing lives in `~/.shrc` (block labeled "Claude terminal s
    **AUQ formatting (learned the hard way — must follow):**
    - **Preview truncates around ~17 lines.** Don't combine palettes into a single preview — it gets cut off with a "N lines hidden" indicator.
    - **Do not add an explicit "Other" / "Type something" option.** AUQ has a built-in `Notes` field (user presses `n`) — that _is_ the free-text path. Mention it explicitly in each option's description: _"Press 'n' to type your choice in Notes."_
-   - **ANSI swatches DO render in previews.** Use a 6-space colored block: `[48;2;R;G;Bm      [0m` (write the literal text `` in the JSON string for AUQ — the JSON parser turns it into a real ESC byte).
+   - **ANSI swatches DO render in previews — but ONLY if a real ESC byte (0x1b) reaches the AUQ JSON.** Build the swatch as the literal 12-character ESC sequence `\u001b[48;2;R;G;Bm      \u001b[0m` — write **six characters** `\`, `u`, `0`, `0`, `1`, `b` for each ESC; the AUQ JSON parser converts each to a real ESC byte. **Never paste a raw 0x1b byte into your JSON** — it gets stripped on the way to AUQ and renders as visible text like `[48;2;R;G;Bm`. If you see that in a preview, the ESC byte was eaten somewhere; rebuild the payload with the explicit `\u001b` form.
    - Each browse-preview's first line should remind: _"Press 'n' to type your choice (e.g. '20', 'Teal', 'vivid Indigo')."_
 
    **Interpreting the response:**
