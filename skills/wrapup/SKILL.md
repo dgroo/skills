@@ -61,7 +61,7 @@ If STAY: skip Phase 3, emit ↺ STAY verdict with the specific signals that fire
 
 For each in-flight item, propose specific prep and **ask permission** before any write. Standard preps:
 
-- **Uncommitted changes that should land**: propose an atomic commit with a drafted message. Ask before committing. (Per global CLAUDE.md "Never commit unless explicitly asked.")
+- **Uncommitted changes that should land**: propose an atomic commit with a drafted message. **Before asking permission, dry-run pre-commit hooks** — stage the proposed files and execute `.git/hooks/pre-commit` directly if it exists (or `pre-commit run --files <staged>` if the pre-commit framework is in use). If the hook fails, surface its output verbatim _as part of the prep proposal_, identify the fix, and propose the fixed version. The user shouldn't be surprised by a hook failure mid-commit — they should see "here's the commit + here's what the hooks said + here's the fix" before they decide. Ask before committing. (Per global CLAUDE.md "Never commit unless explicitly asked.")
 - **Uncommitted changes that are mid-experiment**: propose either committing-as-WIP, stashing with a descriptive name, or leaving as-is with a note. Default suggestion is "leave as-is, but note it" — most mid-experiment dirt should not become a commit.
 - **Decisions not journaled**: propose a `DIARY.md` entry. Show the drafted body before writing. Same propose-then-curate discipline a persona-driven journaling tool would use: draft, surface, write only on the OK.
 - **In-flight todos worth not losing**: propose adding to `design/NEXT.md`, `design/stories/drafts/`, or — if the project has a `dev-inbox` — a dev-inbox entry. Default to the lightest-weight surface that won't get forgotten.
