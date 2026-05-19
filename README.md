@@ -63,6 +63,7 @@ make list       # Show available skills and install status
 | `todo`               | Add a new bug or todo to the project's tracker                                                                                                                                                                                                                                                                         |
 | `tool-web`           | Build a lightweight single-file web application with no external dependencies                                                                                                                                                                                                                                          |
 | `walkthrough`        | Produce a narrative walkthrough of how an app or system is used end-to-end from a specific user's perspective — tutorial-quadrant docs, story-shaped                                                                                                                                                                   |
+| `wrapup`             | Action-imperative session-end gate. Inventories in-flight state, proposes prep, asks permission for writes, then emits a definitive READY / WAIT / STAY verdict. With an intent hint, may push back to stay if cache is hot for it. Companion to `/sup`                                                                |
 
 ## Development
 
