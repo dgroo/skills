@@ -221,10 +221,16 @@ def main() -> int:
     branch = args.branch or current_branch(root)
     relay_dir = root / "design" / "relay"
 
-    if relay_dir.exists():
+    # `design/relay/` may exist already if the project happens to host the
+    # relay's design doc (the case in remote-coding-setup itself). We treat
+    # STATE.md as the actual "is initialized?" marker — that's what the
+    # scripts look for. Refuse only if STATE.md is already there.
+    state_path = relay_dir / "STATE.md"
+    if state_path.exists():
         print(
-            f"ERROR: {relay_dir} already exists. Refusing to clobber. "
-            "If you want to reinitialize, remove the directory manually first.",
+            f"ERROR: {state_path} already exists. Refusing to clobber. "
+            "If you want to reinitialize, remove design/relay/STATE.md and "
+            "design/relay/config.toml manually first.",
             file=sys.stderr,
         )
         return 1
