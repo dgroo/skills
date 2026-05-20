@@ -23,13 +23,22 @@ from pathlib import Path
 # Per-terminal AppleScript snippet. `{cmd}` placeholder gets the absolute
 # path to the project's `.launch.sh`, which is what the new window runs.
 # Adding a new terminal app = one entry here. The shape is: an AppleScript
-# fragment that, when run by the .app's `tell application "<term>"`, opens
-# a new window running the given command.
+# fragment that opens a new window running the given command.
+#
+# For terminals controlled by AppleEvents (iTerm, Terminal), the snippet
+# wraps the create-window call in `ignoring application responses` so the
+# applet returns immediately rather than waiting for the target app to
+# acknowledge. Without this, slow iTerm starts produce a spurious
+# "AppleEvent timed out (-1712)" error dialog even though the window
+# successfully opens. (The .app doesn't use the return value, so there's
+# nothing to wait for.)
 TERMINAL_LAUNCH_SCRIPTS: dict[str, str] = {
     "iTerm": (
         'tell application "iTerm"\n'
         "    activate\n"
-        '    create window with default profile command "/bin/zsh -i {cmd}"\n'
+        "    ignoring application responses\n"
+        '        create window with default profile command "/bin/zsh -i {cmd}"\n'
+        "    end ignoring\n"
         "end tell"
     ),
     "Ghostty": (
@@ -41,7 +50,9 @@ TERMINAL_LAUNCH_SCRIPTS: dict[str, str] = {
     "Terminal": (
         'tell application "Terminal"\n'
         "    activate\n"
-        '    do script "/bin/zsh -i {cmd}"\n'
+        "    ignoring application responses\n"
+        '        do script "/bin/zsh -i {cmd}"\n'
+        "    end ignoring\n"
         "end tell"
     ),
     "Alacritty": (
