@@ -4,6 +4,18 @@ Latest entries first. Record significant decisions, architecture changes, and no
 
 ---
 
+## 2026-05-20 — /skill-list and the thin-shim skill pattern
+
+Added `/skill-list` to give a fast, grouped view of installed skills (mine, gstack catalog, legacy installs in `~/.claude/skills/`, plugin cache, upstream-tracked). Default matches `make list`; subcommands cover each group plus `all` and `groups`.
+
+The interesting design choice was the SKILL.md shape. The natural temptation was a full Claude-driven skill that reads the filesystem, classifies, and formats output. Rejected that for a **thin shim**: SKILL.md is three lines that whitelist only `Bash` and tell Claude to run one command and print the output verbatim. All the logic lives in `scripts/skill-list.sh`.
+
+Why: for "fast deterministic output" skills, the LLM is overhead, not value. Token-cheap, behavior-predictable, easy to test from the shell without involving Claude at all. The pattern generalizes — any skill whose output should not vary across invocations is a candidate for this shape. The trade-off is that the SKILL.md description has to carry more of the discoverability load (since Claude isn't reasoning about what to show); written triggers list `list skills`, `what skills do I have`, etc.
+
+Plugin layout note for future reference: plugin skills live at `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/skills/<skill>/`. The script picks the highest version by `sort -V` to avoid duplicate entries when multiple versions are cached (frontend-design had ~20).
+
+---
+
 ## 2026-05-18 — iterm-setup → terminal-setup, decoupled from iTerm Dynamic Profiles
 
 Reworked the skill to be terminal-agnostic, prompted by exploring Ghostty as an iTerm2 replacement. Two iTerm-specific mechanisms were doing the load-bearing work: (1) Automatic Profile Switching reading a Dynamic Profile JSON in `~/Library/Application Support/iTerm2/DynamicProfiles/`, and (2) `OSC 1337 SetUserVar=claudeState` consumed by the profile's Custom Title interpolation. Neither survives a terminal switch.
