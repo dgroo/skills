@@ -10,13 +10,13 @@ For each project that you remotely tmux into on `rocinante24`, get a `.app` bund
 
 - Launches from Spotlight, Launchpad, or the Dock.
 - Opens a new terminal window in the user's preferred terminal (defaults to iTerm2; detection via `$TERM_PROGRAM` and `~/.config/projlaunch/terminal` overrides).
-- `cd`s into the project locally (`/terminal-setup`'s OSC 11 chpwd hook then sets the window background from `.groot-project.toml`).
+- `cd`s into the project locally (`/terminal-setup`'s OSC 11 chpwd hook fires and sets the window background from `.groot-project.toml` — but only briefly; see note below).
 - Calls `roci` (the `tailscale ssh ... tmux new-session -A` shorthand from `~/.shrc`) to attach/create the project's tmux session on Rocinante24.
 - After the SSH session ends, drops into a fresh interactive shell so the window stays usable.
 
 ## How this fits with neighbors
 
-- **`/terminal-setup`** handles per-project background color (`.groot-project.toml` + OSC 11). This skill does **not** touch color — the launched window picks it up automatically on `cd`. Run `/terminal-setup` first (or alongside) if a project needs a color set.
+- **`/terminal-setup`** handles per-project background color (`.groot-project.toml` + OSC 11). This skill does **not** touch color — the launcher's local `cd` fires the chpwd hook and emits the OSC 11 escape, but **once `roci` (SSH) takes over the terminal, the local window's background reverts and does not persist into the remote tmux session.** OSC 11 doesn't travel over SSH. Per-project visual identity for the remote tmux session lives in the tmux status bar on Rocinante24 (color/name), not in the local window chrome. Run `/terminal-setup` if you want a color signal for the local Serenity-side moments (a brief flash during launch, or any non-SSH shells in that project).
 - **`roci` / `remote_tmux`** in `~/.shrc` handles SSH + tmux. This skill does not reimplement either. The `.launch.sh` it generates calls `roci` with no args (defaults: session name = cwd basename, remote path = local cwd).
 - This skill **supersedes** the earlier `scripts/projlaunch` + `scripts/projlaunch-make-app` pair in the `remote-coding-setup` repo. That pair built `.app`s under `~/Applications/`; this skill builds them into the project directory, gitignored. Old scripts will be retired by the same commit that lands this skill.
 
@@ -70,4 +70,4 @@ The previous approach (`scripts/projlaunch`) constructed AppleScript on the fly 
 
 ## Background
 
-Original spec: `~/code/0.llm/remote-coding-setup/design/plans/2026-05-19-serenity26-launcher-prompt.md`. Refactor spec: same dir, `2026-05-20-phase-5c-launcher-refactor.md`. The launcher unblocks Phase 6 (Apple Container memory isolation) on Rocinante24.
+Original spec: `~/code/0.llm/remote-coding-setup/design/notes/archived/2026-05-19-serenity26-launcher-prompt.md`. Refactor spec: same dir, `2026-05-20-phase-5c-launcher-refactor.md`. (Both moved to `archived/` 2026-05-20 once consumed.) The launcher unblocks Phase 6 (Apple Container memory isolation) on Rocinante24.
