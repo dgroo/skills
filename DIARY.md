@@ -4,6 +4,18 @@ Latest entries first. Record significant decisions, architecture changes, and no
 
 ---
 
+## 2026-05-21 — /cmd-add and the command-vs-skill split
+
+Added `/cmd-add` as a lighter sibling to `/skill-add`. Slash commands (markdown files in `~/.claude/commands/`) and skills (this repo, with `description:` loaded into every session's context) are genuinely different affordances, and the cost asymmetry matters: a skill bloats the session-start catalog forever; a command costs nothing until invoked. Default-to-command is the right framing for "I want a shortcut."
+
+The decision worth pinning: **slash commands live in dot-claude (`~/.claude/commands/`), not in this skills repo.** Derek's first instinct was to mirror the skills layout — `make install` symlinks, source in this repo — and we almost ran with it. The better answer is that skills are reusable across users (which is why this repo is forkable from Joe's), while slash commands are personal config tied to a specific machine's Claude Code setup. They belong with the other personal Claude Code state in dot-claude, which already auto-propagates across machines via the upstream-freshness hook. No second install layer needed.
+
+The companion touch in `/skill-add` is a single Phase 2c bullet — "would the user ever want Claude to invoke this proactively?" — that defers to `/cmd-add` when the answer is no. Cheaper than building command-vs-skill evaluation logic inside `/skill-add`; lets the two skills route between themselves at the proposal stage.
+
+Rejected detour: an earlier proposal was for `/skill-add` to evaluate whether parts of a proposed skill could be commands instead. Skipped — skills usually have a coherent workflow that fragments badly when split, and the recombination cost outweighs the saved context bytes.
+
+---
+
 ## 2026-05-20 — /skill-list and the thin-shim skill pattern
 
 Added `/skill-list` to give a fast, grouped view of installed skills (mine, gstack catalog, legacy installs in `~/.claude/skills/`, plugin cache, upstream-tracked). Default matches `make list`; subcommands cover each group plus `all` and `groups`.
