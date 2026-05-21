@@ -73,12 +73,13 @@ Be specific. "Looks similar to `/todo`" is not a verdict; "`/todo` files priorit
 Push back honestly. The questions to answer:
 
 - **Does the skill encode something hard to remember or easy to skip?** If not, a CLAUDE.md line is cheaper.
+- **Would the user ever want Claude to invoke this proactively?** If no — they'll always explicitly type `/<name>` — a slash command is lighter. Skills cost context every session; commands cost nothing until used. Defer to `/cmd-add`.
 - **Would a script + shell alias do the same job?** If yes, suggest that path; a skill that wraps a one-liner is overhead.
 - **Is the LLM doing something the LLM is actually good at?** Tagging, classifying, summarizing — yes. Mechanical file append — debatable; pure regex/string work — no.
 - **Is the trigger phrase one the user will actually reach for?** Skills with abstract triggers ("`/synthesize`") get forgotten; concrete verbs survive.
 - **Honest reason to build anyway?** If the answer is "I want it" or "this is more fun as a skill", that's a valid reason — say it out loud, don't dress it up as utility.
 
-When the value is thin, name the cheaper alternative (CLAUDE.md note, shell alias, existing skill) before recommending against. If the cheaper path actually loses something real, that's the justification for the skill.
+When the value is thin, name the cheaper alternative (CLAUDE.md note, slash command via `/cmd-add`, shell alias, existing skill) before recommending against. If the cheaper path actually loses something real, that's the justification for the skill.
 
 ---
 
