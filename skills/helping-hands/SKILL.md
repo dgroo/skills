@@ -11,20 +11,20 @@ Work through items in a project's `helping-hands/` directory (the user-must-do q
 
 Use for: "work my helping-hands", "what's open in helping-hands", "let's pick a helping-hand", "knock one out", "/hhands", "/helping-hands <slug>".
 
-Skip if: the user is mid-task on a story and a helping-hand is *cited* in that story's `Related:` — that's the citation-by-path JIT path described in `helping-hands/README.md`. Surface the cited blocker inline; don't pull this skill for it.
+Skip if: the user is mid-task on a story and a helping-hand is _cited_ in that story's `Related:` — that's the citation-by-path JIT path described in `helping-hands/README.md`. Surface the cited blocker inline; don't pull this skill for it.
 
 ## JIT-citation compatibility
 
-This skill is **user-invoked, on-demand**. It deliberately scans the whole directory because the user asked it to. That's a different mode from rule 3 in the helping-hands README ("surface JIT, not at session start"), which forbids *passive* full-directory scans. Both modes coexist: citation-by-path stays the default for in-flight work; this skill is the explicit "let's do queue work" entry point.
+This skill is **user-invoked, on-demand**. It deliberately scans the whole directory because the user asked it to. That's a different mode from rule 3 in the helping-hands README ("surface JIT, not at session start"), which forbids _passive_ full-directory scans. Both modes coexist: citation-by-path stays the default for in-flight work; this skill is the explicit "let's do queue work" entry point.
 
 ## Routing
 
-| Invocation | Action |
-|---|---|
-| `/helping-hands` (bare) | List open items with one-line summaries (cheap validation only). Pick one via `AskUserQuestion`. Then run the single-item flow. |
-| `/helping-hands all` | Full validation on every open item. Present a table grouped by readiness category. Then `AskUserQuestion` for which to dive into. |
-| `/helping-hands <slug>` | Skip listing; run the single-item flow on the slug match. Slug = filename without date prefix or `.md`; full filename also accepted. Ambiguous (e.g., two dates with the same slug) → ask which. |
-| `/helping-hands new <slug>` | Create a new helping-hand entry at `<dir>/YYYY-MM-DD-<slug>.md` using the project's canonical template. Run the creation flow. |
+| Invocation                  | Action                                                                                                                                                                                           |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/helping-hands` (bare)     | List open items with one-line summaries (cheap validation only). Pick one via `AskUserQuestion`. Then run the single-item flow.                                                                  |
+| `/helping-hands all`        | Full validation on every open item. Present a table grouped by readiness category. Then `AskUserQuestion` for which to dive into.                                                                |
+| `/helping-hands <slug>`     | Skip listing; run the single-item flow on the slug match. Slug = filename without date prefix or `.md`; full filename also accepted. Ambiguous (e.g., two dates with the same slug) → ask which. |
+| `/helping-hands new <slug>` | Create a new helping-hand entry at `<dir>/YYYY-MM-DD-<slug>.md` using the project's canonical template. Run the creation flow.                                                                   |
 
 ## Auto-discovery
 
@@ -80,13 +80,13 @@ Surface the ask:
 
 Run validate on the open set. Group by readiness:
 
-| Bucket | Meaning |
-|---|---|
-| **actionable** | Open, fresh, well-scaffolded, genuinely needs the user. |
-| **now-resolvable-without-user** | The LLM can close it with a read-only action. Propose closure. |
-| **stale-references** | References dead files or paths that moved. Needs cleanup or update. |
-| **possibly-already-decided** | A sibling artifact (commit, DESIGN.md section, sibling helping-hand) looks like it already settled this. Needs human confirmation to close. |
-| **blocked-on-user** | Same as actionable but the LLM has exhausted scaffolding — pure user-side work (paid signup, physical access, taste call). |
+| Bucket                          | Meaning                                                                                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **actionable**                  | Open, fresh, well-scaffolded, genuinely needs the user.                                                                                     |
+| **now-resolvable-without-user** | The LLM can close it with a read-only action. Propose closure.                                                                              |
+| **stale-references**            | References dead files or paths that moved. Needs cleanup or update.                                                                         |
+| **possibly-already-decided**    | A sibling artifact (commit, DESIGN.md section, sibling helping-hand) looks like it already settled this. Needs human confirmation to close. |
+| **blocked-on-user**             | Same as actionable but the LLM has exhausted scaffolding — pure user-side work (paid signup, physical access, taste call).                  |
 
 Present as a single table: `# | slug | bucket | one-line summary | suggested next step`. Then `AskUserQuestion` for which to dive into, with options derived from the table (top 3-4 candidates plus "other / just show me the table again").
 
@@ -96,7 +96,7 @@ Run for `/helping-hands new <slug>`. Purpose: produce a new entry that conforms 
 
 ### 1. Resolve directory
 
-Use the same auto-discovery as the other flows (`design/helping-hands/` → `helping-hands/` → `docs/helping-hands/`). If none exists, ask where it lives. **If `<slug>` was omitted**, ask for it before continuing — don't invent one from chat context (the user's words usually map to a *title*, not a filename slug).
+Use the same auto-discovery as the other flows (`design/helping-hands/` → `helping-hands/` → `docs/helping-hands/`). If none exists, ask where it lives. **If `<slug>` was omitted**, ask for it before continuing — don't invent one from chat context (the user's words usually map to a _title_, not a filename slug).
 
 ### 2. Load the canonical template
 
@@ -113,7 +113,7 @@ If the project has a `helping-hands/` directory but no README, ask the user to p
 Prompt the user for the fields below. **Use `AskUserQuestion` only for the bucket choices** (priority, and "what I already did" sufficiency — see below); the rest are free-text and should be plain prompts so the user can paste in long content.
 
 - **Title** — one line, friendly, phrased as a request (e.g., "Pick a name for the new persona"), not a directive ("Name the persona").
-- **TL;DR** — one sentence. Reader should know what to do from this line alone.
+- **TL;DR** — one sentence. The _why_, not the _what_. Like a code comment: explain the non-obvious reason this needs doing, and briefly why it needs the user's hands rather than something the LLM could close. The _what_ is enumerated in `## Do this`, just below — don't duplicate it here. **Push back if the user gives a TL;DR that's mostly the steps**: suggest the why-framed version with their input.
 - **The ask** — one paragraph framing what's needed and why. Will land in `### Why this matters` under Background.
 - **What I already did** bullets — **load-bearing**. The artifact's whole reason for existing is that the user's part is 30 seconds. If the LLM-side scaffolding list is empty or thin, **stop and surface that**: propose doing the scaffolding first (draft the file, pre-fill the form, build the comparison) before filing the entry. Use `AskUserQuestion` with options: "do the scaffolding work first" (recommended) / "file anyway, scaffolding is genuinely impossible" / "cancel". Per the template's own rule: empty `What I already did` ⇒ entry should not exist.
 - **Concrete numbered steps** — paste-ready, one action per step. These go under `## Do this` (the high-visibility section, second only to TL;DR). Push back if the steps drift into prose or assume context the user won't have when reading the file 8 hours later.
@@ -165,30 +165,30 @@ When the user gives the answer in chat, do the synthesis work the item promises,
 
 ## Quick reference
 
-| Verb | Output | When |
-|------|--------|------|
-| `/helping-hands` (bare) | One-line list → pick → single-item flow | Default invocation |
-| `/helping-hands all` | Validated readiness table → pick → single-item flow | Periodic queue review |
-| `/helping-hands <slug>` | Single-item flow directly | User already knows which |
+| Verb                        | Output                                                    | When                           |
+| --------------------------- | --------------------------------------------------------- | ------------------------------ |
+| `/helping-hands` (bare)     | One-line list → pick → single-item flow                   | Default invocation             |
+| `/helping-hands all`        | Validated readiness table → pick → single-item flow       | Periodic queue review          |
+| `/helping-hands <slug>`     | Single-item flow directly                                 | User already knows which       |
 | `/helping-hands new <slug>` | Creation flow → new entry at `<dir>/YYYY-MM-DD-<slug>.md` | Filing a new item from scratch |
 
-| Phase (single item) | Output |
-|---|---|
-| Orient | Internal context (NEXT.md, recent commits) |
-| Validate | Status, refs, decided-elsewhere, sibling-synergy, LLM-resolvable |
-| Extend | Editable diff to the item's "What I already did" |
-| Present | Ask (with `AskUserQuestion` when options reduce) OR closure proposal OR stale-disposition proposal |
+| Phase (single item) | Output                                                                                             |
+| ------------------- | -------------------------------------------------------------------------------------------------- |
+| Orient              | Internal context (NEXT.md, recent commits)                                                         |
+| Validate            | Status, refs, decided-elsewhere, sibling-synergy, LLM-resolvable                                   |
+| Extend              | Editable diff to the item's "What I already did"                                                   |
+| Present             | Ask (with `AskUserQuestion` when options reduce) OR closure proposal OR stale-disposition proposal |
 
-| Readiness bucket | Disposition |
-|---|---|
-| actionable | Surface ask |
-| now-resolvable-without-user | Propose closure with Decision draft |
-| stale-references | Propose ref update or closure |
-| possibly-already-decided | Surface evidence; ask whether to close |
-| blocked-on-user | Surface ask; user-side work is the bottleneck |
+| Readiness bucket            | Disposition                                   |
+| --------------------------- | --------------------------------------------- |
+| actionable                  | Surface ask                                   |
+| now-resolvable-without-user | Propose closure with Decision draft           |
+| stale-references            | Propose ref update or closure                 |
+| possibly-already-decided    | Surface evidence; ask whether to close        |
+| blocked-on-user             | Surface ask; user-side work is the bottleneck |
 
 ## Related
 
 - `walkthrough` — narrative production sister skill; reviewer-comment / iterate / follow-ups pattern.
-- `cleanup-design` — design-corpus drift detection; complementary lens (does the *spec* still match recent decisions?).
+- `cleanup-design` — design-corpus drift detection; complementary lens (does the _spec_ still match recent decisions?).
 - Project conventions: each project's `helping-hands/README.md` (or equivalent) is the authoritative source for status fields, closure shape, and the citation-by-path rule.

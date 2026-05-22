@@ -622,7 +622,7 @@ Tasks that need Derek's hands, eyes, account credentials, paid subscription, or 
 - YAML frontmatter: `status` (open/in-progress/done/dropped), `created`, `priority`, `estimated_time`
 - Body structure, **in this exact order** — TL;DR and the concrete steps must be readable without scrolling past the title. Background context lives below the fold.
   1. `# <Friendly title>` — phrased as a request, not a directive.
-  2. `**TL;DR:** <one sentence>` — reader should know what to do from this line alone.
+  2. `**TL;DR:** <one sentence>` — the _why_, not the _what_. Like a code comment: explain the non-obvious reason this needs doing, and briefly why it needs the user's hands rather than something the LLM could close. The _what_ is enumerated in `## Do this`, just below — don't duplicate it here.
   3. `## Do this` — numbered concrete steps, paste-ready, one action per step. Second from top, never buried.
   4. `## Tell me when you're done` — what the user reports back (or what the LLM will detect) to unblock the next step.
   5. `---` separator.
