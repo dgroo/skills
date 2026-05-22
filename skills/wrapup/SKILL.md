@@ -1,6 +1,6 @@
 ---
 name: wrapup
-description: Actively assess whether this session is safe to end. Inventories in-flight state (uncommitted changes, undocumented decisions, open tasks), proposes prep, asks permission for any writes, then gives a definitive READY / WAIT / STAY verdict. With an intent hint, also judges whether THIS session is the right place for that next chunk and pushes back if it is.
+description: Actively assess whether this session is safe to end. Inventories in-flight state, executes routine wrap-prep writes (DIARY entries, story files, NEXT.md updates, queue notes) directly, asks only for commits, then gives a definitive READY / WAIT / STAY verdict. With an intent hint, also judges whether THIS session is the right place for that next chunk and pushes back if it is.
 argument-hint: "[<optional intent for next work>]"
 ---
 
@@ -57,17 +57,20 @@ Signals that say BOUNCE (proceed to Phase 3):
 
 If STAY: skip Phase 3, emit ↺ STAY verdict with the specific signals that fired ("recent commits in `idm/journals.py`," "this session decided <X>"). Let the user override.
 
-### Phase 3: Propose prep (only if Phase 1 found in-flight state)
+### Phase 3: Execute prep (only if Phase 1 found in-flight state)
 
-For each in-flight item, propose specific prep and **ask permission** before any write. Standard preps:
+**Default: just do the writes.** Routine wrap-prep is mechanical journaling and bookkeeping — DIARY entries, story files, NEXT.md updates, queue notes. These are low-judgment, easily edited afterward, and asking-for-OK on each one adds friction without value. Write them directly. Reserve explicit permission for the genuinely costly operations: commits and destructive ops.
 
-- **Uncommitted changes that should land**: propose an atomic commit with a drafted message. **Before asking permission, dry-run pre-commit hooks** — stage the proposed files and execute `.git/hooks/pre-commit` directly if it exists (or `pre-commit run --files <staged>` if the pre-commit framework is in use). If the hook fails, surface its output verbatim _as part of the prep proposal_, identify the fix, and propose the fixed version. The user shouldn't be surprised by a hook failure mid-commit — they should see "here's the commit + here's what the hooks said + here's the fix" before they decide. Ask before committing. (Per global CLAUDE.md "Never commit unless explicitly asked.")
-- **Uncommitted changes that are mid-experiment**: propose either committing-as-WIP, stashing with a descriptive name, or leaving as-is with a note. Default suggestion is "leave as-is, but note it" — most mid-experiment dirt should not become a commit.
-- **Decisions not journaled**: propose a `DIARY.md` entry. Show the drafted body before writing. Same propose-then-curate discipline a persona-driven journaling tool would use: draft, surface, write only on the OK.
-- **In-flight todos worth not losing**: propose adding to `design/NEXT.md`, `design/stories/drafts/`, or — if the project has a `dev-inbox` — a dev-inbox entry. Default to the lightest-weight surface that won't get forgotten.
+Standard preps:
+
+- **Decisions not journaled**: write a `DIARY.md` entry directly. Narrative form, why-and-context, latest-first per project convention. No propose-then-OK gate at wrapup time. (Compare with persona-voice journaling like `diary_propose_entry` — that's a different surface where propose-then-curate is the point.)
+- **In-flight todos worth not losing**: write to `design/NEXT.md`, `design/stories/drafts/`, or — if the project has a `dev-inbox` — a dev-inbox entry. Default to the lightest-weight surface that won't get forgotten.
+- **New stories surfaced this session**: file in `design/stories/ready/` (design baked) or `design/stories/drafts/` (design still open). Same just-write principle — story files are durable but easily edited.
 - **Open TaskList items that are actually done**: mark them completed. Items genuinely incomplete: leave open + flag in the verdict.
+- **Uncommitted changes that should land**: draft an atomic commit message and ask before running `git commit`. (Per global CLAUDE.md "Never commit unless explicitly asked.") If the project has pre-commit hooks, dry-run them first so the user sees any hook output as part of the proposal, not as a mid-commit surprise.
+- **Uncommitted changes that are mid-experiment**: surface — propose either committing-as-WIP, stashing with a descriptive name, or leaving as-is with a note. Default suggestion is "leave as-is, but note it" — most mid-experiment dirt should not become a commit.
 
-Execute _only_ the preps the user OKs. Re-assess afterward and proceed to Phase 4.
+After writes are done, batch any resulting uncommitted changes into one or two atomic commits and ask for OK in a single message. One commit-OK per wrapup is the goal, not one per write.
 
 ### Phase 4: Verdict
 
@@ -87,6 +90,8 @@ printf '\n\033[1;36m↺ STAY HERE — this session has <specific signals> in cac
 
 For READY and STAY, that's the whole emission — no extra prose. For WAIT, list the items below the yellow block with explicit next steps the user can act on.
 
+**The verdict block is a final-state signal, never a preview.** The user reads green and bounces. Treat the block as load-bearing UI: it appears once, at the very end, only after all wrap-prep writes have landed and any commit-OK has been granted and executed. Do NOT render a verdict (or anything visually shaped like one — including a `✅ READY …` line inside a markdown code fence, since the rendering matches the real block closely enough to mislead a quick-glance reader) before that point. If you find yourself wanting to surface "once X is done, the verdict will be ✅" — stop. Do X. Then emit the verdict. The block's job is to be unambiguous; conditional/preview/hypothetical verdicts are the bug this rule prevents.
+
 ## Output expectations
 
 - **One verdict per invocation.** Don't hedge across two verdicts ("READY-ish but maybe STAY"). Pick the one that fits and explain.
@@ -103,8 +108,9 @@ If you're tempted to skip the journal-decisions check because "the diff captures
 ## Rules
 
 - **Always emit a verdict.** Silence is the bug this skill exists to fix.
+- **Verdict is final state, not preview.** The ✅ / ⏸ / ↺ block is the user's bounce signal — they see green, they leave. Never render a verdict block (or anything code-fenced that resembles one) as a hypothetical, conditional, or "once X is done" preview. Emit only after all prep is complete. See Phase 4 for the longer rationale.
 - **Never silently auto-commit.** Even when the path is obvious, ask. Mid-experiment dirty trees are sometimes intentional.
-- **DIARY entries: propose, don't write.** Show the drafted body, get the OK, then write. No silent journal entries.
+- **DIARY entries / story files / NEXT.md / queue notes: just write them.** Routine wrap-prep writes are mechanical journaling, not judgment-heavy decisions. The user edits afterward if framing's off. Propose-then-OK adds friction without judgment value at this stage. (For persona-voice journaling like `diary_propose_entry` — propose-then-curate still applies; that's a different surface where the propose step is the point.)
 - **STAY is high-confidence only.** If you're not sure whether the cache actually helps the named intent, lean READY and let the user push back. Don't manufacture a STAY out of "well, you've been working here."
 - **One sentence per inventory item.** This is a glance, not a report.
 
