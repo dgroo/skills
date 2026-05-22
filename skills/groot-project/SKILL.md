@@ -620,7 +620,19 @@ Tasks that need Derek's hands, eyes, account credentials, paid subscription, or 
 
 - One markdown file per item, date-prefixed: `YYYY-MM-DD-<slug>.md`
 - YAML frontmatter: `status` (open/in-progress/done/dropped), `created`, `priority`, `estimated_time`
-- Body sections: title (a request, not a directive), what's needed, why, **what I already did to reduce the work**, concrete steps, what changes when it's done.
+- Body structure, **in this exact order** — TL;DR and the concrete steps must be readable without scrolling past the title. Background context lives below the fold.
+  1. `# <Friendly title>` — phrased as a request, not a directive.
+  2. `**TL;DR:** <one sentence>` — reader should know what to do from this line alone.
+  3. `## Do this` — numbered concrete steps, paste-ready, one action per step. Second from top, never buried.
+  4. `## Tell me when you're done` — what the user reports back (or what the LLM will detect) to unblock the next step.
+  5. `---` separator.
+  6. `## Background (optional reading)` containing:
+     - `### Why this matters`
+     - `### What I already did to make this easier`
+     - `### Related`
+
+  Snags, gotchas, future-state notes, and other detail are additional `###` sub-sections inside Background.
+
 - The "what I already did" section is non-decorative — if it would be empty, the entry should not have been created. Do that work first instead.
 
 ## Surfacing in chat
