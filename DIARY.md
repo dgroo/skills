@@ -4,6 +4,18 @@ Latest entries first. Record significant decisions, architecture changes, and no
 
 ---
 
+## 2026-05-23 — `/walkthrough integrate` alias, not a merge
+
+Added `/walkthrough integrate [path]` as an explicit verb that delegates to the existing `/integrate-comments` skill. Same behavior, two entry points. No code-path duplication — the verb is documented as an alias in Routing, Help, and Quick reference.
+
+The forcing question was Derek's: "I keep forgetting `/integrate-comments` exists and trying to drive everything through `/walkthrough` — should we merge?" The honest answer was yes, the split's original justification ("comment iteration is generic across any annotated markdown") isn't paying for itself — in practice the only invocation site is walkthroughs. But the cheapest fix to the forgetting problem is just adding the alias under `/walkthrough`, since the bare-invocation smart-route already handles the most common path (existing walkthrough has unseen markers → hand off). The standalone skill stays in place as the canonical implementation; if a non-walkthrough use case ever surfaces (iterating on a survey draft, design note, code-review markdown), it's still reachable directly.
+
+The decision worth pinning: **affordance discoverability is a separate problem from skill granularity.** Splitting a skill because its logic is generic is one design call; surfacing it under a sticky entry point so users can find it is another. Conflating them produced the original "/integrate-comments lives next to /walkthrough but is invoked separately" shape, which optimized for the abstract reusability case at the cost of the actual workflow. Aliases are cheap; deleting the standalone skill would have been premature optimization in the other direction.
+
+Kept the edit scope minimal — Routing table (5→6 verbs), replaced "Iterating on an existing walkthrough" prose with an "Integrate" section, Help block, Quick reference. Did not retrofit every prose mention of `/integrate-comments` elsewhere in the file; the canonical discovery surfaces all show the alias, and power-user references in the middle of long sections can stay as-is.
+
+---
+
 ## 2026-05-23 — `## Help` convention retrofit across local-owned skills
 
 Rolled out the help-verb convention (per `/skill-add`'s "Help verb convention") to the 15 local-owned skills that lacked it. Before this sweep, coverage was 5/20 — only `cmd-add`, `skill-add`, `skills-review`, `walkthrough`, and `wrapup` implemented `## Help`. After: 15/15 of the non-upstream-tracked skills.
