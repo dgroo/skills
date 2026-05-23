@@ -57,18 +57,19 @@ A walkthrough's _register_ — how story-shaped vs. spec-shaped the prose is —
 
 ## Routing
 
-Five verbs. Bare invocation is smart-routed.
+Six verbs. Bare invocation is smart-routed.
 
 | Invocation                           | Action                                                                                                                                                                                                                   |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `/walkthrough` (bare)                | If a walkthrough artifact with unseen `<!-- @<user>: -->` markers exists in the expected location (see auto-discovery), **hand off to `/integrate-comments`** with that path. Else → **draft new**.                      |
 | `/walkthrough new`                   | **Force-fresh draft** regardless of what exists. Dated filename naturally avoids collision. Use for comparison runs (parallel artifacts).                                                                                |
+| `/walkthrough integrate [path]`      | **Integrate review comments.** Explicit alias for `/integrate-comments [path]` — same underlying skill, same behavior. Exists so users who think "walkthrough" first don't have to remember the sibling skill's name.    |
 | `/walkthrough check [path]`          | **Gap-analysis.** Compare a human-authored narrative against the codebase + design docs. Parses `[[design-actionable]]` and `((aside))` markers. Bidirectional (narrative→code and code→narrative). See [Check](#check). |
 | `/walkthrough clean-comments [path]` | Strip `<!-- @<user>+seen: -->` markers; with confirmation, also bare `<!-- @<user>: -->` markers. Explicit-only; never auto-runs. Works on any annotated markdown, not just walkthroughs.                                |
 | `/walkthrough follow-ups [path]`     | Triage `[extrap]` tags + review-log resolved items + open questions into candidate stories / helping-hands / design questions. Stage; user files.                                                                        |
 | `/walkthrough help`                  | Print unix-style usage (see [Help](#help)).                                                                                                                                                                              |
 
-**Iterating on an existing walkthrough.** Use `/integrate-comments [path]`. That skill owns the comment-driven workflow (marker rewrite, review-log emission, no-fabrication guardrail, uncommitted-state safety check) and is content-type-agnostic — same mechanics work on survey drafts, design notes, etc.
+**Iterating on an existing walkthrough.** Use `/walkthrough integrate [path]` (or `/integrate-comments [path]` directly — same skill). That skill owns the comment-driven workflow (marker rewrite, review-log emission, no-fabrication guardrail, uncommitted-state safety check) and is content-type-agnostic — same mechanics work on survey drafts, design notes, etc.
 
 **Auto-discovery (when no path is given to clean-comments / follow-ups):**
 
@@ -148,9 +149,9 @@ If the user asked for it, generate a second file with the same arc but a differe
 
 Documented in `trajectory.md`. Load that file before proceeding when the user has chosen `trajectory` during scoping — it covers the iterative `current` → `planned` → `infinity` build, the synthesis sibling's shape, spine-divergence handling, and cost guidance. Don't try to reconstruct from memory; the procedure has specific ordering and tagging rules that matter.
 
-## Iterating on an existing walkthrough
+## Integrate
 
-Lives in the sibling `/integrate-comments` skill. Bare `/walkthrough` hands off when it finds an existing walkthrough with unseen `<!-- @<user>: -->` markers (see [Routing](#routing)).
+Explicit `/walkthrough integrate [path]`, or the bare `/walkthrough` smart-route when an existing walkthrough has unseen `<!-- @<user>: -->` markers. Both routes invoke the sibling `/integrate-comments` skill — the explicit verb exists so users who think "walkthrough" first don't have to remember the sibling skill's name. No behavior difference between `/walkthrough integrate` and `/integrate-comments` directly; pick whichever you remember first.
 
 That skill handles: username discovery, uncommitted-state safety check, marker rewrite (`@<user>:` → `@<user>+seen:` in place), review-log emission with framing-decision preamble, and the no-fabrication guardrail. Mode metadata on the walkthrough is preserved — `/integrate-comments` reads framing notes but doesn't rewrite modes.
 
@@ -246,6 +247,10 @@ Verbs:
                     walkthrough with unseen review markers exists; else
                     draft a new walkthrough.
   new               Force-fresh draft regardless of existing artifacts.
+  integrate [path]  Integrate <!-- @user: --> review comments into the
+                    prose. Explicit alias for /integrate-comments —
+                    same behavior; lives here so you don't have to
+                    remember the sibling skill's name.
   check [path]      Bidirectional gap-analysis: compare a human-authored
                     narrative against the codebase + design docs. Parses
                     [[design-actionable]] and ((aside)) markers.
@@ -311,12 +316,13 @@ On second invocation in the same project: if scoping conversations are repeating
 | ------------------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------- |
 | (bare) `/walkthrough`                | Hand-off to `/integrate-comments` (if existing has unseen markers) or draft new | Default invocation                                |
 | `/walkthrough new`                   | Force-fresh draft                                                               | Comparison / parallel artifact                    |
+| `/walkthrough integrate [path]`      | Integrated review comments + sibling review-log                                 | Explicit alias for `/integrate-comments`          |
 | `/walkthrough check [path]`          | Bidirectional gap-analysis (`<stem>-check.md`)                                  | Human wrote a narrative; compare to code + design |
 | `/walkthrough clean-comments [path]` | Stripped seen markers                                                           | Explicit cleanup                                  |
 | `/walkthrough follow-ups [path]`     | Triaged spec-gap candidates                                                     | After iterate, at "good enough for now"           |
 | `/walkthrough help`                  | Unix-style usage block                                                          | User asks "how do I use this"                     |
 
-For integrating reviewer `<!-- @<user>: -->` comments into an existing walkthrough, use **`/integrate-comments [path]`** (sibling skill).
+For integrating reviewer `<!-- @<user>: -->` comments into an existing walkthrough, use **`/walkthrough integrate [path]`** (alias) or **`/integrate-comments [path]`** (sibling skill directly) — same behavior either way.
 
 | Phase         | Output                                                                                                              |
 | ------------- | ------------------------------------------------------------------------------------------------------------------- |
