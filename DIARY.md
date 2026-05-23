@@ -4,6 +4,18 @@ Latest entries first. Record significant decisions, architecture changes, and no
 
 ---
 
+## 2026-05-23 — `## Help` convention retrofit across local-owned skills
+
+Rolled out the help-verb convention (per `/skill-add`'s "Help verb convention") to the 15 local-owned skills that lacked it. Before this sweep, coverage was 5/20 — only `cmd-add`, `skill-add`, `skills-review`, `walkthrough`, and `wrapup` implemented `## Help`. After: 15/15 of the non-upstream-tracked skills.
+
+What made this worth doing as one sweep rather than retrofit-when-touched: the convention only earns its weight if a user can rely on `/<any-of-my-skills> help` working. Partial coverage is worse than none — it teaches the muscle memory that the verb sometimes works, which is the same as it not working. The same logic that justified writing the convention in the first place justifies the retrofit.
+
+The decision worth pinning: **`/skills-review`'s Step 5b — the convention check — is the right enforcement surface, but the auto-apply has to stop at drafts.** The skill flagged all 15 with E-tier scaffolds, but the help blocks themselves had to be written per-skill — verb shapes vary (some have routing tables, some are single-arg, some have subcommands, some have neither). Bulk-auto-writing a generic stub would have produced churn-y diffs that the next /skills-review run would also flag as wrong. Drafting + per-skill review (which is what "do recommended" amounts to in practice — the inventory is automatic, the content isn't templatable) is the right shape for this kind of cross-skill convention rollout.
+
+Companion fix in the same session: `walkthrough/SKILL.md` line 81 — the recent scope-disambiguation beat (commit `8827adc`) used "ignore the VTT narrative" as the failure-mode example. VTT is project-specific domain jargon from the source-project context. `/skills-review`'s Focus panel format proved useful here — gave a clean "one project-specific bleed, single-line fix" callout that didn't require re-reading the whole skill to act on. Worth remembering as a pattern: when reviewing a skill that was driven by a single project's needs, lead the report with that lens. Also synced `trajectory.md`'s output naming to the per-walkthrough-dir layout from `8827adc` (it had been left flat-naming).
+
+---
+
 ## 2026-05-21 — /cmd-add and the command-vs-skill split
 
 Added `/cmd-add` as a lighter sibling to `/skill-add`. Slash commands (markdown files in `~/.claude/commands/`) and skills (this repo, with `description:` loaded into every session's context) are genuinely different affordances, and the cost asymmetry matters: a skill bloats the session-start catalog forever; a command costs nothing until invoked. Default-to-command is the right framing for "I want a shortcut."
