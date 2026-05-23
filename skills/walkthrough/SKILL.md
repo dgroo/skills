@@ -39,6 +39,22 @@ A walkthrough's _temporal stance_ — what slice of the app it describes — is 
 
 **Back-compat.** Existing walkthrough files without a mode suffix in the filename are treated as `infinity`. Don't rename them retroactively.
 
+## Registers
+
+A walkthrough's _register_ — how story-shaped vs. spec-shaped the prose is — is chosen during scoping. Orthogonal to mode: any mode can be drafted in any register.
+
+| Register             | Protagonist                               | Side-cast / sensory texture | Word budget | When to pick it                                                                                                      |
+| -------------------- | ----------------------------------------- | --------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------- |
+| `spec`               | Roleless ("the Meta GM does X")           | None                        | ~1000–1500  | Walkthrough's job is to feed design work — surface phases + decision points without narrative weight.                |
+| `grounded` (default) | Named protagonist as anchor only          | None                        | ~1800–2500  | Default. Named protagonist provides a reading anchor; no supporting cast, no origin scenes, no sensory micro-scenes. |
+| `storied`            | Named protagonist + named supporting cast | Permitted (opt-in)          | ~3000–4500  | Selling-the-vision / North Star / pitch-shaped docs where the texture _is_ the point. Explicit ask, not default.     |
+
+**Default.** `grounded`. Named protagonist keeps prose readable; absence of side-cast and sensory micro-scenes keeps focus on the application's surface. `storied` is opt-in — right register for pitches and vision docs, reader-budget overhead when the goal is feeding design work. `spec` is for cases where even a named protagonist is overhead (e.g., feeding a /plan-eng-review).
+
+**Mode × register.** Independent. `infinity-spec` is a valid draft (spec-shaped speculation past spec); `current-storied` is a valid draft (richly textured snapshot of what ships today). Don't conflate.
+
+**Skip the scoping question when the user pins it.** "Matter-of-fact" / "concise" / "no fluff" / "spec-shaped" → `spec`. "Have fun" / "fleshed out" / "make it a story" / "with characters" → `storied`. Otherwise ask, default `grounded`. Note: "feel free to name the humans" is _license_ for naming, not a register signal — it does not by itself promote `grounded` to `storied`.
+
 ## Routing
 
 Five verbs. Bare invocation is smart-routed.
@@ -83,12 +99,13 @@ Use `AskUserQuestion` to pin down anything not obvious from project docs or the 
 - **Perspective**: who is the narrative _for_? (end-user / admin / developer / API consumer / specific role). If the app has multiple user types, surface the candidates and pick one — the others get bottom-section variation notes or separate docs later.
 - **Scenario**: primary path. If the app has modes / tiers / flavors / target systems, pick one primary and capture others as bottom-section variation notes.
 - **Format**: human-readable narrative (default). Ask whether to also produce an LLM-optimized companion (default: no, can be added later).
-- **Depth**: rough length. Default 2–3 pages of text (~1500–2500 words).
+- **Register**: narrative voice — `spec` / `grounded` (default) / `storied`. See [Registers](#registers). Skip the question only if the user's phrasing pins it ("matter-of-fact" → `spec`; "have fun" / "make it a story" → `storied`). License to name humans is _not_ a register signal.
+- **Depth**: rough length. Default flows from register (`spec` ~1000–1500, `grounded` ~1800–2500, `storied` ~3000–4500); override only on explicit user ask.
 - **Output location**: if `design/walkthroughs/` exists, use the per-walkthrough-dir layout: `design/walkthroughs/<YYYY-MM-DD>-<slug>/walkthrough.md`, with `<slug>` = mode (`current`/`planned`/`infinity`) for whole-product walkthroughs or `<topic>` for scoped walkthroughs. Sibling artifacts (`walkthrough-check.md`, `walkthrough-review-log.md`, LLM companion) live alongside in the same dir. Otherwise, fall back to legacy: dated filename like `<YYYY-MM-DD>-walkthrough-<scenario>-<perspective>[-<mode>].md` in `design/notes/`, `docs/walkthroughs/`, or wherever the project keeps informal/snapshot docs. Mode suffix omitted for `infinity` (back-compat); included for `current` / `planned` / `trajectory`.
 
 ### 3. Draft
 
-Story-shaped, not spec-shaped. **Framing follows the chosen mode** (see [Modes](#modes)): open with a one-paragraph framing-note declaring the slice, then honor that mode's sourcing + tagging rules. Reminder of the rules:
+Shape follows two orthogonal axes: **mode** (see [Modes](#modes)) sets temporal stance and sourcing rules; **register** (see [Registers](#registers)) sets narrative voice and word budget. Open with a one-paragraph framing-note declaring the mode-slice, then honor both the mode's tagging rules and the register's voice rules. Reminder of the mode rules:
 
 - `current` — refuse to extrapolate. If the code doesn't settle a behavior, ask or omit. No `[extrap]`.
 - `planned` — tag not-yet-shipped items with `[planned]`. Speculative material (past the next milestone) is out of scope.
@@ -106,8 +123,9 @@ Standard arc:
 
 Drafting principles:
 
-- **Named protagonist** for the human version (e.g., "Derek runs `setup`..."). Roles only for the LLM version ("Meta GM runs setup...").
-- **Concrete commands and file paths.** Show what the user actually types and what files get created.
+- **Register drives voice.** The chosen register sets named-vs-roleless protagonist, whether supporting cast is permitted, whether sensory micro-scenes (origin stories, screenshot-taking, partner-cameos, atmospheric details) are permitted, and the word budget. Hold the line. A `grounded` draft that grows a Reddit-thread origin scene is silently a `storied` draft — either re-scope or excise.
+- **LLM-companion variant** uses roles ("Meta GM runs setup...") regardless of human-companion register.
+- **Concrete commands and file paths.** Show what the user actually types and what files get created. (Mandatory in all registers — even `spec`.)
 - **Tag extrapolations** with `[extrap]` and a brief inline note when you infer past what the docs settle.
 - **Iceberg discipline.** Describe just enough of each feature for the story to make sense; don't unload spec content.
 
@@ -244,6 +262,13 @@ Modes (draft verbs only):
   infinity (default) End-state as currently conceived; tags [extrap] past spec.
   trajectory        Four-artifact set (current + planned + infinity + synthesis).
 
+Registers (draft verbs only; orthogonal to mode):
+  spec              Roleless, sparse, ~1000-1500 words. For feeding design work.
+  grounded (default) Named protagonist as anchor only, no side-cast or sensory
+                    texture, ~1800-2500 words.
+  storied           Named protagonist + supporting cast + sensory texture,
+                    ~3000-4500 words. Opt-in for pitch / vision docs.
+
 Markers:
   [[...]]           Embedded human-narrative design-actionable note (check input).
   ((...))           Embedded aside / clarification (check input; non-actionable).
@@ -277,6 +302,7 @@ On second invocation in the same project: if scoping conversations are repeating
 - **`check` runs unidirectionally.** Only catches narrative→code gaps (missing features) and misses code→narrative gaps (silent over-implementation) or three-way design-doc disagreements. Fix: produce all three sections every run, even if short. C→N is the easy one to skip; don't.
 - **`check` invents rows without anchors.** Tables get padded with intuited gaps that aren't tied to a specific file:line. Fix: every row needs at least one anchor; if you can't cite it, don't include it.
 - **`check` ignores narrative's declared markup.** Skill assumes `[[]]` / `(())` universally; user's narrative announces different markers in its preamble. Fix: read the preamble for marker declarations and honor them.
+- **Drifts into `storied` register by accident.** User gives "feel free to name humans" license and the draft sprouts a Reddit-thread origin scene, a screenshot-taking moment, a side-character cast, and atmospheric micro-paragraphs. The result is fun but eats reader budget for what was meant to be design-feeding material. Fix: register is a separate scoping question, default `grounded`; license to name humans is not a `storied` signal. If the draft grows side-cast or sensory micro-scenes that weren't in the chosen register's rules, treat that as drift and excise (or re-scope to `storied` explicitly).
 - **Anchors on the topic of a visible-but-unread narrative.** Sees `<date>-<topic>.md` in `design/notes/` during orient and infers the new walkthrough should be on `<topic>` — even when the user told it to ignore that file or generate something different. Filename existence ≠ scope signal. Fix: if the user mentions a comparison target, identify it singularly before scoping; parse "ignore X" carefully (file? topic? both?); ground in the project's canonical design surface (DESIGN.md, README, stories), not whatever narrative files happen to be in `design/notes/`. The first Scope-phase bullet exists for exactly this failure mode — don't skip it just because the user "seems" to have already provided context.
 
 ## Quick reference
@@ -295,12 +321,14 @@ For integrating reviewer `<!-- @<user>: -->` comments into an existing walkthrou
 | Phase         | Output                                                                                                              |
 | ------------- | ------------------------------------------------------------------------------------------------------------------- |
 | Orient        | Internal context (don't read prior walkthroughs at orient time)                                                     |
-| Scope         | Comparison target, mode, perspective, scenario, format, depth, location                                             |
-| Draft         | Narrative doc (mode-aware framing; `infinity` is default)                                                           |
+| Scope         | Comparison target, mode, perspective, scenario, format, register, depth, location                                   |
+| Draft         | Narrative doc (mode-aware framing; `infinity` is default mode; `grounded` is default register)                      |
 | Save          | `design/walkthroughs/<date>-<slug>/walkthrough.md` (preferred when dir exists) or legacy dated filename in `notes/` |
 | LLM companion | Second file in same per-walkthrough dir (opt-in)                                                                    |
 
 **Modes:** `current` / `planned` / `infinity` (default) / `trajectory`. Mode sets sourcing + tagging; see [Modes](#modes).
+
+**Registers:** `spec` / `grounded` (default) / `storied`. Register sets voice + word budget; orthogonal to mode. See [Registers](#registers).
 
 | Tag         | Used by mode             | Meaning                                                       |
 | ----------- | ------------------------ | ------------------------------------------------------------- |
