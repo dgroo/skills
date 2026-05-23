@@ -17,18 +17,19 @@ Skip if the user wants architecture/API/spec content (that's reference), step-by
 
 ## Modes
 
-A walkthrough's *temporal stance* — what slice of the app it describes — is chosen during scoping. Mode is metadata of the doc, not a verb; iteration (via `/integrate-comments`) preserves whatever mode the doc was drafted in.
+A walkthrough's _temporal stance_ — what slice of the app it describes — is chosen during scoping. Mode is metadata of the doc, not a verb; iteration (via `/integrate-comments`) preserves whatever mode the doc was drafted in.
 
-| Mode | Sources | Tagging | When to pick it |
-|------|---------|---------|-----------------|
-| `current` | Code + README + shipped behavior. No speculative design docs, no draft stories. | None — refuse to extrapolate. If the code doesn't settle it, ask or omit. | "How does this work *today*?" — onboarding readers to the live app, dogfooding what actually shipped, support docs. |
-| `planned` | `current` sources + near-term planned work (`stories/ready/`, `stories/drafts/`, roadmap docs the project treats as committed). | `[planned]` for not-yet-shipped items. No `[extrap]`. | "How will this work *next milestone*?" — sequencing reviews, sanity-checking the next chunk, scoping decisions. |
-| `infinity` (default) | Everything: code + all stories + speculative design docs + extrapolation past spec. | `[extrap]` for anything past spec. | "What does this become *eventually*?" — selling the vision, finding spec gaps, North Star docs. Preserves the prior `v-infinity-with-progression-notes` behavior. |
-| `trajectory` | Produces a four-artifact set built iteratively. See `trajectory.md` (load when chosen). | Inherits `[planned]` + `[extrap]`; synthesis surfaces deltas. | "Show me the journey." — comparing eras side-by-side. Heavier (four artifacts); opt-in. |
+| Mode                 | Sources                                                                                                                         | Tagging                                                                   | When to pick it                                                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `current`            | Code + README + shipped behavior. No speculative design docs, no draft stories.                                                 | None — refuse to extrapolate. If the code doesn't settle it, ask or omit. | "How does this work _today_?" — onboarding readers to the live app, dogfooding what actually shipped, support docs.                                               |
+| `planned`            | `current` sources + near-term planned work (`stories/ready/`, `stories/drafts/`, roadmap docs the project treats as committed). | `[planned]` for not-yet-shipped items. No `[extrap]`.                     | "How will this work _next milestone_?" — sequencing reviews, sanity-checking the next chunk, scoping decisions.                                                   |
+| `infinity` (default) | Everything: code + all stories + speculative design docs + extrapolation past spec.                                             | `[extrap]` for anything past spec.                                        | "What does this become _eventually_?" — selling the vision, finding spec gaps, North Star docs. Preserves the prior `v-infinity-with-progression-notes` behavior. |
+| `trajectory`         | Produces a four-artifact set built iteratively. See `trajectory.md` (load when chosen).                                         | Inherits `[planned]` + `[extrap]`; synthesis surfaces deltas.             | "Show me the journey." — comparing eras side-by-side. Heavier (four artifacts); opt-in.                                                                           |
 
 **Default.** `infinity` for actively-developing projects (back-compat with the previous skill behavior). The framing-note at the top of an `infinity` doc explains what's shipping now vs. described-as-future. Override only on explicit user request.
 
 **Framing-note (every mode).** First paragraph of the doc declares the slice the reader is in, e.g.:
+
 - `current`: "This walkthrough describes the app as it ships today (commit `<sha>` / `<date>`)."
 - `planned`: "...as planned through milestone `<name>`. `[planned]` marks items not yet shipped."
 - `infinity`: "...as currently conceived end-state. `[extrap]` marks speculation past spec."
@@ -42,25 +43,26 @@ A walkthrough's *temporal stance* — what slice of the app it describes — is 
 
 Five verbs. Bare invocation is smart-routed.
 
-| Invocation | Action |
-|---|---|
-| `/walkthrough` (bare) | If a walkthrough artifact with unseen `<!-- @<user>: -->` markers exists in the expected location (see auto-discovery), **hand off to `/integrate-comments`** with that path. Else → **draft new**. |
-| `/walkthrough new` | **Force-fresh draft** regardless of what exists. Dated filename naturally avoids collision. Use for comparison runs (parallel artifacts). |
-| `/walkthrough check [path]` | **Gap-analysis.** Compare a human-authored narrative against the codebase + design docs. Parses `[[design-actionable]]` and `((aside))` markers. Bidirectional (narrative→code and code→narrative). See [Check](#check). |
-| `/walkthrough clean-comments [path]` | Strip `<!-- @<user>+seen: -->` markers; with confirmation, also bare `<!-- @<user>: -->` markers. Explicit-only; never auto-runs. Works on any annotated markdown, not just walkthroughs. |
-| `/walkthrough follow-ups [path]` | Triage `[extrap]` tags + review-log resolved items + open questions into candidate stories / helping-hands / design questions. Stage; user files. |
-| `/walkthrough help` | Print unix-style usage (see [Help](#help)). |
+| Invocation                           | Action                                                                                                                                                                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/walkthrough` (bare)                | If a walkthrough artifact with unseen `<!-- @<user>: -->` markers exists in the expected location (see auto-discovery), **hand off to `/integrate-comments`** with that path. Else → **draft new**.                      |
+| `/walkthrough new`                   | **Force-fresh draft** regardless of what exists. Dated filename naturally avoids collision. Use for comparison runs (parallel artifacts).                                                                                |
+| `/walkthrough check [path]`          | **Gap-analysis.** Compare a human-authored narrative against the codebase + design docs. Parses `[[design-actionable]]` and `((aside))` markers. Bidirectional (narrative→code and code→narrative). See [Check](#check). |
+| `/walkthrough clean-comments [path]` | Strip `<!-- @<user>+seen: -->` markers; with confirmation, also bare `<!-- @<user>: -->` markers. Explicit-only; never auto-runs. Works on any annotated markdown, not just walkthroughs.                                |
+| `/walkthrough follow-ups [path]`     | Triage `[extrap]` tags + review-log resolved items + open questions into candidate stories / helping-hands / design questions. Stage; user files.                                                                        |
+| `/walkthrough help`                  | Print unix-style usage (see [Help](#help)).                                                                                                                                                                              |
 
 **Iterating on an existing walkthrough.** Use `/integrate-comments [path]`. That skill owns the comment-driven workflow (marker rewrite, review-log emission, no-fabrication guardrail, uncommitted-state safety check) and is content-type-agnostic — same mechanics work on survey drafts, design notes, etc.
 
 **Auto-discovery (when no path is given to clean-comments / follow-ups):**
 
-1. Search order, first existing root wins: `design/notes/`, `notes/`, `docs/walkthroughs/`, `docs/`.
+1. Search order, first existing root wins: `design/walkthroughs/`, `design/notes/`, `notes/`, `docs/walkthroughs/`, `docs/`. When the root is `design/walkthroughs/`, the candidate unit is the per-walkthrough subdirectory (`<date>-<slug>/`), not a single file.
 2. Within that root, identify candidates by:
    - `<!-- @<user>+seen:` markers (clean-comments signal)
    - `[extrap]` or `[planned]` tags or a sibling `<docname>-review-log.md` (follow-ups signal)
    - Filename pattern (`*walkthrough*`, `*narrative*`) or frontmatter (`doc-kind: narrative-walkthrough`) as fallback
-3. Single match → use it. Multiple → `AskUserQuestion` with last-modified date **and mode** (inferred from filename suffix, or `infinity` if un-suffixed). Zero → ask whether to draft new.
+   - For `design/walkthroughs/`, treat every `<date>-<slug>/walkthrough.md` (or any `.md` under the dir) as a walkthrough by virtue of location — the per-dir layout _is_ the doc-kind marker.
+3. Single match → use it. Multiple → `AskUserQuestion` with last-modified date **and mode** (inferred from filename suffix, dir-slug suffix, or `infinity` if un-suffixed). Zero → ask whether to draft new.
 
 **Bare-invocation hand-off detail.** When bare `/walkthrough` finds an existing walkthrough artifact with unseen `<!-- @<user>: -->` markers, don't run integrate inline — surface the find ("found walkthrough at X with N unseen comments; handing off to /integrate-comments") and invoke that skill. If the artifact exists but has no unseen markers, ask whether the user wants `clean-comments`, `follow-ups`, or to draft a fresh walkthrough.
 
@@ -70,16 +72,19 @@ Five verbs. Bare invocation is smart-routed.
 
 Read the project's design surface to ground the narrative. Typical entry points: `README`, `CLAUDE.md`, anything in `docs/` or `design/`. Skip if the user already supplied source material in the prompt.
 
+**Don't read prior walkthroughs during orient.** If `design/walkthroughs/` (or equivalent) exists, do not include its contents in the orient pass — those are tutorial-quadrant docs, not the canonical design surface, and reading them at orient time biases the new draft toward the prior one's framing. The CLAUDE.md / `walkthroughs/README.md` convention in projects that use this layout makes this explicit (read-with-permission, same shape as `archived/`/`deprecated/`). Even in projects without that convention, hold the line. The exception is the _one_ walkthrough the user names as a comparison target — see the next step.
+
 ### 2. Scope
 
 Use `AskUserQuestion` to pin down anything not obvious from project docs or the user's request. Skip any question whose answer is already clear:
 
+- **Comparison target / parallel artifact** _(first, before everything else)_ — if the user mentions "compare against," "parallel to," "diverge from," "ignore X but generate Y," or any specific prior narrative, **identify the comparison target singularly before scoping anything else**. Don't infer scope from "the most recently touched narrative" or from filenames visible via `ls`; visible existence ≠ scope signal. If there are multiple candidate prior narratives (e.g., several `*-narrative-*` files), `AskUserQuestion` which one is the target. If the user says "ignore X," confirm what's being ignored — the file (as input), the topic, or both — the answers shape scope very differently. Common failure mode: parsing "ignore the VTT narrative" as "don't read that file" while still anchoring on VTT as the topic.
 - **Mode**: temporal stance — `current` / `planned` / `infinity` (default) / `trajectory`. See [Modes](#modes). Don't ask if the user's phrasing already pins it ("how does this work today" → `current`; "what's it look like when finished" → `infinity`). Default to `infinity` for actively-developing projects.
-- **Perspective**: who is the narrative *for*? (end-user / admin / developer / API consumer / specific role). If the app has multiple user types, surface the candidates and pick one — the others get bottom-section variation notes or separate docs later.
+- **Perspective**: who is the narrative _for_? (end-user / admin / developer / API consumer / specific role). If the app has multiple user types, surface the candidates and pick one — the others get bottom-section variation notes or separate docs later.
 - **Scenario**: primary path. If the app has modes / tiers / flavors / target systems, pick one primary and capture others as bottom-section variation notes.
 - **Format**: human-readable narrative (default). Ask whether to also produce an LLM-optimized companion (default: no, can be added later).
 - **Depth**: rough length. Default 2–3 pages of text (~1500–2500 words).
-- **Output location**: dated filename like `<YYYY-MM-DD>-walkthrough-<scenario>-<perspective>[-<mode>].md` in `design/notes/`, `docs/walkthroughs/`, or wherever the project keeps informal/snapshot docs. Mode suffix omitted for `infinity` (back-compat); included for `current` / `planned` / `trajectory`.
+- **Output location**: if `design/walkthroughs/` exists, use the per-walkthrough-dir layout: `design/walkthroughs/<YYYY-MM-DD>-<slug>/walkthrough.md`, with `<slug>` = mode (`current`/`planned`/`infinity`) for whole-product walkthroughs or `<topic>` for scoped walkthroughs. Sibling artifacts (`walkthrough-check.md`, `walkthrough-review-log.md`, LLM companion) live alongside in the same dir. Otherwise, fall back to legacy: dated filename like `<YYYY-MM-DD>-walkthrough-<scenario>-<perspective>[-<mode>].md` in `design/notes/`, `docs/walkthroughs/`, or wherever the project keeps informal/snapshot docs. Mode suffix omitted for `infinity` (back-compat); included for `current` / `planned` / `trajectory`.
 
 ### 3. Draft
 
@@ -108,7 +113,7 @@ Drafting principles:
 
 ### 4. Save
 
-Write to the file location determined in scope. Confirm the path before writing if it wasn't preset.
+Write to the file location determined in scope. Confirm the path before writing if it wasn't preset. When using the `design/walkthroughs/<date>-<slug>/` layout, create the dir as part of the save step — `mkdir -p` plus the narrative file in one motion. Sibling artifacts (check output, review-log, LLM companion) land in the same dir on later runs, not as siblings of the narrative file elsewhere.
 
 ### 5. (Optional) LLM companion
 
@@ -154,7 +159,7 @@ Stage the triage as a markdown list with suggested file locations. Ask the user 
 
 ## Check
 
-Gap-analysis verb. Inverse of `write` (LLM reads code, drafts narrative) — here the *human* has written a narrative of how they envision using the app, and the skill compares it against the actual codebase + design docs to surface drift.
+Gap-analysis verb. Inverse of `write` (LLM reads code, drafts narrative) — here the _human_ has written a narrative of how they envision using the app, and the skill compares it against the actual codebase + design docs to surface drift.
 
 The point: a human-authored narrative encodes intent the rest of the design surface may not capture. Comparing it three-ways (narrative ↔ design docs ↔ code) catches silent drift in any direction — features the narrative implies that don't exist, features the code has that the narrative omits, and design-doc-vs-narrative-vs-code disagreements that no unidirectional review would surface.
 
@@ -272,40 +277,43 @@ On second invocation in the same project: if scoping conversations are repeating
 - **`check` runs unidirectionally.** Only catches narrative→code gaps (missing features) and misses code→narrative gaps (silent over-implementation) or three-way design-doc disagreements. Fix: produce all three sections every run, even if short. C→N is the easy one to skip; don't.
 - **`check` invents rows without anchors.** Tables get padded with intuited gaps that aren't tied to a specific file:line. Fix: every row needs at least one anchor; if you can't cite it, don't include it.
 - **`check` ignores narrative's declared markup.** Skill assumes `[[]]` / `(())` universally; user's narrative announces different markers in its preamble. Fix: read the preamble for marker declarations and honor them.
+- **Anchors on the topic of a visible-but-unread narrative.** Sees `<date>-<topic>.md` in `design/notes/` during orient and infers the new walkthrough should be on `<topic>` — even when the user told it to ignore that file or generate something different. Filename existence ≠ scope signal. Fix: if the user mentions a comparison target, identify it singularly before scoping; parse "ignore X" carefully (file? topic? both?); ground in the project's canonical design surface (DESIGN.md, README, stories), not whatever narrative files happen to be in `design/notes/`. The first Scope-phase bullet exists for exactly this failure mode — don't skip it just because the user "seems" to have already provided context.
 
 ## Quick reference
 
-| Verb | Output | When |
-|------|--------|------|
-| (bare) `/walkthrough` | Hand-off to `/integrate-comments` (if existing has unseen markers) or draft new | Default invocation |
-| `/walkthrough new` | Force-fresh draft | Comparison / parallel artifact |
-| `/walkthrough check [path]` | Bidirectional gap-analysis (`<stem>-check.md`) | Human wrote a narrative; compare to code + design |
-| `/walkthrough clean-comments [path]` | Stripped seen markers | Explicit cleanup |
-| `/walkthrough follow-ups [path]` | Triaged spec-gap candidates | After iterate, at "good enough for now" |
-| `/walkthrough help` | Unix-style usage block | User asks "how do I use this" |
+| Verb                                 | Output                                                                          | When                                              |
+| ------------------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------- |
+| (bare) `/walkthrough`                | Hand-off to `/integrate-comments` (if existing has unseen markers) or draft new | Default invocation                                |
+| `/walkthrough new`                   | Force-fresh draft                                                               | Comparison / parallel artifact                    |
+| `/walkthrough check [path]`          | Bidirectional gap-analysis (`<stem>-check.md`)                                  | Human wrote a narrative; compare to code + design |
+| `/walkthrough clean-comments [path]` | Stripped seen markers                                                           | Explicit cleanup                                  |
+| `/walkthrough follow-ups [path]`     | Triaged spec-gap candidates                                                     | After iterate, at "good enough for now"           |
+| `/walkthrough help`                  | Unix-style usage block                                                          | User asks "how do I use this"                     |
 
 For integrating reviewer `<!-- @<user>: -->` comments into an existing walkthrough, use **`/integrate-comments [path]`** (sibling skill).
 
-| Phase | Output |
-|-------|--------|
-| Orient | Internal context |
-| Scope | Mode, perspective, scenario, format, depth, location |
-| Draft | Narrative doc (mode-aware framing; `infinity` is default) |
-| Save | File at chosen path (mode suffix when non-default) |
-| LLM companion | Second file with structured shape (opt-in) |
+| Phase         | Output                                                                                                              |
+| ------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Orient        | Internal context (don't read prior walkthroughs at orient time)                                                     |
+| Scope         | Comparison target, mode, perspective, scenario, format, depth, location                                             |
+| Draft         | Narrative doc (mode-aware framing; `infinity` is default)                                                           |
+| Save          | `design/walkthroughs/<date>-<slug>/walkthrough.md` (preferred when dir exists) or legacy dated filename in `notes/` |
+| LLM companion | Second file in same per-walkthrough dir (opt-in)                                                                    |
 
 **Modes:** `current` / `planned` / `infinity` (default) / `trajectory`. Mode sets sourcing + tagging; see [Modes](#modes).
 
-| Tag | Used by mode | Meaning |
-|-----|--------------|---------|
-| `[planned]` | `planned`, `trajectory` | Item is on the near-term roadmap but not yet shipped. |
-| `[extrap]` | `infinity`, `trajectory` | Speculation past spec; reader should not treat as commitment. |
+| Tag         | Used by mode             | Meaning                                                       |
+| ----------- | ------------------------ | ------------------------------------------------------------- |
+| `[planned]` | `planned`, `trajectory`  | Item is on the near-term roadmap but not yet shipped.         |
+| `[extrap]`  | `infinity`, `trajectory` | Speculation past spec; reader should not treat as commitment. |
 
 **Review-comment markers** (processed by `/integrate-comments`):
+
 - `<!-- @<username>: <comment> -->` — unseen; run `/integrate-comments` to integrate
 - `<!-- @<username>+seen: <comment> -->` — processed; disposition in review-log; remove via `clean-comments`
 
 **Embedded human-narrative markers** (processed by `check`):
+
 - `[[design-actionable text]]` — author wants this picked up; triaged as candidate story / helping-hand / design question
 - `((parenthetical aside))` — clarifying context for the human reader; not surfaced as output items
 
