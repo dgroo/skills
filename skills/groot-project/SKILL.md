@@ -684,6 +684,45 @@ Many gstack skills also read `CLAUDE.md` for project context. The conventions bl
 - Doesn't restructure files unless the user explicitly invokes aggressive/restructure mode.
 - Doesn't maintain or update CLAUDE.md content beyond the initial skeleton — use `/claude-md-add` for ongoing additions.
 
+## Help
+
+When invoked as `/groot-project help`, print the following block verbatim:
+
+```
+groot-project — Bootstrap a project Derek's way. Idempotent; re-runnable.
+
+Usage: /groot-project [verb-or-flags]
+
+Verbs / flags:
+  (none)            Interactive walkthrough at cwd.
+  status            Read-only audit; report what's in place vs missing.
+  --auto            Skip prompts; sensible defaults; skip external integrations.
+  --public          If a GitHub remote is created, make it public (default: private).
+  help              Show this message.
+
+Combinable: --auto and --public may combine. `status` is standalone.
+
+Phases (in order):
+  1. Git init                       (auto)
+  2. design/ subtree                (auto; light migration of misplaced root files)
+  3. Project docs skeleton          (auto: CLAUDE.md / DIARY.md / TODO.md)
+  4. Office-hours import            (auto if a doc exists)
+  5. Language detection + .gitignore  (always asks)
+  6. Makefile                       (auto if missing; drift-flag if drifted)
+  7. Terminal background            (delegates to /terminal-setup)
+  8. GitHub remote                  (always asks)
+  9. gbrain registration            (always asks)
+  10. Final summary
+
+Aggressive restructuring (top-level docs/, sibling specs/, etc.) requires
+the user to say so explicitly ("be aggressive", "restructure", "reorganize").
+
+Coexists with /project-setup (Joe Walnes's upstream skill) and gstack via a
+shared "## Project conventions" section in CLAUDE.md.
+
+See SKILL.md for full reference.
+```
+
 ## Reference
 
 - All canonical templates (stories/, STORY_TEMPLATE, helping-hands, notes/, plans/, design/README) live in this SKILL.md itself — no external dependencies, portable across machines.

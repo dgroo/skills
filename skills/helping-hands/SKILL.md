@@ -187,6 +187,44 @@ When the user gives the answer in chat, do the synthesis work the item promises,
 | possibly-already-decided    | Surface evidence; ask whether to close        |
 | blocked-on-user             | Surface ask; user-side work is the bottleneck |
 
+## Help
+
+When invoked as `/helping-hands help`, print the following block verbatim:
+
+```
+helping-hands — Work through a project's user-must-do queue.
+
+Usage: /helping-hands [verb] [args]
+
+Verbs:
+  (none)            List open items → pick → single-item flow.
+  all               Validate every open item → readiness table → pick.
+  <slug>            Run the single-item flow on one entry directly.
+  new <slug>        Create a new entry at <dir>/YYYY-MM-DD-<slug>.md from
+                    the project's canonical template.
+  help              Show this message.
+
+Single-item flow phases:
+  Orient            NEXT.md (as hint), recent commits.
+  Validate          Status, dead refs, decided-elsewhere, sibling synergy,
+                    LLM-resolvable (with tool-availability gating).
+  Extend            Push "What I already did" further; surface scaffolding
+                    diff for user approval.
+  Present           Ask (AskUserQuestion when 2-4 options) OR closure
+                    proposal OR stale-disposition.
+  (Closure)         On user answer: status:done + Decision section, with
+                    per-item approval.
+
+Readiness buckets (from `all`):
+  actionable, now-resolvable-without-user, stale-references,
+  possibly-already-decided, blocked-on-user.
+
+Auto-discovery order:
+  design/helping-hands/ → helping-hands/ → docs/helping-hands/
+
+See SKILL.md for full reference.
+```
+
 ## Related
 
 - `walkthrough` — narrative production sister skill; reviewer-comment / iterate / follow-ups pattern.

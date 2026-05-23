@@ -68,6 +68,43 @@ Edit `~/.claude/skills/project-launcher/project_launcher.py` — there's one `TE
 
 The previous approach (`scripts/projlaunch`) constructed AppleScript on the fly via a heredoc and tried to embed a multi-quoted `zsh -i -c '...'` command inside. It worked in reduced reproductions but failed via the real `.app` pathway in a way that turned out to be a separate dotfiles bug (zsh `local path=` shadowed `$PATH`). Even so, the script-file indirection (write a `#!/bin/zsh -i` script to disk, have iTerm invoke it directly) is the cleaner pattern — it sidesteps multi-layer quoting and makes the inner command trivially inspectable on disk.
 
+## Help
+
+When invoked as `/project-launcher help`, print the following block verbatim:
+
+```
+project-launcher — Generate a per-project GUI .app launcher in the project
+directory (gitignored). Opens a terminal window, cd's into the project, calls
+`roci` to attach/create the project's tmux session on Rocinante24.
+
+Usage: /project-launcher [app-name]
+
+Arguments:
+  (none)            Use Title-cased project basename for the .app name.
+  <app-name>        Explicit .app name (e.g. when basename is "warball2" but
+                    you want "Warball").
+  help              Show this message.
+
+Run from the project root. Idempotent — re-running regenerates the launcher.
+
+Generates in the project root:
+  .launch.sh                Inner #!/bin/zsh -i shim.
+  <AppName>.app             AppleScript-compiled launcher.
+  .gitignore additions      Both files ignored.
+
+Adds a new terminal app via:
+  Edit ~/.claude/skills/project-launcher/project_launcher.py
+  → TERMINAL_LAUNCH_SCRIPTS map; one entry per terminal.
+
+Coexists with:
+  /terminal-setup     Per-project background color (OSC 11). Doesn't survive
+                      SSH — relevant for the brief local moments only.
+  ~/.shrc roci        SSH+tmux shorthand; this skill calls it, doesn't
+                      reimplement it.
+
+See SKILL.md for full reference.
+```
+
 ## Background
 
 Original spec: `~/code/0.llm/remote-coding-setup/design/notes/archived/2026-05-19-serenity26-launcher-prompt.md`. Refactor spec: same dir, `2026-05-20-phase-5c-launcher-refactor.md`. (Both moved to `archived/` 2026-05-20 once consumed.) The launcher unblocks Phase 6 (Apple Container memory isolation) on Rocinante24.

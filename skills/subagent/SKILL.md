@@ -10,17 +10,17 @@ Evaluate whether a task is actually suited to a subagent, then either spawn it (
 
 ## When to use vs. skip
 
-Use for: "spawn a subagent for X", "do this in a subagent", "delegate to a subagent", "/subagent <task>", "/subagent" (bare → prompt for the task), or when *you* (Claude) are considering reaching for the Agent/Task tool and want a sanity check first.
+Use for: "spawn a subagent for X", "do this in a subagent", "delegate to a subagent", "/subagent <task>", "/subagent" (bare → prompt for the task), or when _you_ (Claude) are considering reaching for the Agent/Task tool and want a sanity check first.
 
 Skip if: the user has already weighed the tradeoff out loud and is explicitly directing dispatch ("just spawn it, I've thought about it"). Run the spawn step only — no evaluation theater. The user override case below covers post-hoc overrides; this skip covers pre-emptive ones.
 
 ## Routing
 
-| Invocation | Action |
-|---|---|
-| `/subagent <task description>` | Run the four-check evaluation on the task, then spawn or push back. |
-| `/subagent` (bare) | Prompt the user for the task description, then run the evaluation. |
-| User-style: "do X in a subagent" / "spawn a subagent to Y" | Same as `/subagent X` — run the evaluation. |
+| Invocation                                                 | Action                                                              |
+| ---------------------------------------------------------- | ------------------------------------------------------------------- |
+| `/subagent <task description>`                             | Run the four-check evaluation on the task, then spawn or push back. |
+| `/subagent` (bare)                                         | Prompt the user for the task description, then run the evaluation.  |
+| User-style: "do X in a subagent" / "spawn a subagent to Y" | Same as `/subagent X` — run the evaluation.                         |
 
 ## Four-check evaluation
 
@@ -32,7 +32,7 @@ What flows back into the main conversation?
 
 - **Green:** a summary, a list of findings, a short artifact (file path, function signature, a diff), a yes/no answer with citation. Anything that re-enters the parent agent as a discrete payload.
 - **Yellow:** a result that the parent will need to ask follow-up questions about, but the follow-ups are factual ("which file was it in again?").
-- **Red:** the result is *entangled* with this conversation's in-flight decisions and taste calls — e.g., the parent has been weighing approach A vs B and the subagent would need to know which way that's leaning to do the work. Subagents start cold; entanglement is the failure mode.
+- **Red:** the result is _entangled_ with this conversation's in-flight decisions and taste calls — e.g., the parent has been weighing approach A vs B and the subagent would need to know which way that's leaning to do the work. Subagents start cold; entanglement is the failure mode.
 
 ### 2. Size
 
@@ -60,12 +60,12 @@ Does the task require taste calls / judgment tied to nuance the parent agent has
 
 ## Verdict
 
-| Pattern | Action |
-|---|---|
-| All green, or 3 green + 1 yellow | **Spawn.** Default to `general-purpose`; recommend a more specialized type if one obviously fits (see below). |
-| 2+ yellow, no red | **Spawn with caveats.** Note the yellow flags in the prompt itself so the subagent works around them. |
-| 1 red, rest mixed | **Push back.** Cite the specific check and reason. Offer to either (a) do the task inline, (b) restructure the task so the red flag goes green, or (c) spawn anyway if the user overrides. |
-| 2+ red | **Push back firmly.** This task wants to be inline. Explain why each red triggered. Spawn only on explicit user override. |
+| Pattern                          | Action                                                                                                                                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| All green, or 3 green + 1 yellow | **Spawn.** Default to `general-purpose`; recommend a more specialized type if one obviously fits (see below).                                                                              |
+| 2+ yellow, no red                | **Spawn with caveats.** Note the yellow flags in the prompt itself so the subagent works around them.                                                                                      |
+| 1 red, rest mixed                | **Push back.** Cite the specific check and reason. Offer to either (a) do the task inline, (b) restructure the task so the red flag goes green, or (c) spawn anyway if the user overrides. |
+| 2+ red                           | **Push back firmly.** This task wants to be inline. Explain why each red triggered. Spawn only on explicit user override.                                                                  |
 
 **User override always wins.** If Derek says "do it anyway" or "I know, spawn it", spawn. The skill is a heuristic surface, not a gate. Note the override in the spawn prompt so the subagent knows it's operating outside the skill's recommendation (helps it ask for clarification if it hits the entanglement it was warned about).
 
@@ -73,13 +73,13 @@ Does the task require taste calls / judgment tied to nuance the parent agent has
 
 Map task shape to subagent type. Recommend the type in the verdict; user can override.
 
-| Task shape | Recommended type | Why |
-|---|---|---|
-| Pure search / "find all X" / "where is Y defined" | `Explore` | Optimized for read-only discovery; cheaper than general-purpose for this shape. |
-| Planning / architecture exploration / "design how we'd…" | `Plan` (if available) or `general-purpose` | Result-shape is a plan doc; the parent will review. |
-| Multi-step research / audit / code-surface analysis | `general-purpose` | Catch-all for "read a lot, summarize a little." |
-| Implementation of a self-contained slice (rare — usually wants to be inline) | `general-purpose` | Only if the slice is genuinely independent and the result-shape is a diff/PR. |
-| Specialized domain (security review, perf audit, docs writing) | Domain-specific agent if registered, else `general-purpose` | Check `~/.claude/agents/` or the current session's available agent list. |
+| Task shape                                                                   | Recommended type                                            | Why                                                                             |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Pure search / "find all X" / "where is Y defined"                            | `Explore`                                                   | Optimized for read-only discovery; cheaper than general-purpose for this shape. |
+| Planning / architecture exploration / "design how we'd…"                     | `Plan` (if available) or `general-purpose`                  | Result-shape is a plan doc; the parent will review.                             |
+| Multi-step research / audit / code-surface analysis                          | `general-purpose`                                           | Catch-all for "read a lot, summarize a little."                                 |
+| Implementation of a self-contained slice (rare — usually wants to be inline) | `general-purpose`                                           | Only if the slice is genuinely independent and the result-shape is a diff/PR.   |
+| Specialized domain (security review, perf audit, docs writing)               | Domain-specific agent if registered, else `general-purpose` | Check `~/.claude/agents/` or the current session's available agent list.        |
 
 If the user named a type explicitly, use that — don't second-guess type choice unless it's obviously wrong (e.g., `Explore` for an implementation task).
 
@@ -102,31 +102,69 @@ When in doubt, **show the prompt to the user before spawning** for non-trivial s
 - **Forgetting to surface the override path.** If the heuristic says push back, the user can still say "do it anyway." Make that path explicit in the pushback, don't make Derek argue with the skill.
 - **Default-spawning `general-purpose` when `Explore` would do.** Type selection matters. Pure search wants `Explore`; planning wants `Plan`.
 - **Thin prompts.** "Find all callers of foo" gives the subagent no scope. "Find all callers of foo in `src/idm/` so we can decide whether renaming foo is safe — return a list of file:line with the calling function name" is actionable.
-- **Skipping the evaluation when *Claude* is the one reaching for the tool.** This skill applies whether the user invoked it or Claude is about to spawn unprompted. The check is on the *task*, not the *requester*.
+- **Skipping the evaluation when _Claude_ is the one reaching for the tool.** This skill applies whether the user invoked it or Claude is about to spawn unprompted. The check is on the _task_, not the _requester_.
 
 ## Quick reference
 
-| Check | Green | Yellow | Red |
-|---|---|---|---|
-| Result-shape | summary / artifact | factual follow-ups likely | entangled with in-flight decisions |
-| Size | >~5 tool calls | 3-5 calls | 1-2 quick reads |
-| Context-savings | heavy output (long reads, big greps, audits) | moderate | tiny output |
-| Decision-load | mechanical | spec-able in prompt | taste calls from conversational nuance |
+| Check           | Green                                        | Yellow                    | Red                                    |
+| --------------- | -------------------------------------------- | ------------------------- | -------------------------------------- |
+| Result-shape    | summary / artifact                           | factual follow-ups likely | entangled with in-flight decisions     |
+| Size            | >~5 tool calls                               | 3-5 calls                 | 1-2 quick reads                        |
+| Context-savings | heavy output (long reads, big greps, audits) | moderate                  | tiny output                            |
+| Decision-load   | mechanical                                   | spec-able in prompt       | taste calls from conversational nuance |
 
-| Verdict | Action |
-|---|---|
-| all green / 3G+1Y | Spawn |
-| 2+ Y, no R | Spawn with caveats in prompt |
-| 1 R | Push back, offer inline / restructure / override |
-| 2+ R | Push back firmly; spawn only on override |
+| Verdict           | Action                                           |
+| ----------------- | ------------------------------------------------ |
+| all green / 3G+1Y | Spawn                                            |
+| 2+ Y, no R        | Spawn with caveats in prompt                     |
+| 1 R               | Push back, offer inline / restructure / override |
+| 2+ R              | Push back firmly; spawn only on override         |
 
-| Task shape | Recommended type |
-|---|---|
-| Search / discovery | `Explore` |
-| Planning / architecture | `Plan` or `general-purpose` |
-| Multi-step research / audit | `general-purpose` |
-| Self-contained implementation | `general-purpose` (rare; usually wants inline) |
+| Task shape                             | Recommended type                                        |
+| -------------------------------------- | ------------------------------------------------------- |
+| Search / discovery                     | `Explore`                                               |
+| Planning / architecture                | `Plan` or `general-purpose`                             |
+| Multi-step research / audit            | `general-purpose`                                       |
+| Self-contained implementation          | `general-purpose` (rare; usually wants inline)          |
 | Domain-specific (security, perf, docs) | Specialized agent if registered, else `general-purpose` |
+
+## Help
+
+When invoked as `/subagent help`, print the following block verbatim:
+
+```
+subagent — Evaluate whether a task is suited to a subagent; spawn or push back.
+
+Usage: /subagent [task description]
+
+Verbs:
+  <task>            Run the four-check evaluation, then spawn or push back.
+  (none)            Prompt for the task description, then evaluate.
+  help              Show this message.
+
+Four-check evaluation (each: green / yellow / red):
+  1. Result-shape       Discrete payload OR entangled with in-flight decisions?
+  2. Size               >5 calls (green) / 3-5 (yellow) / 1-2 (red)
+  3. Context-savings    Heavy output that pollutes inline? Or tiny?
+  4. Decision-load      Mechanical? Or taste-call-from-conversation?
+
+Verdict:
+  all green / 3G+1Y    Spawn.
+  2+ yellow, no red    Spawn with caveats in prompt.
+  1 red                Push back; offer inline / restructure / override.
+  2+ red               Push back firmly; spawn only on explicit override.
+
+Subagent-type recommendations:
+  Search / discovery                       Explore
+  Planning / architecture                  Plan or general-purpose
+  Multi-step research / audit              general-purpose
+  Self-contained implementation            general-purpose (rare)
+  Domain-specific (security, perf, docs)   specialized if registered
+
+User override always wins ("do it anyway" → spawn, noting override in prompt).
+
+See SKILL.md for full reference.
+```
 
 ## Related
 

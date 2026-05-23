@@ -98,17 +98,17 @@ If nothing's queued anywhere, render: `**Backlog:** Nothing obvious queued — w
 ### Rules for this section
 
 - Only recommend something you've actually seen in a file or command output. **No imagined options.**
-- If you read a story/helping-hands file to check it, surface a *one-line* characterization — don't paste contents.
+- If you read a story/helping-hands file to check it, surface a _one-line_ characterization — don't paste contents.
 - Don't pad with detailed pros/cons. One pick, one reason. The user will ask if they want more.
 - If you genuinely can't pick (everything looks equally good or equally unclear), say so and list the top 2–3 options for the user to choose from. Don't force a fake recommendation.
 
 ## End-of-session check
 
-After the sitrep output, decide whether to recommend that *this* session be ended and a fresh one started for the next task.
+After the sitrep output, decide whether to recommend that _this_ session be ended and a fresh one started for the next task.
 
-**This signal is about the health of THIS conversation, not about where the next task happens to run.** Don't conflate the two. If your recommended pick lives in a different directory or a different repo, that's normal — *you* are not the one who would run it; the user starts a new terminal/CC instance for it whenever they're ready. The end-of-session signal fires only when continuing this same conversation for the next task would be measurably worse than starting fresh.
+**This signal is about the health of THIS conversation, not about where the next task happens to run.** Don't conflate the two. If your recommended pick lives in a different directory or a different repo, that's normal — _you_ are not the one who would run it; the user starts a new terminal/CC instance for it whenever they're ready. The end-of-session signal fires only when continuing this same conversation for the next task would be measurably worse than starting fresh.
 
-**Default: silence.** New sessions have real cost — the user has to re-establish context, re-orient Claude, possibly re-read files. Don't suggest that cost unless the current session has a *visible, concrete problem* that a fresh session would actually solve.
+**Default: silence.** New sessions have real cost — the user has to re-establish context, re-orient Claude, possibly re-read files. Don't suggest that cost unless the current session has a _visible, concrete problem_ that a fresh session would actually solve.
 
 ### The test
 
@@ -117,7 +117,7 @@ The bar is **not** "is this an OK time to stop?" (true after almost any complete
 Recommend ending this session **only when at least one of these is observably true**:
 
 - **Context pressure is real.** The Claude Code context indicator shows ≥50% used, OR the system has already auto-compacted, OR you (Claude) have noticed yourself re-reading files you read earlier, losing details from earlier in the conversation, or otherwise behaving like you're context-starved.
-- **The conversation has drifted across multiple unrelated subtasks** *and* the next requested work is again unrelated to anything currently in cache. (Three distinct topics, with a fourth pivot incoming, is a clear case.)
+- **The conversation has drifted across multiple unrelated subtasks** _and_ the next requested work is again unrelated to anything currently in cache. (Three distinct topics, with a fourth pivot incoming, is a clear case.)
 - **The user has explicitly signaled a fresh-context-friendly transition** — switching projects, switching repos, "I want to start fresh on this," etc.
 
 ### Explicit non-signals
@@ -126,14 +126,14 @@ These are **not sufficient reasons** by themselves. If these are all you have, s
 
 - Tree is clean. (That's the prerequisite, not the reason.)
 - A commit was just made or a milestone was just completed. (Normal end-of-task state — default is to wait for the next task in the same session.)
-- "This feels like a natural stopping point." (Most stopping points are *fine* to continue from. Naturalness is not a signal.)
+- "This feels like a natural stopping point." (Most stopping points are _fine_ to continue from. Naturalness is not a signal.)
 - The session is short or just started. (Short sessions especially should not trigger this — the warm context is the asset.)
 - **The recommended pick lives in a different working directory, repo, or terminal.** That's a property of the task environment, not of this session's health. The user runs the pick in its own session whenever they pick it up; this one stays useful for whatever comes next here. Stay silent unless one of the bullets above also fires.
 - **The session has accomplished substantial work / covered a lot of ground.** Volume of completed work is not impairment. The trigger is observable loss of recall or coherence, NOT "feels like the session has been productive enough." A session that just shipped a slice + three drafts + a debug detour is doing exactly what a session is supposed to do — that's not a fresh-context signal. Don't conflate "done a lot" with "running out of room." Check the actual recall-loss signals; if none fire, stay silent.
 
 ### How to emit
 
-When the bar is genuinely cleared, emit as a final Bash call so it renders in real terminal yellow. Phrase it so the reader can't mistake it for "you'll need another session for the next task" — it's specifically *end this one*:
+When the bar is genuinely cleared, emit as a final Bash call so it renders in real terminal yellow. Phrase it so the reader can't mistake it for "you'll need another session for the next task" — it's specifically _end this one_:
 
 ```bash
 # Replace <reason> with the specific observable signal — not a generic "good time to stop."
@@ -152,10 +152,44 @@ printf '\033[1;33m⚠ THIS SESSION IS USED UP — start a fresh Claude session f
 
 If you're tempted to soften with "you could…" or "consider…" — don't. Either you have observable evidence the current session is impaired (fire), or you don't (silent). Hedged recommendations are noise.
 
+## Help
+
+When invoked as `/sup help`, print the following block verbatim:
+
+```
+sup — Personalized sitrep (Derek's flavor). Strict superset of /sitrep
+with two additions: backlog scan + pick recommendation; new-session check.
+
+Usage: /sup
+
+Sequence:
+  1. Sitrep mirror      Full upstream /sitrep output (never drops sections,
+                        especially Next steps).
+  2. Backlog scan       Only when current chunk is parkable. Scans TODO.md,
+                        design/stories/ready, design/stories/drafts,
+                        design/helping-hands, open PRs, stale branches.
+  3. Pick               One specific recommendation with one-line reasoning,
+                        chosen by: unblocks-downstream → removes-risk →
+                        session-capacity → continuity → smaller-concrete-wins.
+  4. New-session check  Default silence. Fires only when continuing THIS
+                        conversation would be measurably worse than starting
+                        fresh: context ≥50% / auto-compacted / drift across
+                        unrelated subtasks / explicit fresh-context signal.
+                        Emits as ANSI-yellow Bash printf (not markdown).
+
+Non-signals (do NOT trigger new-session by themselves):
+  Clean tree, recent commit, "natural stopping point", session has been
+  long-running, pick lives in a different dir, "feels productive".
+
+Use /sitrep (upstream) for the unembellished base report.
+
+See SKILL.md for full reference.
+```
+
 ## Rules
 
 - The sitrep portion is non-negotiable. **Always show Next steps** when work is non-trivial.
 - The new-session line is a high-confidence signal, not a hedge. If you're not sure, omit it.
 - Use the `printf` commands above for the recommendation — ANSI yellow makes it impossible to miss. Don't substitute markdown bold; it doesn't pop.
-- Be *brief* everywhere. This is a glance, not a report.
+- Be _brief_ everywhere. This is a glance, not a report.
 - Don't explain what a sitrep is or what /sup adds. Jump straight to the output.

@@ -13,7 +13,7 @@ Companion to (not replacement for):
 - `/claude-md-improver` — full audit across all CLAUDE.md files. For periodic cleanup, not single additions.
 - `/revise-claude-md` — synthesize learnings from current session. For end-of-session rollups.
 
-Use `/claude-md-add` when the user has *one explicit thing* they want recorded, in their own words.
+Use `/claude-md-add` when the user has _one explicit thing_ they want recorded, in their own words.
 
 ## How to Invoke
 
@@ -49,12 +49,12 @@ The user's own writing in adjacent entries is the style guide. Match it.
 
 Evaluate the draft against four criteria:
 
-| Criterion | What to check | Example fix |
-|-----------|---------------|-------------|
-| **Specific trigger** | Does it say *when* the rule applies? Hedges like "when sensible", "as appropriate", "if relevant" are flags. | "when it seems sensible" → "when there are 2+ viable paths to weigh" |
-| **No redundancy** | Does an existing entry already cover this? | Quote the overlap; ask whether to merge, replace, or skip. |
-| **Section fit** | Which existing section does it belong in? | Suggest one; don't invent new sections unless nothing fits. |
-| **Voice match** | Bold-led? Imperative? Pronouns? Match the surrounding style. | Reshape phrasing minimally to match. |
+| Criterion            | What to check                                                                                                | Example fix                                                          |
+| -------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| **Specific trigger** | Does it say _when_ the rule applies? Hedges like "when sensible", "as appropriate", "if relevant" are flags. | "when it seems sensible" → "when there are 2+ viable paths to weigh" |
+| **No redundancy**    | Does an existing entry already cover this?                                                                   | Quote the overlap; ask whether to merge, replace, or skip.           |
+| **Section fit**      | Which existing section does it belong in?                                                                    | Suggest one; don't invent new sections unless nothing fits.          |
+| **Voice match**      | Bold-led? Imperative? Pronouns? Match the surrounding style.                                                 | Reshape phrasing minimally to match.                                 |
 
 **Iron rule: copy editor, not rewriter.** The proposed version must be the user's own text with tightening — not a paraphrase, and **not the user's text plus new sentences**. Every clause in the proposed version should trace to a clause in the original (or be a sharpening of one). The user's draft is the spec; if they wanted more, they'd have written more.
 
@@ -62,7 +62,7 @@ Evaluate the draft against four criteria:
 
 Fix:
 
-- Vague triggers (sharpen the *when*)
+- Vague triggers (sharpen the _when_)
 - Voice mismatch with surrounding entries
 - Redundant or colloquial term + canonical name where one would do (e.g., "Interview/AskUserQuestion" → pick the canonical one)
 
@@ -108,3 +108,34 @@ On accept, use Edit to insert the entry at the chosen point. Don't restructure s
 - **Silent rewrites.** If voice is changed, say so explicitly in "Diff rationale".
 - **Skipping the diff.** Always show original vs. proposed before writing, even if the edit feels obviously right.
 - **Treating "proceed"-style approval as license to rewrite freely.** The user agreed to a copy-edit pass, not a paraphrase pass.
+
+## Help
+
+When invoked as `/claude-md-add help`, print the following block verbatim:
+
+```
+claude-md-add — Add a single rule to a CLAUDE.md file with a copy-editor pass.
+
+Usage: /claude-md-add <text>
+
+Acts as copy editor on the draft before writing — sharpens vague triggers,
+flags redundancy with existing entries, picks the right section, preserves
+the user's voice rather than rewriting.
+
+Verbs:
+  <text>            Propose adding <text> to the right CLAUDE.md.
+  help              Show this message.
+
+Target file picked by content:
+  ~/.claude/CLAUDE.md   For "I prefer X" / "talk to me like Y" / global rules.
+  ./CLAUDE.md           For project-specific rules.
+
+Iron rule: copy editor, not rewriter. Every clause in the proposed version
+must trace to a clause in the original (or be a sharpening of one).
+
+Companion skills:
+  /claude-md-improver   Full audit across all CLAUDE.md files.
+  /revise-claude-md     End-of-session learnings rollup.
+
+See SKILL.md for full reference.
+```

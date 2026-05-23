@@ -37,6 +37,7 @@ After the skill runs, Derek reviews + pushes, then either edits STATE.md to flip
 Run from anywhere inside the target project (the script discovers the project root via `git rev-parse --show-toplevel`).
 
 Before invoking the worker script, **ask Derek**:
+
 1. Which hosts participate? Default: `rocinante24,serenity26`. (Detect his answer; he may add Studio or others.)
 2. Which host should hold the ball first? Default: the current host (`hostname`). Optional — if omitted, STATE.md starts at `human-required` and Derek picks later.
 3. Which branch is the mailbox? Default: the current branch (usually `master` or `main`).
@@ -64,6 +65,46 @@ Once `/relay-setup` runs in the test bed (`remote-coding-setup`) and Derek pushe
 2. On the other host, after `git pull`, run `relay-status` — same output, confirming the file landed everywhere.
 3. Ball-holder runs `relay-handoff test-ack` with a noop body. The script stages a commit. Derek pushes.
 4. Other host's `relay-wait` (started after the push) picks up. Cycle confirmed.
+
+## Help
+
+When invoked as `/relay-setup help`, print the following block verbatim:
+
+```
+relay-setup — Per-project initializer for the Roci↔Serenity Relay
+(cross-host Claude Code handoff protocol).
+
+Usage: /relay-setup [flags]
+
+Flags:
+  --hosts <a,b>         Participating hosts. Default: rocinante24,serenity26.
+  --branch <name>       Mailbox branch. Default: current branch.
+  --initial-active <h>  Bake initial ball-holder into the bootstrap commit.
+                        Default: STATE.md starts at "human-required".
+  help                  Show this message.
+
+Creates in the project:
+  design/relay/STATE.md           Single source of truth for ball-holder.
+  design/relay/handoffs/          Where handoff docs land.
+  design/relay/config.toml        Hosts, mailbox branch, poll, timeout.
+  .gitignore additions            Per-host working files (.wait-status, .wait-exit).
+
+Refuses to clobber:
+  Errors out if design/relay/ already exists. Delete the dir manually to
+  re-initialize.
+
+Prerequisites:
+  Git working tree with an origin remote (the relay polls origin).
+  Relay scripts in dotfiles (relay-status, relay-handoff, relay-wait,
+  relay-flag-human). Skill checks and warns if missing; install via `dotpull`.
+
+Does NOT commit (lets you review staged changes first). Does NOT push.
+
+Protocol design doc:
+  ~/code/0.llm/remote-coding-setup/design/relay/DESIGN.md
+
+See SKILL.md for full reference.
+```
 
 ## Background
 

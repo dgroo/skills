@@ -7,20 +7,20 @@ description: Use when iterating on a markdown doc that has inline `<!-- @<user>:
 
 Generic comment-driven iteration. The target doc has inline HTML-comment markers (`<!-- @<user>: ... -->`) left by a reviewer; this skill integrates each comment's intent into the surrounding prose, marks the comment processed in place, and records dispositions in a sibling review-log.
 
-Content-type-agnostic: works on walkthroughs, survey drafts, design notes, code-review markdown, etc. **Framing rules** (what the doc is *for*, what scope to target) come from the doc itself, not the skill — see [Framing detection](#framing-detection).
+Content-type-agnostic: works on walkthroughs, survey drafts, design notes, code-review markdown, etc. **Framing rules** (what the doc is _for_, what scope to target) come from the doc itself, not the skill — see [Framing detection](#framing-detection).
 
 ## When to use vs. skip
 
 Use when: the user has reviewed an existing markdown artifact and wants their `@<user>:` comments rolled into the prose; or when bare `/walkthrough` (or sibling content-generator skills) hands off to this skill because an artifact with markers exists.
 
-Skip when: the user wants to *draft* new content (use the appropriate content-generator skill), or strip already-processed markers (use `/walkthrough clean-comments` — the cleanup verb lives there).
+Skip when: the user wants to _draft_ new content (use the appropriate content-generator skill), or strip already-processed markers (use `/walkthrough clean-comments` — the cleanup verb lives there).
 
 ## Routing
 
-| Invocation | Action |
-|---|---|
+| Invocation                   | Action                                        |
+| ---------------------------- | --------------------------------------------- |
 | `/integrate-comments` (bare) | Auto-discover target (see below) → integrate. |
-| `/integrate-comments <path>` | Integrate the named doc. |
+| `/integrate-comments <path>` | Integrate the named doc.                      |
 
 `/iterate` is a recognized alias. Voice/typed phrases like "iterate on X", "process the @derek comments on X" route here.
 
@@ -57,7 +57,7 @@ Read the doc's framing rule before integrating, so substantive comments get judg
 3. **Frontmatter `iterate_framing:` field** if present (opt-in override).
 4. **None found** → no special framing; integrate at face value.
 
-The framing rule is *context for judgment*, not a script. Use it to decide e.g. whether a comment requesting expanded scope is in-bounds or should be deferred to follow-ups.
+The framing rule is _context for judgment_, not a script. Use it to decide e.g. whether a comment requesting expanded scope is in-bounds or should be deferred to follow-ups.
 
 If the framing-note itself is the target of a `@<user>: ` comment (reviewer questioning the framing), surface that as a **framing-decision preamble** at the top of the review-log before integrating other comments — framing changes affect how everything else gets read.
 
@@ -94,10 +94,10 @@ Append a `<docname>-review-log.md` sibling to the target. Shape:
 
 ## Per-comment dispositions
 
-| # | Topic | What changed |
-|---|-------|--------------|
-| 1 | <short topic> | <prose-level description of the integration> |
-| 2 | … | … |
+| #   | Topic         | What changed                                 |
+| --- | ------------- | -------------------------------------------- |
+| 1   | <short topic> | <prose-level description of the integration> |
+| 2   | …             | …                                            |
 
 ## Deferred
 
@@ -124,7 +124,7 @@ Show the diff and stop. **Don't auto-commit.** Surface anything that looks like 
 
 ### 5. No markers, but doc was edited directly
 
-If the doc has been edited since last iterate but no new `@<user>:` markers exist, surface the diff and ask whether to *learn from the edits* (extract implicit feedback into the review-log) rather than mutating prose.
+If the doc has been edited since last iterate but no new `@<user>:` markers exist, surface the diff and ask whether to _learn from the edits_ (extract implicit feedback into the review-log) rather than mutating prose.
 
 ## Common mistakes
 
@@ -138,18 +138,18 @@ If the doc has been edited since last iterate but no new `@<user>:` markers exis
 
 ## Quick reference
 
-| Phase | Output |
-|-------|--------|
-| Preconditions | Username, framing rule, clean working state confirmed |
-| Integrate | Prose rewritten; markers rewritten `@<user>:` → `@<user>+seen:` in place |
-| Review-log | Sibling `<docname>-review-log.md` with framing preamble + per-comment table |
-| Stop | Diff shown; user decides whether to commit |
+| Phase         | Output                                                                      |
+| ------------- | --------------------------------------------------------------------------- |
+| Preconditions | Username, framing rule, clean working state confirmed                       |
+| Integrate     | Prose rewritten; markers rewritten `@<user>:` → `@<user>+seen:` in place    |
+| Review-log    | Sibling `<docname>-review-log.md` with framing preamble + per-comment table |
+| Stop          | Diff shown; user decides whether to commit                                  |
 
 **Marker states:**
 
-| Marker | Meaning |
-|--------|---------|
-| `<!-- @<user>: <text> -->` | Unseen, pending integrate |
+| Marker                          | Meaning                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------ |
+| `<!-- @<user>: <text> -->`      | Unseen, pending integrate                                                      |
 | `<!-- @<user>+seen: <text> -->` | Processed; disposition in review-log; remove via `/walkthrough clean-comments` |
 
 **Sibling skills:**
@@ -157,3 +157,43 @@ If the doc has been edited since last iterate but no new `@<user>:` markers exis
 - `/walkthrough` — draft narrative walkthroughs (content generator). Hands off here when an existing walkthrough has unseen markers.
 - `/walkthrough clean-comments [path]` — strip `+seen:` markers once the user is done with them.
 - `/walkthrough follow-ups [path]` — triage `[extrap]` / `[planned]` tags + review-log resolved items into candidate stories. (Walkthrough-specific because of the tag set; other doc types can grow their own follow-ups verbs locally.)
+
+## Help
+
+When invoked as `/integrate-comments help`, print the following block verbatim:
+
+```
+integrate-comments — Iterate on annotated markdown by integrating
+<!-- @<user>: --> review comments into the prose.
+
+Usage: /integrate-comments [path]
+
+Verbs:
+  (none)            Auto-discover target → integrate.
+  <path>            Integrate the named doc.
+  help              Show this message.
+
+Aliases:
+  /iterate          Recognized alias.
+
+Preconditions (hard stop):
+  Username discovery   Scans doc for @<word>: prefixes; falls back to git
+                       config user.name / user.email / $USER / ask.
+  Uncommitted check    Stops if target has uncommitted changes.
+  Framing detection    Reads doc's ## Framing note or first-paragraph
+                       framing rule so comments are judged in scope.
+
+Behavior:
+  Preserve-don't-strip   Markers rewritten @<user>: → @<user>+seen: in place.
+  No fabrication         Flag gaps inline; never invent to satisfy a comment.
+  Review-log             Emits <docname>-review-log.md sibling with
+                         per-comment dispositions + framing preamble.
+
+Cleanup is a separate verb on the walkthrough skill:
+  /walkthrough clean-comments [path]   Strip +seen: markers explicitly.
+
+Content-type-agnostic: works on walkthroughs, survey drafts, design notes,
+code-review markdown, etc.
+
+See SKILL.md for full reference.
+```

@@ -32,6 +32,7 @@ If the project uses a different layout (`docs/architecture/`, `docs/specs/`, etc
 Run focused checks per artifact category.
 
 **Stories** (`ready/` + `drafts/`):
+
 - Read frontmatter (`status`, `priority`, `author`).
 - Check cross-references in the body: do `../stories/...`, `../../notes/...`, `../helping-hands/...` paths resolve to live files?
 - Check whether referenced files have moved to `deprecated/`.
@@ -39,22 +40,26 @@ Run focused checks per artifact category.
 - For Open Questions: check whether recently-closed helping-hands or recent commits answer them.
 
 **Helping-hands**:
+
 - Read frontmatter (`status`).
 - If `status: done` and a Decision section exists, fine.
 - If `status: open` but a Decision section or "resolved" mention exists elsewhere, flag.
 - Closed items stay in place per the helping-hands convention; don't propose archiving unless the project's README says otherwise.
 
 **Notes**:
+
 - Check for `deprecated: true` frontmatter on files inside `deprecated/`.
 - Check that files in `notes/` (not `notes/deprecated/`) don't have `deprecated: true`.
 - Dead-link check: find `notes/<foo>` paths in any artifact that point at files now under `deprecated/`.
 
 **Canonical design docs** (DESIGN.md or equivalent):
+
 - Section-level dead-link check (path references that no longer resolve).
-- **Drift detection** — the strong one: for each helping-hand marked `status: done` in the last N days (default N=14), grep the canonical doc for references to the *pre-decision* state. Surface mismatches.
+- **Drift detection** — the strong one: for each helping-hand marked `status: done` in the last N days (default N=14), grep the canonical doc for references to the _pre-decision_ state. Surface mismatches.
 - Open Questions section: cross-reference against recent helping-hands marked done.
 
 **Resume pointers** (`NEXT.md` or similar):
+
 - "Next concrete action" — does it still reference content that's been updated?
 
 ### 3. Triage
@@ -79,6 +84,7 @@ Show the staged list grouped by bucket. For each item: file path, line number (i
 ### 5. Execute
 
 On approval:
+
 - Edit prose changes.
 - Move files (with `git mv` if in a git repo; otherwise Write+verify+delete).
 - Update frontmatter (status changes, deprecation flags).
@@ -88,7 +94,7 @@ Never auto-act on items the user hasn't approved.
 
 ## Discovery heuristic — drift detection (the strong one)
 
-The most useful finding type is *drift*: a recently-made decision whose spec hasn't caught up. To detect:
+The most useful finding type is _drift_: a recently-made decision whose spec hasn't caught up. To detect:
 
 1. Find helping-hands with `status: done` and recent `resolved:` date (or recent mtime if no `resolved:` field).
 2. Find the artifacts those helping-hands `Related:` link to (or are reciprocally linked from). Also include the canonical design doc (sections it touches) and any active story (likely in `ready/`).
@@ -99,7 +105,7 @@ This is what catches "we made decision X in a helping-hand but DESIGN.md still s
 
 ## Common mistakes
 
-- **Aggressive auto-archive.** Moving a story to `done/` because acceptance criteria *look* met. Always confirm with the user.
+- **Aggressive auto-archive.** Moving a story to `done/` because acceptance criteria _look_ met. Always confirm with the user.
 - **Treating drafts as drift candidates.** `drafts/` are inherently unsettled; don't propose archiving or moving them without strong signal.
 - **Over-scanning a clean corpus.** Re-running on a clean corpus should report "clean" quickly, not produce noise.
 - **Conflating recency with importance.** A 90-day-old story may still be live; don't propose archiving by date alone.
@@ -107,14 +113,46 @@ This is what catches "we made decision X in a helping-hand but DESIGN.md still s
 
 ## Quick reference
 
-| Bucket | Action | Strict approval? |
-|--------|--------|-------------------|
-| update-section | Edit prose | yes (per item) |
-| move-to-done | Move story | yes (per item) |
-| mark-resolved | Update status + decision section | yes (per item or bulk) |
-| update-reference | Edit stale path | bulk-approve ok |
-| archive | Move to deprecated/ + flag | yes (per item) |
-| leave | nothing | n/a |
+| Bucket           | Action                           | Strict approval?       |
+| ---------------- | -------------------------------- | ---------------------- |
+| update-section   | Edit prose                       | yes (per item)         |
+| move-to-done     | Move story                       | yes (per item)         |
+| mark-resolved    | Update status + decision section | yes (per item or bulk) |
+| update-reference | Edit stale path                  | bulk-approve ok        |
+| archive          | Move to deprecated/ + flag       | yes (per item)         |
+| leave            | nothing                          | n/a                    |
+
+## Help
+
+When invoked as `/cleanup-design help`, print the following block verbatim:
+
+```
+cleanup-design — Audit and refresh a project's design corpus for drift.
+
+Usage: /cleanup-design
+
+Walks stories/, helping-hands/, notes/, and canonical design docs; catches
+drift between recently-made decisions and the docs that should reflect them.
+
+Phases (run in sequence):
+  Orient            Discover project's design layout.
+  Scan              Per-artifact checks: stories, helping-hands, notes,
+                    canonical docs, resume pointers. Drift detection is
+                    the strongest finding type.
+  Triage            Group by bucket: update-section, move-to-done,
+                    mark-resolved, update-reference, archive, leave.
+  Present           Show staged list; per-item or bulk approval.
+  Execute           Edit / mv / update frontmatter on approval only.
+
+Layout conventions (auto-detected):
+  design/stories/{drafts,ready,done}/           Newer (groot-project)
+  design/stories/{llm_generated,user_updated,z.done}/  Older
+  design/helping-hands/, design/notes/, design/DESIGN.md
+
+For drafting walkthroughs from a user perspective, see /walkthrough.
+
+See SKILL.md for full reference.
+```
 
 ## Related
 

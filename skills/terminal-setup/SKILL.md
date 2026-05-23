@@ -214,6 +214,47 @@ Helper flags on `terminal-setup.py`:
 - `--groot-toml-write [DIR] --hex #RRGGBB [--alias NAME] [--groot-toml-write-name]` — standalone (does NOT run the picker); merges into existing file, removes legacy `[iterm]`, preserves other sections, normalizes color to uppercase.
 - `--migrate-toml [DIR-or-FILE]` — standalone migration of `[iterm]` → `[terminal]`; prints `migrated <path>` / `already-current <path>` / `no-file <path>`.
 
+## Help
+
+When invoked as `/terminal-setup help`, print the following block verbatim:
+
+```
+terminal-setup — Per-project terminal background color (and optional shell
+alias). Terminal-agnostic via OSC 11 chpwd hook in ~/.shrc; works in iTerm2,
+Ghostty, Alacritty, Kitty, WezTerm.
+
+Usage: /terminal-setup [name-or-alias | auto]
+
+Arguments:
+  (none)            Use cwd basename as the project name.
+  <name>            Explicit project name (e.g. for worktree dirs).
+  <alias>           If it looks like an abbreviation of cwd basename, use as alias.
+  auto              Pick color + alias autonomously, no prompts. Always picks
+                    from dark palette (1-14); uses project basename as alias.
+  help              Show this message.
+
+Flow (interactive):
+  0. Check .groot-project.toml     Apply / new / cancel if present.
+  1. Resolve project + alias names Confirm if cwd looks suspicious.
+  2. Palette via AskUserQuestion   Dark (1-14) suggested; vivid (15-28) opt-in.
+  3. Confirm alias                 Or skip with --no-alias.
+  5. Write .groot-project.toml     And ~/.shrc alias insertion.
+  6. Verify                        New tab cd; OSC 11 fires.
+
+Personal-preference rule:
+  Color and alias are USER picks, even under no-clarifying-questions mode.
+  Exception: explicit `auto` invocation.
+
+Legacy iTerm support:
+  Legacy [iterm] TOML reads transparently; renames to [terminal] on next write.
+  Legacy iTerm Dynamic Profile JSON detected and offered for import.
+
+State persistence: .groot-project.toml at repo root.
+Color application: OSC 11 emitted by _claude_project_bg_chpwd in ~/.shrc.
+
+See SKILL.md for full reference.
+```
+
 ## Reference
 
 - Persistence: `<project>/.groot-project.toml` (`[terminal]` section, schema above).

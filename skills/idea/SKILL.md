@@ -58,14 +58,14 @@ The mechanic is **append one line**. Format:
 
 Tags are bracketed, lowercase, comma-separated. **Only attach tags when an obvious cue is present in the text** — a named UI surface, a named feature, a clear domain word. If you'd be guessing, omit the brackets. Speed matters more than tags; a one-line entry with no tags is fine.
 
-Cue examples (tag) — *don't* generalize beyond this kind of obviousness:
+Cue examples (tag) — _don't_ generalize beyond this kind of obviousness:
 
-| Spark text | Tag |
-|---|---|
-| "login screen should show last-used email" | `[login]` |
-| "lazy-load the design tab" | `[perf, design-tab]` |
-| "the API client should retry on 429" | `[api-client]` |
-| "we should talk to ops about this" | (no tag — context-free) |
+| Spark text                                 | Tag                     |
+| ------------------------------------------ | ----------------------- |
+| "login screen should show last-used email" | `[login]`               |
+| "lazy-load the design tab"                 | `[perf, design-tab]`    |
+| "the API client should retry on 429"       | `[api-client]`          |
+| "we should talk to ops about this"         | (no tag — context-free) |
 
 Workflow:
 
@@ -90,7 +90,7 @@ design/IDEAS.md (12 entries):
 - ...
 ```
 
-If entries share a tag and there are 6+ in a tag, lightly group by tag at the bottom: "*Tagged: `[login]` x3, `[perf]` x2*" — but don't reorder the file.
+If entries share a tag and there are 6+ in a tag, lightly group by tag at the bottom: "_Tagged: `[login]` x3, `[perf]` x2_" — but don't reorder the file.
 
 If the sparkfile doesn't exist yet, say so and offer `/idea <text>` as the next step.
 
@@ -107,6 +107,7 @@ Walk entries one at a time, oldest first. For each, present the entry and ask:
 ```
 
 **Elaborate** — the spark deserves more than a line. Offer to:
+
 - Expand it inline (a 2–4 line block under the original entry — still in the sparkfile).
 - Promote it to `design/stories/drafts/<slug>.md` using the project's story template if present (see `/groot-project`'s `STORY_TEMPLATE.md`). On promotion, mark the sparkfile entry with `→ stories/drafts/<slug>.md` and leave it in place (don't delete — the breadcrumb is useful).
 - Hand off to `/office-hours` for a real design conversation. (Suggest, don't auto-invoke.)
@@ -128,6 +129,33 @@ Don't auto-batch — one decision at a time, fast.
 - **The sparkfile is not the tracker.** If something is concrete enough to have a priority and a fix, it belongs in `TODO.md` (use `/todo`). If it has design weight, it belongs in `design/stories/`. Sparks are the pre-stage to both.
 - **Drift is fine.** Old sparks rot. `/idea iterate` is the cleanup tool — use it when the file feels heavy, not on a schedule.
 - **Tag inference is lossy on purpose.** A spark without tags is a feature, not a failure. The user's text is the ground truth.
+
+## Help
+
+When invoked as `/idea help`, print the following block verbatim:
+
+```
+idea — Spark capture. Append-one-line sparkfile for half-formed thoughts.
+
+Usage: /idea [verb-or-text]
+
+Verbs:
+  <text>            (default) Append "- <text> [tags]" to the sparkfile.
+                    Tags are LLM-inferred only when an obvious cue is present.
+  review            Show the current sparkfile (no analysis).
+  iterate           Walk entries one-by-one: elaborate / delete / skip / quit.
+  help              Show this message.
+
+Sparkfile location (first hit wins):
+  design/IDEAS.md → IDEAS.md → SPARKFILE.md → design/SPARKFILE.md
+  Creates design/IDEAS.md by default if none exists.
+
+Bar: "would I lose this if I didn't write it down?"
+If concrete enough for a priority and fix → /todo.
+If design weight → design/stories/ (via /groot-project's STORY_TEMPLATE).
+
+See SKILL.md for full reference.
+```
 
 ## Related
 

@@ -14,3 +14,28 @@ bash ~/code/claude/skills/scripts/skill-list.sh "$ARGUMENTS"
 ```
 
 That's it. One bash call, print the output, stop.
+
+## Help
+
+When invoked as `/skill-list help`, print the following block verbatim:
+
+```
+skill-list — List installed Claude Code skills, grouped by source.
+
+Usage: /skill-list [group]
+
+Subcommands (passed to the underlying script verbatim):
+  (none)            Same as `make list` from this repo.
+  all               Everything, grouped.
+  groups            Available group names.
+  mine              Local-owned skills.
+  gstack            gstack-family skills.
+  installed         Directly-installed (~/.claude/skills/) only.
+  plugins           Skills from installed plugins.
+  upstream          Upstream-tracked (joewalnes/skills) skills.
+  help              Show this message.
+
+Implementation: shells out to scripts/skill-list.sh and prints output verbatim.
+
+See SKILL.md for full reference.
+```

@@ -11,7 +11,7 @@ Produces a glanceable, one-page report covering the always-on host (Rocinante24 
 1. **Interactive:** Derek (or any CC session) asks "how's Roci?" — get the report inline.
 2. **Continuous:** `/loop 30m /roci-sitrep --save` running in a long-lived tmux session on the host, writing dated findings to `~/.claude/monitor/findings/<ISO-timestamp>.md` for later review or anomaly-detection.
 
-This skill is the **cheap path** from `design/notes/2026-05-21-meta-monitoring-research.md` — start here, evaluate after real use, upgrade to Desktop scheduled tasks / cloud routines / *claw if the cheap path leaves bases uncovered.
+This skill is the **cheap path** from `design/notes/2026-05-21-meta-monitoring-research.md` — start here, evaluate after real use, upgrade to Desktop scheduled tasks / cloud routines / \*claw if the cheap path leaves bases uncovered.
 
 ## How to invoke
 
@@ -124,8 +124,8 @@ With a YAML frontmatter:
 ---
 generated_at: 2026-05-21T21:30:00Z
 host: rocinante24
-trigger: loop      # "interactive" | "loop" | "manual"
-anomalies: 1       # 0 = clean run; >0 if anything was flagged
+trigger: loop # "interactive" | "loop" | "manual"
+anomalies: 1 # 0 = clean run; >0 if anything was flagged
 ---
 ```
 
@@ -174,6 +174,45 @@ Or invoke `/roci-sitrep` directly (without `--save`) for a fresh report any time
 - Not multi-host. Future Studio + multi-host setup will want a meta-aggregator; this skill is single-host.
 - Not a replacement for `/sup`. `/sup` is per-session/repo; this is per-host. They coexist.
 - Not yet integrated with openclaw's heartbeat / recurring-task machinery. Captured as an open question — when/if that integration matters, this skill stays the same shape, the trigger just changes (openclaw's scheduler invokes it instead of /loop).
+
+## Help
+
+When invoked as `/roci-sitrep help`, print the following block verbatim:
+
+```
+roci-sitrep — Whole-host status snapshot for the always-on remote-coding
+host (Rocinante24 today). Fleet-state across the host, not per-session.
+
+Usage: /roci-sitrep [flags]
+
+Flags:
+  (none)            Print report inline.
+  --save            Also write to ~/.claude/monitor/findings/<ts>.md.
+  --quiet           No inline output; just write to disk (for /loop).
+  help              Show this message.
+
+Checks (run in parallel; per-check failures tolerated):
+  1. Host vitals          uptime, load, disk, macOS version
+  2. Network              Tailscale reachability
+  3. Container layer      daemon status, brew services (skip if not installed)
+  4. Repo fleet           git-fleet across ~/code, dirty/ahead/behind counts
+  5. Relay state          relay-status across projects with design/relay/
+  6. Open helping-hands   counts + top-3 by priority across projects
+  7. Unpushed work        ahead-of-origin flag
+
+Anomaly detection (V1; flagged + counted in frontmatter):
+  Relay stuck (>6h), container daemon down, sustained high load,
+  disk low, Tailscale dropped, stale done-but-not-archived helping-hand.
+
+/loop integration:
+  /loop 30m /roci-sitrep --save --quiet
+  (Recurring; auto-expires after 7 days — re-fire weekly or migrate to a
+  Desktop scheduled task.)
+
+Distinct from /sup (per-session/repo) and /sitrep (Joe's upstream per-repo).
+
+See SKILL.md for full reference.
+```
 
 ## Related
 
