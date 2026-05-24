@@ -21,6 +21,18 @@ install: install-hooks
 			echo "  link  $$name → $$skill"; \
 		fi; \
 	done
+	@for target in "$(TARGET_DIR)"/*; do \
+		[ -L "$$target" ] || continue; \
+		dest=$$(readlink "$$target"); \
+		case "$$dest" in \
+			"$(SKILLS_DIR)"/*) ;; \
+			*) continue ;; \
+		esac; \
+		if [ ! -e "$$dest" ]; then \
+			rm "$$target"; \
+			echo "  prune  $$(basename "$$target") (source skill removed)"; \
+		fi; \
+	done
 	@echo ""
 	@echo "Done. Skills are available as /skill-name in all projects."
 
