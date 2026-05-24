@@ -4,6 +4,18 @@ Latest entries first. Record significant decisions, architecture changes, and no
 
 ---
 
+## 2026-05-24 — `/walkthrough` rework around iteration-toward-design spine
+
+Collapsed `/walkthrough` from six verbs (bare/new/integrate/check/clean-comments/follow-ups) down to five (bare/new/review/revise/apply), centered on a clear iteration loop: draft → review → branch (write more analysis / re-imagine the walkthrough / apply to design) → loop → archive. Retired `/integrate-comments` entirely (never used outside walkthrough) and deleted `trajectory` mode (4-artifact build didn't fit the new spine). Dropped registers as a formal axis; default voice is now a one-paragraph guideline ("grounded — named protagonist as anchor only") with the failure-mode prose about cast/texture drift preserved as a Common Mistakes bullet.
+
+The forcing question was Derek's: he wrote up exactly how he intended to use the skill (three flows, one iteration loop), and the existing surface had grown sideways from that mental model. The earlier `/walkthrough integrate` alias (DIARY 2026-05-23) addressed the discoverability symptom but not the underlying mismatch — the skill had verbs the user wasn't reaching for and lacked verbs for the things he was actually doing.
+
+The decision worth pinning: **register axes are a tax against a real failure mode but a wrong-shape tax.** Registers (spec/grounded/storied) were added after a draft sprouted cast and texture the user didn't want (kids, partner, atmosphere). The fix at the time was to make voice an explicit scoping question; the better fix turned out to be a default with one paragraph naming the failure mode in Common Mistakes. Scoping-as-guardrail is heavier than guideline-plus-failure-mode-callout when the failure mode is narrow and well-named.
+
+Adjacent gap surfaced during execution: `make install` adds symlinks but doesn't prune dropped ones — left a broken `~/.claude/skills/integrate-comments` after the skill was removed. Cleaned manually; flagged for a future Makefile fix (a small `find -type l ! -e <broken target>` sweep at the end of install would close the loop).
+
+---
+
 ## 2026-05-23 — `/walkthrough integrate` alias, not a merge
 
 Added `/walkthrough integrate [path]` as an explicit verb that delegates to the existing `/integrate-comments` skill. Same behavior, two entry points. No code-path duplication — the verb is documented as an alias in Routing, Help, and Quick reference.
