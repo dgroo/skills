@@ -156,4 +156,4 @@ See SKILL.md for full reference.
 
 ## Related
 
-- `walkthrough` — sister skill for narrative production + iterate; this one is for design-corpus maintenance.
+- `walkthrough` — sister skill for narrative production + iteration toward design integration; this one is for design-corpus maintenance.

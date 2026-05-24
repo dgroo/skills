@@ -227,6 +227,6 @@ See SKILL.md for full reference.
 
 ## Related
 
-- `walkthrough` — narrative production sister skill; reviewer-comment / iterate / follow-ups pattern.
+- `walkthrough` — narrative production sister skill; review / revise / apply iteration pattern that converges on design integration.
 - `cleanup-design` — design-corpus drift detection; complementary lens (does the _spec_ still match recent decisions?).
 - Project conventions: each project's `helping-hands/README.md` (or equivalent) is the authoritative source for status fields, closure shape, and the citation-by-path rule.
