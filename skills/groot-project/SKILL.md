@@ -1,6 +1,6 @@
 ---
 name: groot-project
-description: Bootstrap a project the Derek way — git, design/ subtree (incl. stories/ with readiness-by-directory: drafts/ ready/ done/), CLAUDE.md skeleton with a shared-memory conventions block, Makefile, terminal background color (via /terminal-setup), optional GitHub remote and gbrain registration. Coexists with /project-setup and gstack; detects collisions and never clobbers. Re-runnable.
+description: Bootstrap a project the Derek way — git, design/ subtree (incl. stories/ with readiness-by-directory: drafts/ ready/ done/), CLAUDE.md skeleton with a shared-memory conventions block, Makefile, terminal background color (via /terminal-setup), themed spinner verbs, optional GitHub remote and gbrain registration. Coexists with /project-setup and gstack; detects collisions and never clobbers. Re-runnable.
 argument-hint: [status|--auto|--public]
 ---
 
@@ -41,6 +41,7 @@ Gather state and print a summary before asking anything:
 - Is there a terminal background color recorded for this project? (`~/.claude/skills/terminal-setup/terminal-setup.py <basename> --list-colors` shows the existing-background banner if so.)
 - Is the directory under `~/code/`? (Affects alias suggestion in iTerm phase.)
 - Is there a `.groot-project.toml` at the repo root? (`~/.claude/skills/terminal-setup/terminal-setup.py --groot-toml-read` — empty output means none; otherwise prints `[terminal]` as `KEY=VALUE` lines, transparently translating legacy `[iterm]` files.) This is the in-repo persistence file used to reproduce per-project workstation setup on a fresh clone. Phase 7 reads it to apply recorded settings; if absent, Phase 7 offers to write it from the just-applied settings.
+- Does `.claude/settings.json` exist with a `spinnerVerbs` block? Read the count + mode for the pre-flight summary; Phase 8 uses this to decide skip vs ask.
 
 Print a "found / will create / will skip / collision-detected" summary so the user sees the scope before any phase fires. The collision-detected line surfaces any Joe-style or gstack artifacts that change how subsequent phases behave (see "Coexistence" below).
 
@@ -57,9 +58,10 @@ Each phase has one of three modes: **auto-default-Y** (skill announces and proce
 | 5   | Language detection + .gitignore | always-asks                 | Ask Python / TypeScript / Rust / Go / Other / None.                     |
 | 6   | Makefile                        | auto-default-Y / drift-flag | Create if missing; flag drift if present but missing standard targets.  |
 | 7   | Terminal background             | always-interactive          | Invoke `/terminal-setup` (delegates fully).                             |
-| 8   | GitHub remote                   | always-asks                 | Ask y/skip; default `--private`.                                        |
-| 9   | gbrain registration             | always-asks                 | Ask y/skip; if yes, invoke `/sync-gbrain`.                              |
-| 10  | Final summary                   | —                           | Print done / skipped / next-steps table.                                |
+| 8   | Spinner verbs                   | always-asks                 | Themed `.claude/settings.json` spinner pool. Skip if already set.       |
+| 9   | GitHub remote                   | always-asks                 | Ask y/skip; default `--private`.                                        |
+| 10  | gbrain registration             | always-asks                 | Ask y/skip; if yes, invoke `/sync-gbrain`.                              |
+| 11  | Final summary                   | —                           | Print done / skipped / next-steps table.                                |
 
 ### Phase 1: Git init
 
@@ -500,7 +502,50 @@ Invoke `/terminal-setup` with the project basename. The terminal-setup skill han
 
 The pre-flight summary still surfaces "found .groot-project.toml" (or "no .groot-project.toml") so the user sees what Phase 7 will use _before_ Phase 7 fires.
 
-### Phase 8: GitHub remote
+### Phase 8: Spinner verbs
+
+Themed spinner-verb pool for `.claude/settings.json`. Each project gets in-character verbs in place of Claude Code's defaults — small delight, basically free.
+
+**Detect first.** Read `.claude/settings.json` if present. If a `spinnerVerbs` block is already configured, print: _"Existing spinner verbs configured (<N> verbs, mode=<append|replace>) — skipped."_ and move on.
+
+Otherwise, ask: _"Themed spinner verbs for this project? (Y/skip)"_ — phrased as the project-personality counterpart to Phase 7's terminal color.
+
+If Y:
+
+1. Ask: _"Theme keywords? (e.g., 'fantasy + sci-fi', 'finance + finance movies', 'football + sci-fi', 'music', 'variations on a single character catchphrase')"_ — accept free-form. The example themes are just prompts to spark thinking; any theme the user wants is fair game.
+2. Draft **~30–40 gerund verbs** in the theme. Single words (or hyphenated single tokens like `Hail-marying`, `Side-chaining`). Lean into the bit — bland verbs aren't the point. For "I am Groot"-style schticks, use prefixed variations of one core verb (`Re-Grooting`, `Hyper-Grooting`, `Reluctantly-Grooting`, `I-am-Grooting`) — the joke IS the repetition.
+3. Show the draft and ask: _"Apply? (Y / edit / skip)"_
+   - **Y**: write the settings file (see below).
+   - **edit**: invite the user to redline inline (drop verbs, add verbs); iterate until they say apply.
+   - **skip**: surface in the final summary as drift.
+4. **Default mode is `replace`** — the user wants their themed verbs to fully take over, not get diluted by the 250 defaults. Only switch to `append` if the user asks.
+
+**Writing the file.** Strict JSON (no `//` comments — `/doctor` flags JSONC even though the runtime accepts it; see `~/.claude/projects/.../memory/claude-code-doctor-strict-json.md`). If `.claude/settings.json` already exists with other content (permissions, hooks, etc.), merge the `spinnerVerbs` key in without disturbing the rest. Two-space indent.
+
+```json
+{
+  "spinnerVerbs": {
+    "mode": "replace",
+    "verbs": ["Verb1", "Verb2", "..."]
+  }
+}
+```
+
+**Gitignore allowlist.** If `.gitignore` excludes `.claude/*` (common pattern that allows only `.claude/skills/`), add a parallel exception:
+
+```
+.claude/*
+!.claude/skills/
+!.claude/settings.json   # ← add this line
+```
+
+Detect by grepping for `^\.claude/\*$` in `.gitignore`. If found and no `!.claude/settings.json` line exists, add it. If `.gitignore` has no `.claude/` rules at all, leave it — `.claude/settings.json` is already committable.
+
+**Commit hint.** The file write is staged but not committed by this phase — Phase 11 (Final summary) lists it under "Done" so the user can commit it explicitly with their preferred message style.
+
+In `--auto` mode this phase is **skipped** — themed verbs are a creative call that needs human input. The final summary calls it out: _"Re-run without `--auto` to add themed spinner verbs."_
+
+### Phase 9: GitHub remote
 
 Ask: _"Create a GitHub remote? (y/skip)"_. If y:
 
@@ -512,11 +557,11 @@ Ask: _"Create a GitHub remote? (y/skip)"_. If y:
 
 If `gh` isn't installed, print: _"`gh` not found. Install via `brew install gh` and re-run /groot-project to add the remote."_ Don't fail the rest of the skill.
 
-### Phase 9: gbrain registration
+### Phase 10: gbrain registration
 
 Ask: _"Sync this project with gbrain? (y/skip)"_. If y, invoke `/sync-gbrain`. If skip, just move on.
 
-### Phase 10: Final summary
+### Phase 11: Final summary
 
 Print a concise table:
 
@@ -536,6 +581,7 @@ Done:
   ✓ .gitignore (Python)
   ✓ Makefile (Python)
   ✓ Terminal background (Plum, alias=foo)
+  ✓ Spinner verbs (35 fantasy + sci-fi verbs, replace mode)
 
 Collision-detected:
   - Found root-level TODO.md from /project-setup. Did not create design/TODO.md.
@@ -544,6 +590,7 @@ Collision-detected:
     artifacts alone.
 
 Skipped:
+  - Spinner verbs (you said skip)
   - GitHub remote (you said skip)
   - gbrain registration (you said skip)
 
@@ -562,12 +609,13 @@ Collision-detected lines only appear if collisions were actually found. The poin
 
 - **Language**: detect from existing files (`pyproject.toml` → Python, `package.json` → TypeScript, `Cargo.toml` → Rust, `go.mod` → Go). If ambiguous or none, skip language-specific scaffolding (no `.gitignore` patterns, Makefile bodies left as `# TODO`).
 - **Terminal background**: invoke `/terminal-setup auto` (terminal-setup's auto mode picks the first unused color and uses project basename as the alias).
+- **Spinner verbs**: SKIPPED. Creative call that needs human input on theme.
 - **GitHub remote**: SKIPPED. Creating an external resource without explicit consent is too consequential for `--auto`.
 - **gbrain**: SKIPPED. Same reason.
 - **Office-hours import**: still imports if a doc is found (low risk, just file content).
 - All `auto-default-Y` phases just happen.
 
-End-of-run summary calls out skipped external integrations: _"Re-run without `--auto` to handle GitHub remote and gbrain registration."_
+End-of-run summary calls out skipped external integrations: _"Re-run without `--auto` to handle spinner verbs, GitHub remote, and gbrain registration."_
 
 ## `status` mode
 
@@ -586,11 +634,12 @@ Project audit for myproject:
   [✓] .gitignore (Python)
   [✓] Terminal background (claude-config, Plum)
   [✓] .groot-project.toml ([iterm].color recorded)
+  [ ] Spinner verbs (.claude/settings.json has no spinnerVerbs block)
   [ ] GitHub remote
   [ ] gbrain registered
   [✓] /office-hours doc imported
 
-7/10 in place. Want to address the missing/drifted items? (Y/n)
+7/11 in place. Want to address the missing/drifted items? (Y/n)
 ```
 
 If the user says Y, fall through into the regular interactive walkthrough, only running phases for missing/drifted items.
@@ -664,7 +713,7 @@ Many gstack skills also read `CLAUDE.md` for project context. The conventions bl
 
 - **`/office-hours`** writes to `~/.gstack/projects/<basename>/`. Phase 4 imports from there. No collision.
 - **`/todo` and `/bug-bash`** (gstack) read/write root-level `TODO.md`. If `/project-setup` created one, gstack works on it natively. If this project uses the design/-centric pattern instead, the conventions block tells gstack skills that there's no `TODO.md` to read — they should fall back to `design/stories/` or ask.
-- **`/sync-gbrain`** is invoked optionally in Phase 9; it manages its own state in `CLAUDE.md` under a `## GBrain Search Guidance` heading. Don't touch that section.
+- **`/sync-gbrain`** is invoked optionally in Phase 10; it manages its own state in `CLAUDE.md` under a `## GBrain Search Guidance` heading. Don't touch that section.
 - **`/setup-deploy`** writes deploy config under its own heading in `CLAUDE.md`. Don't touch.
 - **`/plan-*` gstack skills** write plan files to ad-hoc paths. They don't conflict with `design/plans/` — but they also don't integrate. If the user wants gstack plan output to land in `design/plans/`, that's a manual move (out of scope for this skill).
 
@@ -710,9 +759,10 @@ Phases (in order):
   5. Language detection + .gitignore  (always asks)
   6. Makefile                       (auto if missing; drift-flag if drifted)
   7. Terminal background            (delegates to /terminal-setup)
-  8. GitHub remote                  (always asks)
-  9. gbrain registration            (always asks)
-  10. Final summary
+  8. Spinner verbs                  (always asks; auto-skips)
+  9. GitHub remote                  (always asks)
+  10. gbrain registration           (always asks)
+  11. Final summary
 
 Aggressive restructuring (top-level docs/, sibling specs/, etc.) requires
 the user to say so explicitly ("be aggressive", "restructure", "reorganize").
