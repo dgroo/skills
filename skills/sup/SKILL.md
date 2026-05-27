@@ -6,7 +6,9 @@ allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 
 # Sup — Situation Report (Derek's flavor)
 
-`/sup` is a **strict superset of `/sitrep`** with two additions: (1) it actively scans the repo for queued work and recommends a specific pick, and (2) it evaluates whether to recommend a fresh Claude session.
+`/sup` is a **strict superset of `/sitrep`** with three additions: (1) a **Session recap** that answers "wait, what the hell was I doing in this terminal window?" for cold returns, (2) actively scanning the repo for queued work and recommending a specific pick, and (3) evaluating whether to recommend a fresh Claude session.
+
+`/sup` answers two questions equally: "where are we with this project, what's next?" _and_ "what was happening in this window when I walked away?" The Last-commit line carries a relative timestamp so the reader can gauge staleness at a glance — the longer it's been, the more the Session recap is doing the work.
 
 `/sitrep` itself is upstream-tracked (joewalnes/skills) and intentionally left untouched. Use `/sup` instead.
 
@@ -23,7 +25,7 @@ Gather context in parallel:
 1. `git status` — uncommitted changes, untracked files, current branch
 2. `git worktree list` — sibling worktrees and their branches. Critical orientation step: a sibling whose branch name matches the current/upcoming task topic is almost always the right home for that work, and silently editing on `main` when a topic-named worktree exists is the bug this step prevents.
 3. `git diff --stat` — what's been modified
-4. `git log --oneline -5` — recent commits for context
+4. `git log -5 --format='%h %s (%cr)'` — recent commits with **relative timestamps**. The most recent commit's `(Xh ago)` / `(3 days ago)` lands on the Branch/Last-commit line of the report; it's the cheapest staleness signal for "have I been away from this window?"
 5. `git stash list` — anything stashed
 6. Check for running background tasks (TaskList tool)
 7. If `scripts/upstream-check.sh` exists at repo root, run it — surfaces unpulled upstream commits. (Only meaningful in the skills repo; silently skip elsewhere.)
@@ -34,11 +36,13 @@ Report structure (omit empty sections, keep each to 1–3 lines max):
 ```
 ## Sup
 
-**Branch:** `branch` · **Last commit:** `short message`
+**Branch:** `branch` · **Last commit:** `short message` _(Xh ago)_
 
 **Worktrees:** Only when `git worktree list` shows >1 entry. Render each as `path · branch · commit`. If any sibling's branch name plausibly matches the current task topic or what's about to be discussed, explicitly flag: `→ This work likely belongs on <branch> — confirm before editing on main.` Don't ask reflexively when siblings exist for unrelated topics; only flag when there's a topic match.
 
 **State:** Combined snapshot — clean/dirty tree, stashes, background tasks, todos, "fresh session" or "mid-task." If there's enough going on, split into the longer fields below.
+
+**Session recap:** Short bulleted list of what THIS conversation accomplished — the "what was I doing in this terminal" answer. Always emit. 3–6 short bullets, one concrete action each (1–2 bullets fine for a tiny session — don't pad). Order: commits first (with explicit repo names, e.g. `Committed `58c2d81` to dgroo/dotfiles`), then decisions / drafts / discussed-but-not-shipped items. Source: conversation scrollback (what the assistant actually did this session), NOT `git log` alone — commits miss decisions and drafts, which are the things you don't remember. For a genuinely fresh session (no prior turns), render `_Fresh session — no prior activity in this window._` If session covered multiple distinct topics, focus on the most recent.
 
 **In progress:** What we were working on and how far we got. (Omit if "State" already covered it.)
 
@@ -158,13 +162,18 @@ When invoked as `/sup help`, print the following block verbatim:
 
 ```
 sup — Personalized sitrep (Derek's flavor). Strict superset of /sitrep
-with two additions: backlog scan + pick recommendation; new-session check.
+with three additions: Session recap; backlog scan + pick recommendation;
+new-session check. Answers both "where are we, what's next?" and
+"what was I doing in this terminal when I walked away?"
 
 Usage: /sup
 
 Sequence:
   1. Sitrep mirror      Full upstream /sitrep output (never drops sections,
-                        especially Next steps).
+                        especially Next steps). Last-commit line carries a
+                        relative timestamp (Xh / 3 days ago) for staleness.
+                        Includes Session recap — always emitted, bulleted
+                        summary of what THIS conversation has done.
   2. Backlog scan       Only when current chunk is parkable. Scans TODO.md,
                         design/stories/ready, design/stories/drafts,
                         design/helping-hands, open PRs, stale branches.
@@ -189,6 +198,7 @@ See SKILL.md for full reference.
 ## Rules
 
 - The sitrep portion is non-negotiable. **Always show Next steps** when work is non-trivial.
+- **Always show Session recap**, even on a fresh session — render `_Fresh session — no prior activity in this window._` if there's nothing yet. The "what was I doing here" failure mode is what the recap exists to fix; making it conditional defeats that.
 - The new-session line is a high-confidence signal, not a hedge. If you're not sure, omit it.
 - Use the `printf` commands above for the recommendation — ANSI yellow makes it impossible to miss. Don't substitute markdown bold; it doesn't pop.
 - Be _brief_ everywhere. This is a glance, not a report.
