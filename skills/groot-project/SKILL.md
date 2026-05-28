@@ -49,19 +49,20 @@ Print a "found / will create / will skip / collision-detected" summary so the us
 
 Each phase has one of three modes: **auto-default-Y** (skill announces and proceeds; user only stops it by saying "skip"), **always-asks** (genuine decision point), or **detection-skip** (skill skips silently if already present and conforming). `--auto` mode bypasses prompts; see the `--auto` section.
 
-| #   | Phase                           | Mode                        | What it does                                                            |
-| --- | ------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| 1   | Git init                        | auto-default-Y              | `git init` if not a repo. Skip otherwise.                               |
-| 2   | `design/` subtree               | auto-default-Y              | Create missing pieces of the canonical subtree.                         |
-| 3   | Project docs skeleton           | auto-default-Y              | Generate `CLAUDE.md`, `DIARY.md`, and `TODO.md` if missing.             |
-| 4   | Office-hours import             | auto-default-Y              | If a design doc exists, layer its content into DESIGN.md and CLAUDE.md. |
-| 5   | Language detection + .gitignore | always-asks                 | Ask Python / TypeScript / Rust / Go / Other / None.                     |
-| 6   | Makefile                        | auto-default-Y / drift-flag | Create if missing; flag drift if present but missing standard targets.  |
-| 7   | Terminal background             | always-interactive          | Invoke `/terminal-setup` (delegates fully).                             |
-| 8   | Spinner verbs                   | always-asks                 | Themed `.claude/settings.json` spinner pool. Skip if already set.       |
-| 9   | GitHub remote                   | always-asks                 | Ask y/skip; default `--private`.                                        |
-| 10  | gbrain registration             | always-asks                 | Ask y/skip; if yes, invoke `/sync-gbrain`.                              |
-| 11  | Final summary                   | —                           | Print done / skipped / next-steps table.                                |
+| #   | Phase                           | Mode                        | What it does                                                                                                        |
+| --- | ------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 1   | Git init                        | auto-default-Y              | `git init` if not a repo. Skip otherwise.                                                                           |
+| 2   | `design/` subtree               | auto-default-Y              | Create missing pieces of the canonical subtree.                                                                     |
+| 3   | Project docs skeleton           | auto-default-Y              | Generate `CLAUDE.md`, `DIARY.md`, and `TODO.md` if missing.                                                         |
+| 4   | Office-hours import             | auto-default-Y              | If a design doc exists, layer its content into DESIGN.md and CLAUDE.md.                                             |
+| 5   | Language detection + .gitignore | always-asks                 | Ask Python / TypeScript / Rust / Go / Other / None.                                                                 |
+| 6   | Makefile                        | auto-default-Y / drift-flag | Create if missing; flag drift if present but missing standard targets.                                              |
+| 7   | Terminal background             | always-interactive          | Invoke `/terminal-setup` (delegates fully).                                                                         |
+| 7B  | Port allocation                 | auto-default-Y              | Invoke `~/bin/pick-a-port --write` to claim a dev port in `[ports]`. Skip with `--no-port` if not a server project. |
+| 8   | Spinner verbs                   | always-asks                 | Themed `.claude/settings.json` spinner pool. Skip if already set.                                                   |
+| 9   | GitHub remote                   | always-asks                 | Ask y/skip; default `--private`.                                                                                    |
+| 10  | gbrain registration             | always-asks                 | Ask y/skip; if yes, invoke `/sync-gbrain`.                                                                          |
+| 11  | Final summary                   | —                           | Print done / skipped / next-steps table.                                                                            |
 
 ### Phase 1: Git init
 
@@ -502,6 +503,22 @@ Invoke `/terminal-setup` with the project basename. The terminal-setup skill han
 
 The pre-flight summary still surfaces "found .groot-project.toml" (or "no .groot-project.toml") so the user sees what Phase 7 will use _before_ Phase 7 fires.
 
+### Phase 7B: Port allocation
+
+Right after Phase 7 (which created or updated `.groot-project.toml` with `[terminal]`), invoke `~/bin/pick-a-port --write` to claim a default `dev` port for this project. The script scans every `.groot-project.toml` under `~/code/` for existing `[ports]` reservations, runs `lsof` to catch live processes the scan doesn't see, picks the lowest free port at or above 3000, and writes the assignment to this project's `.groot-project.toml` under `[ports].dev`.
+
+Why now: cross-project port collisions (vffins on 3000, when-we-play also wants 3000) are easier to prevent at allocation time than to debug at runtime. Claiming a unique port at bootstrap means the next project that bootstraps automatically picks 3001, 3002, etc. No central registry — the per-project tomls _are_ the distributed registry, derived by scanning.
+
+Default behavior: invoke `pick-a-port --write` with no other arguments. If the project clearly won't run a dev/HTTP server (a pure library, a docs-only repo, etc.), pass `--no-port` to `/groot-project` to skip this phase entirely. The skill defaults to allocating — the cost of an unused `[ports]` entry is one TOML line.
+
+The skill doesn't try to be framework-aware (Vite=5173 vs Next=3000) at this stage; `pick-a-port` always starts at 3000 for dev and lets collisions push it up. If the project later wants a framework-canonical port, edit `.groot-project.toml [ports].dev` by hand — `pick-a-port` will see that value as "claimed" on its next run.
+
+In `--auto` mode, this phase runs unchanged — `pick-a-port` has no interactive prompts, so there's nothing to skip.
+
+In `status` mode (re-audit of an existing project), check whether `.groot-project.toml` has `[ports].dev`; flag missing as a drift item. If present but the assigned port is now in `lsof` collision with something other than this project's dev server, flag the conflict.
+
+If the project already has a known port (the user had `vite --port 5173` hardcoded in a script before this phase ran), surface it during Phase 7B and offer to write that port to `[ports].dev` instead of running the fresh allocation. Don't silently take a different port from what's already in use.
+
 ### Phase 8: Spinner verbs
 
 Themed spinner-verb pool for `.claude/settings.json`. Each project gets in-character verbs in place of Claude Code's defaults — small delight, basically free.
@@ -609,6 +626,7 @@ Collision-detected lines only appear if collisions were actually found. The poin
 
 - **Language**: detect from existing files (`pyproject.toml` → Python, `package.json` → TypeScript, `Cargo.toml` → Rust, `go.mod` → Go). If ambiguous or none, skip language-specific scaffolding (no `.gitignore` patterns, Makefile bodies left as `# TODO`).
 - **Terminal background**: invoke `/terminal-setup auto` (terminal-setup's auto mode picks the first unused color and uses project basename as the alias).
+- **Port allocation**: invoke `~/bin/pick-a-port --write` (no prompts, scans `~/code` + `lsof`, picks the lowest free port at or above 3000). Skip if invoked with `--no-port`.
 - **Spinner verbs**: SKIPPED. Creative call that needs human input on theme.
 - **GitHub remote**: SKIPPED. Creating an external resource without explicit consent is too consequential for `--auto`.
 - **gbrain**: SKIPPED. Same reason.
@@ -633,13 +651,13 @@ Project audit for myproject:
   [⚠] Makefile (missing targets: dist, clean)
   [✓] .gitignore (Python)
   [✓] Terminal background (claude-config, Plum)
-  [✓] .groot-project.toml ([iterm].color recorded)
+  [✓] .groot-project.toml ([terminal].background, [ports].dev=3004 recorded)
   [ ] Spinner verbs (.claude/settings.json has no spinnerVerbs block)
   [ ] GitHub remote
   [ ] gbrain registered
   [✓] /office-hours doc imported
 
-7/11 in place. Want to address the missing/drifted items? (Y/n)
+7/12 in place. Want to address the missing/drifted items? (Y/n)
 ```
 
 If the user says Y, fall through into the regular interactive walkthrough, only running phases for missing/drifted items.
