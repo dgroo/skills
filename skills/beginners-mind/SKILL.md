@@ -168,7 +168,7 @@ Write the profile. Surface the path and present the file contents for the user's
 
 After user approval:
 
-1. Scaffold the state directory: create empty `corpus.md` (with tiered headers), empty `findings/` and `reports/` dirs (use `.gitkeep` placeholders), empty `ledger.md`, and a `last-run.json` with `null` timestamp. (Note: detailed scaffolding routine is added in Task 4; for now, just note "see State management section, Scaffolding routine" as a placeholder reference.)
+1. Scaffold the state directory following the **Scaffolding routine** in the **State management** section below: create empty `corpus.md` (with tiered headers), empty `findings/` and `reports/` dirs (use `.gitkeep` placeholders), empty `ledger.md`, and a `last-run.json` with `null` timestamp.
 2. Write the approved corpus to `corpus.md`.
 3. Surface which repo the commit will land in.
 4. Commit the profile + state scaffold.
