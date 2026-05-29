@@ -520,4 +520,45 @@ After Phase 4 aggregation, identify cache files that meet both conditions:
 
 Surface these as a "Stale cache candidates" list in the report (filename + URL + `fetched_at`). Do not delete automatically — let the user decide.
 
+## Phase 5 — Synthesize (four-section report)
+
+Goal: cross-reference all prior phases into a single coherent report.
+
+**Cost estimate before running:** log "Phase 5 estimated: ~40K tokens."
+
+### Step 5.1 — Construct each section
+
+**Recommendations section.** Walk Phase 1 (introspection), Phase 2 (behavior), and Phase 4 (external research) for actionable proposals. Each recommendation gets:
+
+- **ID:** `R<N>`, sequential within this report.
+- **Motivation:** which observation triggered this (Phase + sub-section).
+- **Source:** corpus item supporting this, if any (URL).
+- **Effort:** time estimate per the global "1/1000 calibration" rule (small / medium / large with explicit reasoning).
+- **Body:** the recommendation itself, 1–3 sentences.
+
+Anti-rec filter: if any rec matches the profile's _What to skip_ section, drop it.
+
+**Behavioral observations section.** Walk Phase 2's three sub-sections. Each pattern with frequency >= 3 across the run window is reported. Each gets a one-paragraph description + a proposed remediation (which may become a Recommendation with cross-reference).
+
+**Cool things callout section.** Walk:
+
+- Phase 1 introspection items that don't appear in Phase 4's external corpus (project doing something the wider world isn't).
+- Phase 3 questions bucketed as `surprisingly-clever`.
+
+Each item: what it is + why it stands out.
+
+**"Why is it like this?" section.** Walk Phase 3 questions bucketed as `awkward-history` or `unanswerable`. Each item: the question + the answer (with awkward backstory or "no answer found") + suggested remediation (add a comment / clean up / investigate further).
+
+### Step 5.2 — Apply the report template
+
+Read `~/.claude/skills/beginners-mind/templates/report.md`. Substitute all placeholders. The four section bodies come from Step 5.1.
+
+If any section is empty after filtering, write "_No items this run._" rather than omitting the section.
+
+### Step 5.3 — Cross-references
+
+Where a Behavioral observation has a matching Recommendation, link by ID: "(see R<N>)". Where a "Why is it like this?" answer suggests a fix, link the same way.
+
+**Cost transparency:** log "Phase 5 actual: ~Y tokens."
+
 (Further sections to be added by subsequent plan tasks.)
