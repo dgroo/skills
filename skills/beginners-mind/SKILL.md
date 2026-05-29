@@ -461,23 +461,26 @@ For each source URL, derive a cache key: `sha256(url)[:16]`. Check `<state>/cach
 Fetch the source using `Bash`:
 
 ```bash
-ETAG=$(jq -r '.etag // empty' "<state>/cache/<key>.json" 2>/dev/null)
-LAST_MOD=$(jq -r '.last_modified // empty' "<state>/cache/<key>.json" 2>/dev/null)
-HEADERS=""
-if [ -n "$ETAG" ]; then HEADERS="$HEADERS -H \"If-None-Match: $ETAG\""; fi
-if [ -n "$LAST_MOD" ]; then HEADERS="$HEADERS -H \"If-Modified-Since: $LAST_MOD\""; fi
-HTTP_STATUS=$(curl -s -o "<state>/cache/<key>.body" -D /tmp/bm-headers -w "%{http_code}" $HEADERS "$URL")
+key=$(echo -n "$URL" | sha256sum | cut -c1-16)
+ETAG=$(jq -r '.etag // empty' "<state>/cache/${key}.json" 2>/dev/null)
+LAST_MOD=$(jq -r '.last_modified // empty' "<state>/cache/${key}.json" 2>/dev/null)
+HEADERS=()
+if [ -n "$ETAG" ]; then HEADERS+=(-H "If-None-Match: $ETAG"); fi
+if [ -n "$LAST_MOD" ]; then HEADERS+=(-H "If-Modified-Since: $LAST_MOD"); fi
+HTTP_STATUS=$(curl -s -o "<state>/cache/${key}.body" -D /tmp/bm-headers -w "%{http_code}" "${HEADERS[@]}" "$URL")
 ```
+
+Note: `<state>` above is a template placeholder substituted by the orchestrator at runtime with the actual state directory path (e.g., `design/beginners-mind/state`). The `key` derivation via `sha256sum` is shown explicitly so the bash block is self-contained; the orchestrator does NOT pre-substitute `<key>` — the block computes it from `$URL` at shell execution time.
 
 If response is 304 → log "cache hit: `<url>`"; skip subagent dispatch for this source.
 
-If response is 200 → extract `ETag` and `Last-Modified` from `/tmp/bm-headers`; update `<key>.json`:
+If response is 200 → extract `ETag` and `Last-Modified` from `/tmp/bm-headers`; update `${key}.json`:
 
 ```bash
 NEW_ETAG=$(grep -i '^etag:' /tmp/bm-headers | awk '{print $2}' | tr -d '\r')
 NEW_LAST_MOD=$(grep -i '^last-modified:' /tmp/bm-headers | cut -d' ' -f2- | tr -d '\r')
 jq -n --arg url "$URL" --arg etag "$NEW_ETAG" --arg lm "$NEW_LAST_MOD" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  '{url: $url, etag: $etag, last_modified: $lm, fetched_at: $ts}' > "<state>/cache/<key>.json"
+  '{url: $url, etag: $etag, last_modified: $lm, fetched_at: $ts}' > "<state>/cache/${key}.json"
 ```
 
 Then dispatch a subagent for this source.
@@ -640,6 +643,8 @@ Corpus proposals: <A adds, P prunes — see above>
 Next run cadence: <date>
 ```
 
+**Cost transparency:** log "Phase 6 actual: ~Y tokens" (typically 2–8K; dominated by file I/O tool calls and ledger read/write round-trips).
+
 ### Step 6.7 — Commit (cross-repo surfacing)
 
 If the state directory is inside the current repo: commit `reports/`, `findings/`, `ledger.md`, `last-run.json` changes (NOT `cache/`). Surface the commit message + which repo it lands in.
@@ -673,5 +678,57 @@ Triggered by `/beginners-mind apply <ID>` or `/beginners-mind do recommended`.
 ### do recommended
 
 Walk all `pending` IDs from the most recent report in ID order. For each, run the `apply <ID>` flow above. Allow the user to bulk-defer remaining (`AskUserQuestion: "Continue / Stop / Defer all remaining"` after each completion).
+
+## Cost primitives
+
+### Per-phase cost transparency
+
+Every phase logs:
+
+- Before dispatch: `Phase N estimated: ~X tokens`.
+- After completion: `Phase N actual: ~Y tokens`.
+
+The actual is approximated from the tool-call response sizes returned by subagents (or by `len(response_text) // 4` as a rough proxy if a more accurate count is not available).
+
+### Cumulative tracking
+
+Maintain a running counter `cumulative_cost` across phases. After each phase, compare:
+
+- `cumulative_cost > profile.token_budget × 1.5` AND
+- `phase_actual > phase_estimate × 1.5`
+
+If BOTH are true, trigger fail-safe.
+
+### Fail-safe
+
+1. Abort the current phase (do not dispatch further subagents within it).
+2. Skip remaining phases.
+3. Jump to Phase 6 with whatever partial state exists.
+4. In the report, prepend: "**⚠ Partial run — budget overrun in Phase N.**"
+5. Set `last-run.json.partial = true`.
+6. Surface to terminal: "ABORT: budget overrun in Phase N. Partial report at <path>."
+
+### Phase-skip flag handling
+
+Parse args at run start:
+
+- `--introspect-only` → run Phase 0 + 1, skip 2/3/4/5/6 (other than partial report write).
+- `--skip-transcripts` → run all phases, but in Phase 2 skip subagent 2.1 (transcript reading) regardless of profile config.
+- `--skip-research` → run all phases except Phase 4.
+- `--dry-run` → for each phase, log "Phase N estimated: ~X tokens (DRY RUN — not executed)". No subagent dispatches. No fetches. No writes. Print summary at end: "DRY RUN. Estimated total: ~Z tokens."
+
+### Estimation table (initial values; refine over time)
+
+| Phase | Default estimate (tokens) | Drivers                                                         |
+| ----- | ------------------------- | --------------------------------------------------------------- |
+| 0     | 1K                        | Read 1 small file + 1 AskUserQuestion                           |
+| 1     | 30K                       | 4 subagents, bounded                                            |
+| 2     | 50K                       | Transcript subagent dominates; subsampled if needed             |
+| 3     | 80K                       | Fresh-observer reads code; question count × answer construction |
+| 4     | 30K × N sources           | Subagent per source after cache check                           |
+| 5     | 40K                       | Cross-reference + template substitution                         |
+| 6     | 5K                        | File I/O                                                        |
+
+Sum these for `--dry-run` projection (Phase 4 scales with source count).
 
 (Further sections to be added by subsequent plan tasks.)
