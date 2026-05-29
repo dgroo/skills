@@ -661,18 +661,19 @@ Triggered by `/beginners-mind apply <ID>` or `/beginners-mind do recommended`.
 
 1. Find the most recent report by date in `<state>/reports/`.
 2. Parse the Recommendations section. Locate the row with matching ID.
-3. Display the recommendation body + motivation + source + effort. Ask via `AskUserQuestion`:
+3. Display the recommendation body + motivation + source + effort. **The report is the source of truth for recommendation content.** The ledger is a status tracker; its one-line titles are intentionally abbreviated and may drift from the report over time (especially when a user has manually curated the ledger to track items from other sections of the report — Behavioral observations, "Why is it like this?" — under the same `R<N>` ID space). If the report's row for `<ID>` and the ledger's row for `<ID>` describe different recommendations, **treat the report as canonical**, surface the drift to the user, and ask whether to relabel the ledger entry (typically by promoting the report's rec to its real `R<N>` slot and adding the ledger-only item as a new ID at the end). Do NOT silently apply the ledger title with a body invented from grep — that's the bug this clause exists to prevent.
+4. Ask via `AskUserQuestion`:
    - **Accept** — attempt the action now.
    - **Decline** — mark rejected in ledger; don't act.
    - **Defer** — mark deferred in ledger; will resurface next run as `still-relevant` if conditions persist.
-4. On Accept:
+5. On Accept:
    - If the action is small/mechanical (rename a file, add a line to config, etc.), execute directly with the appropriate tool (`Edit`, `Bash`, `Write`).
    - If the action is non-trivial (build a feature, refactor a module), dispatch a `general-purpose` subagent with a focused prompt derived from the recommendation body.
    - Surface what was done. Surface which repo each commit lands in.
    - Update ledger row: status `accepted`, add a "completed" note with commit SHA(s).
-5. On Decline:
+6. On Decline:
    - Update ledger row: status `rejected`, add the user's reason if provided.
-6. On Defer:
+7. On Defer:
    - Update ledger row: status `deferred`, add today's date.
 
 ### do recommended
