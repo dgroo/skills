@@ -366,4 +366,71 @@ Combine into a single "Phase 2 behavioral observation" markdown block. Each sub-
 
 **Cost transparency:** log "Phase 2 actual: ~Y tokens."
 
+## Phase 3 — Fresh-observer questions (architectural core)
+
+Goal: surface questions a beginner would ask after reading the code with no other briefing. The mismatch between those questions and the answers the orchestrator can construct from full context is the report's most valuable signal.
+
+**Cost estimate before running:** log "Phase 3 estimated: ~80K tokens."
+
+### Sub-phase 3a — Dispatch the fresh-observer subagent
+
+Use the `Agent` tool with `subagent_type: general-purpose`.
+
+**CRITICAL: Inputs that MUST be passed to the subagent:**
+
+- The _Visible to fresh observer_ section of the profile (structural info only).
+- The file tree of the in-scope paths (you already have this from Phase 1).
+- The persona prompt below.
+- The list of code files the subagent may `Read` — derived from the in-scope paths, excluding out-of-scope items.
+
+**CRITICAL: Inputs that MUST NOT be passed:**
+
+- The project's `README.md`.
+- Any `CLAUDE.md` file (project or global).
+- Any file under `design/` or equivalent design-docs path.
+- The diary or any rationale-shaped narrative file.
+- The _Orchestrator only_ section of the profile.
+- Anything from the orchestrator's conversation history.
+
+Persona prompt (use verbatim):
+
+> _"You are a senior engineer joining this team on day one. You've been told the team is well-regarded but this is your first look at the code. You have the file tree and you may read any file you choose from the in-scope list below. You DO NOT have the README, design docs, or any project rationale — only the code and structural info._
+>
+> _Your task: generate a list of QUESTIONS a beginner would honestly ask after reading the code. Not conclusions. Not 'fixes.' Questions, of the form 'Why is X like this?', 'What's this directory for?', 'These two functions look almost identical — should they be merged?', 'Why is this file 800 lines?', 'What's the relationship between A and B?', 'Is `archived/` still relevant?'._
+>
+> _Be honest. If something looks weird, say so. If you can't tell what something does, ask. Don't be polite about cruft._
+>
+> _Return a JSON array, each element: `{\"file_or_path\": \"<relative path>\", \"question\": \"<the question>\"}`. Cap at 30 questions."_
+
+Pass to the subagent:
+
+- `## Visible to fresh observer` profile section
+- File tree from Phase 1
+- List of in-scope file paths
+
+**Verification before dispatch:** in your orchestrator state, explicitly check that none of the withheld inputs appear in the subagent's input. If you find yourself about to include README/CLAUDE.md/design rationale, STOP — that's a bug in this implementation.
+
+### Sub-phase 3b — Answer each question from full context
+
+For each question returned, the orchestrator (which has full context) attempts to answer using:
+
+- The withheld inputs (README, CLAUDE.md, design docs, diary).
+- The _Orchestrator only_ profile section.
+- `git blame` on the referenced file/path for historical context.
+- Commit messages that touched the referenced file recently.
+
+Bucket each question into:
+
+- **clean** — Answer is in the docs/code clearly. No action.
+- **awkward-history** — Answer requires backstory not captured anywhere obvious. Candidate for "Why is it like this?" report section; may also warrant adding an inline comment.
+- **unanswerable** — Even with full context, no good answer. Top-priority finding for cleanup or investigation.
+
+Optional bucket:
+
+- **surprisingly-clever** — Answer reveals an intentional, non-obvious-good design choice. Candidate for "Cool things" report section.
+
+Output: a markdown table with columns `Path | Question | Bucket | Answer/Note`.
+
+**Cost transparency:** log "Phase 3 actual: ~Y tokens."
+
 (Further sections to be added by subsequent plan tasks.)
