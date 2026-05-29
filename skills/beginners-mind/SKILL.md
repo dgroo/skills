@@ -435,4 +435,89 @@ Output: a markdown table with columns `Path | Question | Bucket | Answer/Note`.
 
 **Cost transparency:** log "Phase 3 actual: ~Y tokens."
 
+## Phase 4 — External research (parallel subagents per source)
+
+Goal: pull what's new since the last run from corpus sources.
+
+**Cost estimate before running:** log "Phase 4 estimated: ~30K tokens × N sources."
+
+### Source list
+
+Read `corpus.md` from the profile's corpus location. For each non-blank line under each tier that looks like a URL (starts with `http`), treat as a source.
+
+### Per-source fetch with ETag caching
+
+For each source URL, derive a cache key: `sha256(url)[:16]`. Check `<state>/cache/<key>.json` for an existing entry:
+
+```json
+{
+  "url": "<url>",
+  "etag": "<etag from prior fetch>",
+  "last_modified": "<RFC date from prior fetch>",
+  "fetched_at": "<ISO timestamp>"
+}
+```
+
+Fetch the source using `Bash`:
+
+```bash
+ETAG=$(jq -r '.etag // empty' "<state>/cache/<key>.json" 2>/dev/null)
+LAST_MOD=$(jq -r '.last_modified // empty' "<state>/cache/<key>.json" 2>/dev/null)
+HEADERS=""
+if [ -n "$ETAG" ]; then HEADERS="$HEADERS -H \"If-None-Match: $ETAG\""; fi
+if [ -n "$LAST_MOD" ]; then HEADERS="$HEADERS -H \"If-Modified-Since: $LAST_MOD\""; fi
+HTTP_STATUS=$(curl -s -o "<state>/cache/<key>.body" -D /tmp/bm-headers -w "%{http_code}" $HEADERS "$URL")
+```
+
+If response is 304 → log "cache hit: `<url>`"; skip subagent dispatch for this source.
+
+If response is 200 → extract `ETag` and `Last-Modified` from `/tmp/bm-headers`; update `<key>.json`:
+
+```bash
+NEW_ETAG=$(grep -i '^etag:' /tmp/bm-headers | awk '{print $2}' | tr -d '\r')
+NEW_LAST_MOD=$(grep -i '^last-modified:' /tmp/bm-headers | cut -d' ' -f2- | tr -d '\r')
+jq -n --arg url "$URL" --arg etag "$NEW_ETAG" --arg lm "$NEW_LAST_MOD" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  '{url: $url, etag: $etag, last_modified: $lm, fetched_at: $ts}' > "<state>/cache/<key>.json"
+```
+
+Then dispatch a subagent for this source.
+
+### Project context for subagents
+
+**Design note:** the identity paragraph written by the user in `--init` Step 1 is discarded after Step 5 and not persisted to the profile (per Task 3 design). Phase 4 therefore derives project context on the fly from the profile's _Visible to fresh observer_ section — specifically the `scope`, `standing_concerns`, and `what_to_watch_for` fields. This is option 2 (derive on the fly) rather than option 1 (add an identity field to the profile). Rationale: the profile's Visible section already captures the structured distillation of project identity (scope paths, concerns, what to watch for) — the prose identity paragraph adds warmth but not signal the subagent needs. If future runs reveal that subagent relevance filtering is weak, adding a persisted `{{project_description}}` field to the profile template (option 1) is the obvious upgrade path.
+
+Construct a `{{visible_profile_summary}}` string before dispatching subagents:
+
+> Extract from the profile's _Visible to fresh observer_ section: the `scope` field (what paths/repos), the `standing_concerns` field (what the owner is watchful for), and the `what_to_watch_for` field (explicit asks). Concatenate into two sentences: "This project covers: `<scope>`. Owner standing concerns: `<concerns>`. Watching for: `<watch_for>`." Use this as `{{visible_profile_summary}}`.
+
+### Subagent per source
+
+For each newly-fetched source, dispatch an `Explore` subagent in parallel:
+
+> _"Read the content at `<state>/cache/<key>.body`. The source is `{{source_url}}`, last fetched on `{{prior_fetch_date}}` (or 'never' if first run). Project context: `{{visible_profile_summary}}`. Identify items dated AFTER the prior fetch date that are relevant to this project. For each, return: title, date, URL (if a different URL than the source), one-paragraph summary, why-this-matters for this project. Return at most 5 items per source. Return a JSON array with fields: `title`, `date`, `url`, `summary`, `why_relevant`, `source_url`."_
+
+Dispatch all source subagents in a single message (parallel `Agent` tool calls).
+
+### Aggregation
+
+Combine all source outputs into a single "Phase 4 external findings" markdown block, ordered by date descending. Each item carries provenance: `source_url + item_url + date`. Format:
+
+```
+### <title> (<date>)
+Source: <source_url> | Item: <item_url>
+<summary>
+**Why this matters:** <why_relevant>
+```
+
+**Cost transparency:** log "Phase 4 actual: ~Y tokens" + "N cache hits, M new fetches."
+
+### Cache cleanup
+
+After Phase 4 aggregation, identify cache files that meet both conditions:
+
+1. Not touched in this run (i.e., not associated with any URL that was fetched or checked in this run).
+2. Not associated with any URL currently in `corpus.md`.
+
+Surface these as a "Stale cache candidates" list in the report (filename + URL + `fetched_at`). Do not delete automatically — let the user decide.
+
 (Further sections to be added by subsequent plan tasks.)
