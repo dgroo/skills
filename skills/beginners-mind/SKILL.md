@@ -328,4 +328,42 @@ Combine all four outputs into a single "Phase 1 introspection" markdown block. S
 
 **Cost transparency:** log "Phase 1 actual: ~Y tokens" once subagents return.
 
+## Phase 2 — Behavioral observation (parallel subagents)
+
+Goal: observe what the project owner actually does. Three subagents in parallel, each conditional on profile config. Each returns a short summary.
+
+**Cost estimate before running:** log "Phase 2 estimated: ~50K tokens (varies with transcript volume)."
+
+**Run window:** all subagents scope their reads to "since `last-run.json.timestamp`" if present, else "last 30 days."
+
+### Subagent 2.1 — Transcript patterns
+
+**Skip if** profile's signal sources do not include `CC transcripts`.
+
+Subagent type: `general-purpose`. Prompt:
+
+> _"Read Claude Code transcripts matching the path glob {{transcript_glob}}, filtering to those modified since {{since_timestamp}}. Summarize patterns visible across sessions: (a) prompts the user typed multiple times in similar form (candidates for aliasing/templating), (b) common frustrations or re-explanations (where the user re-stated the same context), (c) things the user did manually that a skill or alias would simplify. Return a markdown bullet list with NO raw transcript quotes — only summarized patterns with file pointers (e.g., '5 sessions in `~/.claude/projects/foo/`'). Cap response at 60 lines."_
+
+**Token budget guard:** before dispatching, estimate transcript volume via `du -sh <transcript_glob>`. If total > 50MB, prepend to the prompt: "Sample by recency: process the 20 most recently-modified transcripts only. Note this in your summary."
+
+### Subagent 2.2 — Diary themes
+
+**Skip if** profile's signal sources do not include `Diary`.
+
+Subagent type: `Explore`. Prompt:
+
+> _"Read entries from {{diary_path}} dated since {{since_timestamp}}. Identify recurring themes, frustrations, or decisions. Return a markdown bullet list of themes with one-sentence summary each. Cap response at 40 lines."_
+
+### Subagent 2.3 — Git activity trends
+
+Subagent type: `Explore`. Prompt:
+
+> _"Run `git log --since='{{since_date}}' --pretty=format:'%h %an %s' -- {{scope_paths}}` and analyze for behavioral trends: which areas of the codebase saw concentrated activity, which files changed repeatedly, which sessions touched config vs feature code. Return a markdown bullet list with concrete observations (e.g., 'shell config touched 7 times this month; no commits to skills repo despite many sessions'). Cap response at 40 lines."_
+
+### Aggregation
+
+Combine into a single "Phase 2 behavioral observation" markdown block. Each sub-section is either filled or marked `*skipped — not configured in profile*`.
+
+**Cost transparency:** log "Phase 2 actual: ~Y tokens."
+
 (Further sections to be added by subsequent plan tasks.)
