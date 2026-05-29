@@ -173,4 +173,90 @@ After user approval:
 3. Surface which repo the commit will land in.
 4. Commit the profile + state scaffold.
 
+## State management
+
+### State directory layout
+
+```
+<state_path>/
+├── corpus.md              # tiered source list (Tier 0–3 headers)
+├── findings/              # per-run findings JSON (compressed; pointers, not raw content)
+│   └── YYYY-MM-DD.json
+├── reports/               # human-readable monthly reports
+│   └── YYYY-MM-DD.md
+├── ledger.md              # recommendation history (Markdown table)
+├── last-run.json          # {timestamp, tokens_estimated, duration_seconds, partial: bool}
+└── cache/                 # ETag/last-modified cache for external fetches
+    └── <url-hash>.{json,body}
+```
+
+### Scaffolding routine (used by --init Step 8)
+
+Given a target `<state_path>`:
+
+1. `mkdir -p <state_path>/{findings,reports,cache}`
+2. Write `<state_path>/corpus.md`:
+
+   ```markdown
+   # Corpus
+
+   Sources the `/beginners-mind` skill pulls from for external research.
+   Tiered by trust + signal-to-noise.
+
+   ## Tier 0 — authoritative primary sources
+
+   (always pulled; near-zero false-positive rate)
+
+   ## Tier 1 — curated individuals
+
+   (trusted bloggers, GitHub users, Substacks, podcasts; grown over time)
+
+   ## Tier 2 — community surfaces
+
+   (aggregators; filtered hard)
+
+   ## Tier 3 — peer reports
+
+   (v2 only — AI discussion group archive)
+   ```
+
+3. Write `<state_path>/ledger.md`:
+
+   ```markdown
+   # Recommendation ledger
+
+   | ID  | First seen | Status | Recommendation | Last update |
+   | --- | ---------- | ------ | -------------- | ----------- |
+   ```
+
+4. Write `<state_path>/last-run.json`:
+   ```json
+   {
+     "timestamp": null,
+     "tokens_estimated": null,
+     "duration_seconds": null,
+     "partial": false
+   }
+   ```
+5. Write `<state_path>/findings/.gitkeep` and `<state_path>/reports/.gitkeep` (empty files).
+
+### Reading last-run.json
+
+Use `Read` tool. If file is missing or `timestamp` is `null`, treat as "never run" — skip Phase 0 (cadence guardrail).
+
+### Writing last-run.json
+
+After Phase 6 completes, overwrite with:
+
+```json
+{
+  "timestamp": "<ISO 8601 UTC>",
+  "tokens_estimated": <number>,
+  "duration_seconds": <number>,
+  "partial": false
+}
+```
+
+If a phase aborted under fail-safe, set `partial: true`.
+
 (Further sections to be added by subsequent plan tasks.)
