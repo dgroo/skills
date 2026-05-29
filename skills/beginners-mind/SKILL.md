@@ -259,4 +259,27 @@ After Phase 6 completes, overwrite with:
 
 If a phase aborted under fail-safe, set `partial: true`.
 
+## Phase 0 — Cadence guardrail
+
+**Skip this phase entirely if:**
+
+- `--force` flag is present.
+- `last-run.json` is missing or has `timestamp: null` (first run).
+
+**Otherwise:**
+
+1. Read `last-run.json`. Compute `days_since_last = floor((now - timestamp_utc) / 86400)`.
+2. Read `cadence_days` from the profile's _Visible to fresh observer_ section.
+3. If `days_since_last >= cadence_days` → proceed to Phase 1 silently.
+4. If `days_since_last < cadence_days` → fire `AskUserQuestion`:
+
+   Question: _"Last run was {{days_since_last}} days ago (cadence is {{cadence_days}}), used ~{{tokens_estimated}} tokens. Run anyway?"_
+
+   Options:
+   - **Proceed (Recommended if you have a reason)** — full run, ignore the guardrail this time.
+   - **Defer** — exit cleanly; skill prints "Will revisit when cadence reached (~{{cadence_days - days_since_last}} days from now)."
+   - **Abort** — exit cleanly; skill prints "Aborted by user at Phase 0."
+
+5. Act on the choice. Defer/Abort exit. Proceed continues to Phase 1.
+
 (Further sections to be added by subsequent plan tasks.)
