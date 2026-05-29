@@ -282,4 +282,50 @@ If a phase aborted under fail-safe, set `partial: true`.
 
 5. Act on the choice. Defer/Abort exit. Proceed continues to Phase 1.
 
+## Phase 1 — Introspect (parallel subagents)
+
+Goal: capture "what lives in the project right now" from external (filesystem, git, tooling) signal only. Behavioral signal is Phase 2; fresh-observer questions are Phase 3.
+
+**Cost estimate before running:** log "Phase 1 estimated: ~30K tokens" (rough — subagents do the heavy lifting).
+
+Dispatch the four subagents below **in parallel** via a single message with multiple `Agent` tool calls. Each subagent returns a short markdown summary.
+
+### Subagent 1.1 — File tree snapshot
+
+Subagent type: `Explore`. Prompt:
+
+> _"List the file tree at the following paths, depth 2 from each path root: {{scope_paths}}. Exclude: {{out_of_scope_paths}}. Return a short markdown summary: directory layout + any files whose name suggests configuration or convention (e.g., `.tool-versions`, `CODEOWNERS`, `Makefile`, `*.toml`, `*.yaml` at root). Do not read file contents. Cap response at 100 lines."_
+
+### Subagent 1.2 — Skills/tooling catalog
+
+Subagent type: `general-purpose`. Prompt:
+
+> _"If `/skills-review research` is available as a skill, invoke it via the Skill tool and return its 'Suggested for this project' section. Otherwise, return a short summary of: installed Claude Code skills (`ls ~/.claude/skills/`), MCP servers (`cat ~/.claude/settings.json | jq '.mcpServers'`), and any project-local tooling (`Makefile` targets, `package.json` scripts, etc.). Cap response at 80 lines."_
+
+### Subagent 1.3 — Config diff since last run
+
+Subagent type: `Explore`. Prompt:
+
+> _"Compare current config-shaped files to those captured in {{prior_findings_path}}. Config-shaped means: files at the project root with extensions `.toml`, `.yaml`, `.yml`, `.json`, `.ini`, or named `Makefile`, `CLAUDE.md`, `README.md`, `.envrc`. If no prior findings exist, list current config-shaped files with their sizes. Return a short markdown summary highlighting additions, deletions, and notable size changes. Cap response at 60 lines."_
+
+### Subagent 1.4 — Tooling snapshot
+
+Run via `Bash`, not subagent (cheap + bounded):
+
+```bash
+{
+  echo "## Brew (top 30):"; brew list 2>/dev/null | head -30
+  echo "## Pipx:"; pipx list 2>/dev/null | grep package
+  echo "## MCP servers:"; jq -r '.mcpServers | keys[]' ~/.claude/settings.json 2>/dev/null
+} > /tmp/bm-tooling-snapshot.md
+```
+
+Read the file with the `Read` tool and include verbatim in the report.
+
+### Aggregation
+
+Combine all four outputs into a single "Phase 1 introspection" markdown block. Store this block in memory for the synthesis phase; do not write to disk yet.
+
+**Cost transparency:** log "Phase 1 actual: ~Y tokens" once subagents return.
+
 (Further sections to be added by subsequent plan tasks.)
