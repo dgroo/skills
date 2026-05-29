@@ -648,4 +648,30 @@ If the state directory is outside the current repo (federation case — state at
 
 If `--dry-run` was used: skip all commits and writes.
 
+## Mode: apply
+
+Triggered by `/beginners-mind apply <ID>` or `/beginners-mind do recommended`.
+
+### apply <ID>
+
+1. Find the most recent report by date in `<state>/reports/`.
+2. Parse the Recommendations section. Locate the row with matching ID.
+3. Display the recommendation body + motivation + source + effort. Ask via `AskUserQuestion`:
+   - **Accept** — attempt the action now.
+   - **Decline** — mark rejected in ledger; don't act.
+   - **Defer** — mark deferred in ledger; will resurface next run as `still-relevant` if conditions persist.
+4. On Accept:
+   - If the action is small/mechanical (rename a file, add a line to config, etc.), execute directly with the appropriate tool (`Edit`, `Bash`, `Write`).
+   - If the action is non-trivial (build a feature, refactor a module), dispatch a `general-purpose` subagent with a focused prompt derived from the recommendation body.
+   - Surface what was done. Surface which repo each commit lands in.
+   - Update ledger row: status `accepted`, add a "completed" note with commit SHA(s).
+5. On Decline:
+   - Update ledger row: status `rejected`, add the user's reason if provided.
+6. On Defer:
+   - Update ledger row: status `deferred`, add today's date.
+
+### do recommended
+
+Walk all `pending` IDs from the most recent report in ID order. For each, run the `apply <ID>` flow above. Allow the user to bulk-defer remaining (`AskUserQuestion: "Continue / Stop / Defer all remaining"` after each completion).
+
 (Further sections to be added by subsequent plan tasks.)
