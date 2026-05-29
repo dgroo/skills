@@ -52,6 +52,10 @@ Triggered explicitly via `/beginners-mind --init`, or auto-fires when no profile
 
 This is an interactive flow. Use `AskUserQuestion` (preferred) or plain prompts as appropriate. Walk the user through the eight steps below in order. Do not skip ahead or batch questions — the owner's input on each step informs the next.
 
+### AskUserQuestion conventions
+
+When using `AskUserQuestion`, mark the recommended option by ordering it first in the options list AND including " (Recommended)" in its `label`. The combination produces the expected UX (recommended badge + first position).
+
 ### Step 1 — Identify the project
 
 Before asking, derive `{{project_name}}` automatically: try `git remote get-url origin` and extract the repo name; fall back to the basename of the current working directory. Show the derived name to the user so they can correct it if wrong.
@@ -59,6 +63,8 @@ Before asking, derive `{{project_name}}` automatically: try `git remote get-url 
 Ask: _"What is this project, in one paragraph? Include what it does, who uses it, and roughly what stage it's at (new, mature, legacy, etc.)."_
 
 Capture the response verbatim. This identity paragraph drives the meta-research pass in Step 5.
+
+The identity paragraph is used as input to Step 5's meta-research pass and discarded after. It is **not** written to the profile. (If you want the paragraph preserved, either add a `{{project_description}}` placeholder to the template and the substitution table, or write the paragraph into the profile's _Orchestrator only_ `Decisions log` as a "project as of <init date>" entry. For now, adopt the "discarded after Step 5" framing — no template field.)
 
 ### Step 2 — Scope
 
@@ -68,9 +74,9 @@ Default scope = the current git repo's root. Show that to the user and ask via `
 - **Add sibling paths** — user provides additional dirs/repos to include (federation case).
 - **Custom subset** — user provides a specific list of dirs inside this repo.
 
-Then ask what to exclude (out of scope). Defaults to suggest: `archived/`, `deprecated/`, `vendor/`, `node_modules/`, `.git/`, generated build outputs. Confirm with user.
+For "Add sibling paths" or "Custom subset", follow up with a free-form prompt asking the owner to list the paths (one per line). Validate each path exists with `Bash` (`test -d <path>`). Capture the result as `{{scope_paths_comma_separated}}`. For "Just this repo," the scope is the current git repo's root (use `git rev-parse --show-toplevel`).
 
-Capture as `{{scope_paths_comma_separated}}` and `{{exclude_paths_comma_separated}}`.
+Then ask what to exclude (out of scope). Defaults to suggest: `archived/`, `deprecated/`, `vendor/`, `node_modules/`, `.git/`, generated build outputs. Present the default exclusions in a free-form prompt: "I'll exclude these by default. Anything to add or remove? Reply 'looks good' to accept." Capture the final list as `{{exclude_paths_comma_separated}}`.
 
 ### Step 3 — Behavioral signal sources
 
@@ -84,6 +90,8 @@ Use `AskUserQuestion` with `multiSelect: true`. Options:
 
 Capture user's selections + any path/command details as `{{signal_sources_comma_separated}}`.
 
+If the user de-selects all options, surface a warning: "No behavioral signal sources selected; Phase 2 (behavioral observation) will run with no input. Are you sure?" If confirmed, capture `{{signal_sources_comma_separated}}` as `(none)`.
+
 ### Step 4 — Owner-seeded corpus
 
 Ask in free-form: _"Before I do meta-research, what sources do you already trust for this project's domain? Anything that comes to mind — blogs, GitHub users, Substacks, Discord channels, podcasts, conference series, individual people. Don't worry about being exhaustive."_
@@ -92,7 +100,9 @@ Capture the seed list. If the user has nothing, that's fine — skip to Step 5.
 
 ### Step 5 — Meta-research pass
 
-Use `WebSearch` and `WebFetch` to identify additional trusted sources for this project's domain (informed by the identity paragraph from Step 1). Look for: subject-matter blogs, GitHub users with active relevant work, Substacks, podcasts, conference talk series.
+Derive 2–3 search queries from the identity paragraph (Step 1) — use the domain nouns and the tech stack mentioned. Example: a project description mentioning "distributed task queue in Go" yields searches like "distributed task queue Go community blogs", "distributed task queue Go GitHub trending", "Go concurrency Substack". For each query, run `WebSearch`; for top candidates, optionally `WebFetch` to confirm signal density.
+
+Use the results to identify additional trusted sources for this project's domain. Look for: subject-matter blogs, GitHub users with active relevant work, Substacks, podcasts, conference talk series.
 
 Combine with the user's seeds from Step 4. Present the combined candidate list using `AskUserQuestion` (or, if list is long, a numbered text list with bulk approve/reject). Each candidate gets a one-line "why this." User approves / rejects / edits.
 
@@ -127,7 +137,9 @@ Capture as `{{token_budget}}` and `{{cadence_days}}`.
 
 ### Step 8 — Write the profile
 
-Read `~/.claude/skills/beginners-mind/templates/profile.md`. Substitute all `{{placeholders}}` from the prior steps:
+Read `~/.claude/skills/beginners-mind/templates/profile.md`. If the template file is not found, surface an error: "Template missing at ~/.claude/skills/beginners-mind/templates/profile.md — re-run `make install` from ~/code/claude/skills." Then abort the init flow.
+
+Substitute all `{{placeholders}}` from the prior steps:
 
 | Placeholder                          | Source                                              |
 | ------------------------------------ | --------------------------------------------------- |
@@ -149,6 +161,8 @@ Determine output and state locations:
 
 - If `design/` subtree exists in scope root → profile at `<scope_root>/design/beginners-mind.md`, state at `<scope_root>/design/beginners-mind/state/`
 - Else → profile at `<scope_root>/.beginners-mind.md`, state at `<scope_root>/.beginners-mind/state/`
+
+Use `Bash` to detect the `design/` subtree: `test -d <scope_root>/design && echo yes || echo no`.
 
 Write the profile. Surface the path and present the file contents for the user's review/edit before committing.
 
