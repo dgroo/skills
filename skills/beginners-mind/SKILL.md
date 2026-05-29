@@ -28,8 +28,13 @@ A profile is a markdown file with **two H2 sections that have different access r
 ### How to parse a profile
 
 1. Read the profile file with the `Read` tool.
-2. Split on the H2 headers. Identify both sections by exact header match (case-sensitive on the first phrase: "Visible to fresh observer" and "Orchestrator only").
-3. If either section is missing, surface an error: "Profile at <path> is missing required section: <name>."
+2. Split on the H2 headers. Identify both sections by exact header match (case-sensitive). The two required headers, verbatim, are:
+   - `## Visible to fresh observer`
+   - `## Orchestrator only — do not include in fresh-observer subagent context`
+
+   The full header text must match verbatim — punctuation, em-dash, and trailing phrase included for the second header. Substring matching is not sufficient.
+
+3. If either section is missing, surface an error naming the exact required header text. Example: `Profile at /path/to/profile.md is missing required section: ## Visible to fresh observer`.
 4. Return both sections as separate strings. The Phase 3 dispatcher uses ONLY the "Visible to fresh observer" section.
 
 ### Locating the profile
