@@ -39,6 +39,23 @@ Gather in parallel — same shape as `/sup`'s sitrep mirror, with sharper edges 
 
 Don't read whole files — this is a scan, not an audit. Heuristic: would a fresh CC session running `/sup` on this repo have everything it needs?
 
+### Phase 1.5: Offer pre-wrap commit sweep
+
+If Phase 1's `git status` surfaced uncommitted changes that look **complete-and-committable** (not mid-experiment dirt the conversation already flagged as WIP), open with a single up-front offer before the rest of wrap-prep:
+
+> "You have N uncommitted change(s) — run `/cpush` first to land them as atomic commits, then I'll resume wrap-prep against a clean tree?"
+
+- **If yes**: invoke `/cpush` directly. It commits everything as atomic commits and pushes. After it completes, re-confirm `git status` is clean, then continue to Phase 2 / Phase 3 — the "uncommitted changes" bullets in Phase 3 are now mostly moot.
+- **If no**: skip this phase; the existing Phase 3 bullets for uncommitted changes still apply per-file.
+
+Skip Phase 1.5 entirely when:
+
+- The tree is already clean.
+- The conversation already established that the dirt is mid-experiment / intentional WIP (don't re-litigate).
+- Only stashes are dirty (Phase 3 handles those separately).
+
+Rationale: across observed sessions, `/cpush` then `/wrapup` ran as a two-step ceremony at session end. Surfacing the commit sweep up front collapses it to one entry point, and the diary entries written in Phase 3 can then reference the just-landed SHAs cleanly.
+
 ### Phase 2: Judge cache-relevance (only if intent hint given)
 
 If invoked as `/wrapup <intent>` (e.g., "/wrapup picking up next-set-bugs"), evaluate whether THIS session is well-positioned for that work _before_ doing wrap-up prep.
@@ -67,7 +84,7 @@ Standard preps:
 - **In-flight todos worth not losing**: write to `design/NEXT.md`, `design/stories/drafts/`, or — if the project has a `dev-inbox` — a dev-inbox entry. Default to the lightest-weight surface that won't get forgotten.
 - **New stories surfaced this session**: file in `design/stories/ready/` (design baked) or `design/stories/drafts/` (design still open). Same just-write principle — story files are durable but easily edited.
 - **Open TaskList items that are actually done**: mark them completed. Items genuinely incomplete: leave open + flag in the verdict.
-- **Uncommitted changes that should land**: draft an atomic commit message and ask before running `git commit`. (Per global CLAUDE.md "Never commit unless explicitly asked.") If the project has pre-commit hooks, dry-run them first so the user sees any hook output as part of the proposal, not as a mid-commit surprise.
+- **Uncommitted changes that should land**: usually already handled by Phase 1.5's `/cpush` offer. If the user declined `/cpush` (or `/cpush` skipped something), draft an atomic commit message and ask before running `git commit`. (Per global CLAUDE.md "Never commit unless explicitly asked.") If the project has pre-commit hooks, dry-run them first so the user sees any hook output as part of the proposal, not as a mid-commit surprise.
 - **Uncommitted changes that are mid-experiment**: surface — propose either committing-as-WIP, stashing with a descriptive name, or leaving as-is with a note. Default suggestion is "leave as-is, but note it" — most mid-experiment dirt should not become a commit.
 
 After writes are done, batch any resulting uncommitted changes into one or two atomic commits and ask for OK in a single message. One commit-OK per wrapup is the goal, not one per write.
