@@ -15,8 +15,9 @@ allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 ## Sequence
 
 1. **Produce the full sitrep output** (see "Sitrep mirror" below). Never drop sections that sitrep would include — especially **Next steps**.
-2. **Scan the backlog and recommend a pick** (see "Backlog scan & pick" below). Run only when current work is parkable; otherwise skip.
-3. **Evaluate the new-session recommendation** (see "New-session check" below). Most of the time, emit nothing. Only fire when the bar is genuinely cleared.
+2. **Surface sibling sessions and relay state** (see "Sibling sessions & relay" below). Always runs — independent of whether current work is parkable. If a hot sibling matches what the user just typed `/sup` to find, it outranks anything in the backlog scan.
+3. **Scan the backlog and recommend a pick** (see "Backlog scan & pick" below). Run only when current work is parkable; otherwise skip. If a hot sibling already covers the candidate pick's topic, defer to the sibling instead of recommending a fresh pick here.
+4. **Evaluate the new-session recommendation** (see "New-session check" below). Most of the time, emit nothing. Only fire when the bar is genuinely cleared.
 
 ## Sitrep mirror
 
@@ -29,7 +30,9 @@ Gather context in parallel:
 5. `git stash list` — anything stashed
 6. Check for running background tasks (TaskList tool)
 7. If `scripts/upstream-check.sh` exists at repo root, run it — surfaces unpulled upstream commits. (Only meaningful in the skills repo; silently skip elsewhere.)
-8. Scan conversation history for what was last discussed
+8. `python3 ~/.claude/skills/sup/sibling-sessions.py` — surfaces other CC sessions active in this project's cwd within the last 2 hours, with a topic hint per session. Prints nothing when no siblings; just include verbatim.
+9. If `design/relay/STATE.md` exists, run `relay-status` for a one-line relay state; silently skip if the file doesn't exist or `relay-status` isn't on PATH.
+10. Scan conversation history for what was last discussed
 
 Report structure (omit empty sections, keep each to 1–3 lines max):
 
@@ -39,6 +42,10 @@ Report structure (omit empty sections, keep each to 1–3 lines max):
 **Branch:** `branch` · **Last commit:** `short message` _(Xh ago)_
 
 **Worktrees:** Only when `git worktree list` shows >1 entry. Render each as `path · branch · commit`. If any sibling's branch name plausibly matches the current task topic or what's about to be discussed, explicitly flag: `→ This work likely belongs on <branch> — confirm before editing on main.` Don't ask reflexively when siblings exist for unrelated topics; only flag when there's a topic match.
+
+**Sibling sessions:** Verbatim block from `sibling-sessions.py` when non-empty. Omit when the script prints nothing. If any sibling's topic plausibly matches what the user just invoked `/sup` for (continuing recent work, post-`/clear` confusion), explicitly flag `→ Looks like that work is live in `<id>` — switch windows rather than restarting here.` See "Sibling sessions & relay" section.
+
+**Relay:** One-line summary of `relay-status` output when in a project with `design/relay/STATE.md`. Examples: `⚪ parked since 2026-05-21` or `🟢 active on rocinante24, last handoff 2026-05-21T02:51Z`. Omit when no relay scaffolding.
 
 **State:** Combined snapshot — clean/dirty tree, stashes, background tasks, todos, "fresh session" or "mid-task." If there's enough going on, split into the longer fields below.
 
@@ -64,6 +71,32 @@ Report structure (omit empty sections, keep each to 1–3 lines max):
 ```
 
 Same rules as /sitrep: brief, one sentence per item, don't read file contents unless something in the diff looks suspicious, scan diffs for obvious unfinished markers.
+
+## Sibling sessions & relay
+
+The `/sup` failure mode this section exists to prevent: user has multiple CC sessions open in the same project (common in hub-shaped repos like `remote-coding-setup` and split-workload projects like Changer), `/clear`s one, runs `/sup`, and gets a recommendation that ignores the active thread sitting in another window. Result: starts duplicate or conflicting work.
+
+### Sibling sessions (local)
+
+Source: `python3 ~/.claude/skills/sup/sibling-sessions.py`. The script reads `~/.claude/projects/<encoded-cwd>/*.jsonl` files, excludes the current session via `$CLAUDE_CODE_SESSION_ID`, filters to files modified within the last 120 minutes (configurable via `$SUP_SIBLING_WINDOW_MIN`), and emits a topic hint per sibling. Topic priority: latest `away_summary` content → `custom-title` → last user message.
+
+When the block is non-empty:
+
+- **Include the verbatim output** in the report under `**Sibling sessions:**`.
+- **Read each topic hint and decide whether one matches the current invocation's context.** Strong signals: the user just `/clear`d and is asking "where were we," a sibling's topic mentions the same files/skills/stories you're about to recommend, the sibling is very recent (≤15 min) and the current session is freshly cleared.
+- **When a match is plausible, elevate it.** Add an explicit `→ Looks like that work is live in `<id>` — switch windows rather than restarting here.` line. This outranks anything the Backlog scan would otherwise recommend.
+- **When no match is plausible**, the block is still useful as ambient awareness ("there are 3 other windows in this project") — keep the verbatim emission, skip the elevation.
+
+If `sibling-sessions.py` is missing or errors, silently skip the section. The skill should never block on it.
+
+### Relay (cross-host)
+
+Source: `relay-status` when `design/relay/STATE.md` exists. Relay is the cross-host mechanism for two CC instances on different hosts handing work back and forth via git commits (canonical design in `~/code/groot-claude-coord/design/relay/`).
+
+- When `active: none` in `STATE.md`, render one line: `⚪ Relay parked since <date>`. Low-importance — relegate to a single line.
+- When `active: <host>`, render: `🟢 Relay active on <host>` plus the cycle summary from the body if short. Higher importance — if the active host **is not** the current host, the ball is elsewhere and starting unrelated work here may step on a pending handoff; surface that explicitly.
+
+This is the cross-host analogue of sibling sessions: same "don't start parallel work to something already in flight" goal, different transport.
 
 ## Backlog scan & pick
 
@@ -105,6 +138,7 @@ If nothing's queued anywhere, render: `**Backlog:** Nothing obvious queued — w
 - If you read a story/helping-hands file to check it, surface a _one-line_ characterization — don't paste contents.
 - Don't pad with detailed pros/cons. One pick, one reason. The user will ask if they want more.
 - If you genuinely can't pick (everything looks equally good or equally unclear), say so and list the top 2–3 options for the user to choose from. Don't force a fake recommendation.
+- **Defer to a hot sibling.** If the Sibling-sessions block already flagged an active thread whose topic overlaps your candidate pick, recommend continuing in that window instead. Don't compete with a live session.
 
 ## End-of-session check
 
@@ -162,29 +196,38 @@ When invoked as `/sup help`, print the following block verbatim:
 
 ```
 sup — Personalized sitrep (Derek's flavor). Strict superset of /sitrep
-with three additions: Session recap; backlog scan + pick recommendation;
-new-session check. Answers both "where are we, what's next?" and
-"what was I doing in this terminal when I walked away?"
+with four additions: Session recap; sibling-session + relay awareness;
+backlog scan + pick recommendation; new-session check. Answers "where
+are we, what's next?", "what was I doing in this terminal?", and
+"is something already in flight elsewhere that I should join instead?"
 
 Usage: /sup
 
 Sequence:
-  1. Sitrep mirror      Full upstream /sitrep output (never drops sections,
-                        especially Next steps). Last-commit line carries a
-                        relative timestamp (Xh / 3 days ago) for staleness.
-                        Includes Session recap — always emitted, bulleted
-                        summary of what THIS conversation has done.
-  2. Backlog scan       Only when current chunk is parkable. Scans TODO.md,
-                        design/stories/ready, design/stories/drafts,
-                        design/helping-hands, open PRs, stale branches.
-  3. Pick               One specific recommendation with one-line reasoning,
-                        chosen by: unblocks-downstream → removes-risk →
-                        session-capacity → continuity → smaller-concrete-wins.
-  4. New-session check  Default silence. Fires only when continuing THIS
-                        conversation would be measurably worse than starting
-                        fresh: context ≥50% / auto-compacted / drift across
-                        unrelated subtasks / explicit fresh-context signal.
-                        Emits as ANSI-yellow Bash printf (not markdown).
+  1. Sitrep mirror       Full upstream /sitrep output (never drops sections,
+                         especially Next steps). Last-commit line carries a
+                         relative timestamp (Xh / 3 days ago) for staleness.
+                         Includes Session recap — always emitted, bulleted
+                         summary of what THIS conversation has done.
+  2. Sibling + relay     Scans ~/.claude/projects/<cwd>/ for other CC
+                         sessions active in the last 120 min (configurable
+                         via $SUP_SIBLING_WINDOW_MIN). Topic hint per session
+                         pulled from latest away_summary / custom-title /
+                         last user message. Plus relay-status one-liner when
+                         design/relay/STATE.md exists. Always runs.
+                         A hot sibling outranks the Backlog pick.
+  3. Backlog scan        Only when current chunk is parkable. Scans TODO.md,
+                         design/stories/ready, design/stories/drafts,
+                         design/helping-hands, open PRs, stale branches.
+  4. Pick                One specific recommendation with one-line reasoning,
+                         chosen by: unblocks-downstream → removes-risk →
+                         session-capacity → continuity → smaller-concrete-wins.
+                         Defers to a topic-matching hot sibling.
+  5. New-session check   Default silence. Fires only when continuing THIS
+                         conversation would be measurably worse than starting
+                         fresh: context ≥50% / auto-compacted / drift across
+                         unrelated subtasks / explicit fresh-context signal.
+                         Emits as ANSI-yellow Bash printf (not markdown).
 
 Non-signals (do NOT trigger new-session by themselves):
   Clean tree, recent commit, "natural stopping point", session has been
