@@ -561,4 +561,91 @@ Where a Behavioral observation has a matching Recommendation, link by ID: "(see 
 
 **Cost transparency:** log "Phase 5 actual: ~Y tokens."
 
+## Phase 6 — Output + state update
+
+Goal: persist this run's results, propose corpus changes, surface report to user.
+
+**Cost estimate before running:** log "Phase 6 estimated: ~5K tokens (mostly file I/O)."
+
+### Step 6.1 — Write report
+
+Write the synthesized report from Phase 5 to `<state>/reports/<YYYY-MM-DD>.md` using the `Write` tool.
+
+If a report for today's date already exists, append a `-<HHMM>` suffix to disambiguate.
+
+### Step 6.2 — Write findings (compressed)
+
+Create the findings JSON at `<state>/findings/<YYYY-MM-DD>.json`. Schema:
+
+```json
+{
+  "run_date": "YYYY-MM-DD",
+  "run_window": {"since": "<ISO ts of prior run>", "until": "<ISO ts now>"},
+  "introspection_pointers": [{"phase": "1.1", "summary_hash": "<sha>", "key_findings": ["..."]}],
+  "behavioral_pointers": [{"phase": "2.1", "pattern_label": "...", "frequency": N, "file_pointers": ["..."]}],
+  "fresh_observer_questions": [{"id": "Q1", "path": "...", "bucket": "awkward-history"}],
+  "external_findings": [{"source": "<url>", "items": [{"title": "...", "date": "...", "url": "..."}]}],
+  "recommendations": [{"id": "R1", "motivation": "...", "source_url": "...", "effort": "small"}]
+}
+```
+
+**CRITICAL:** Do NOT include raw transcript content, raw file content, or raw fetched body content in this JSON. Pointers only. The findings file is consumed by the next run; bloat compounds across runs.
+
+### Step 6.3 — Update ledger.md
+
+Read `<state>/ledger.md`. For each new recommendation from this run:
+
+- Add a row to the table: `| R<N> | <today> | pending | <one-line rec> | <today> |`.
+
+For each existing `pending` recommendation in ledger that is also present in this run's recommendations (matched by recommendation body similarity):
+
+- Update its "Last update" column to today; status remains `pending` but add ` (still-relevant)` annotation.
+
+Write back with `Write` (overwrite).
+
+### Step 6.4 — Propose corpus changes (do not auto-apply)
+
+Two lists:
+
+- **Adds:** any source URL cited in Phase 4 findings that is NOT in the current `corpus.md`. Suggest tier based on signal density.
+- **Prunes:** any source in `corpus.md` whose Phase 4 subagent returned zero usable items in the last 3 runs (look at the last 3 `findings/*.json`). Suggest removal.
+
+Print these proposals to the terminal at the end of the run. Do NOT modify `corpus.md` automatically.
+
+### Step 6.5 — Update last-run.json
+
+Overwrite `<state>/last-run.json`:
+
+```json
+{
+  "timestamp": "<now ISO 8601 UTC>",
+  "tokens_estimated": <sum of all phase actual costs>,
+  "duration_seconds": <wall clock>,
+  "partial": false
+}
+```
+
+If any phase aborted under fail-safe (Task 13), set `partial: true`.
+
+### Step 6.6 — Terminal summary
+
+Print:
+
+```
+/beginners-mind run complete.
+Report: <state>/reports/<YYYY-MM-DD>.md
+Findings: <state>/findings/<YYYY-MM-DD>.json
+Ledger updated with N new recommendations.
+Corpus proposals: <A adds, P prunes — see above>
+Next run cadence: <date>
+```
+
+### Step 6.7 — Commit (cross-repo surfacing)
+
+If the state directory is inside the current repo: commit `reports/`, `findings/`, `ledger.md`, `last-run.json` changes (NOT `cache/`). Surface the commit message + which repo it lands in.
+
+If the state directory is outside the current repo (federation case — state at `~/.claude/beginners-mind/`): commit in the dot-claude repo per the federation hub-use-case rule. Surface "committing to dgroo/dot-claude" before doing it.
+
+If `--dry-run` was used: skip all commits and writes.
+
 (Further sections to be added by subsequent plan tasks.)
