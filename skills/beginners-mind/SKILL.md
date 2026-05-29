@@ -408,7 +408,7 @@ Pass to the subagent:
 - File tree from Phase 1
 - List of in-scope file paths
 
-**Verification before dispatch:** in your orchestrator state, explicitly check that none of the withheld inputs appear in the subagent's input. If you find yourself about to include README/CLAUDE.md/design rationale, STOP — that's a bug in this implementation.
+**Verification before dispatch:** in your orchestrator state, explicitly check that none of the withheld inputs appear in the subagent's input. If you find yourself about to include README/CLAUDE.md/design rationale, the _Orchestrator only_ profile section, or any orchestrator conversation history, STOP — that's a bug in this implementation.
 
 ### Sub-phase 3b — Answer each question from full context
 
@@ -430,6 +430,8 @@ Optional bucket:
 - **surprisingly-clever** — Answer reveals an intentional, non-obvious-good design choice. Candidate for "Cool things" report section.
 
 Output: a markdown table with columns `Path | Question | Bucket | Answer/Note`.
+
+**Malformed or empty subagent return.** If the fresh-observer subagent returns an empty array, malformed JSON, or prose instead of the expected JSON array, log a warning ("Phase 3 subagent returned unusable output: <one-line description>") and proceed to Phase 4 with an empty Phase 3 table. Note this in the report's Phase 3 section so the run isn't silently weakened.
 
 **Cost transparency:** log "Phase 3 actual: ~Y tokens."
 
