@@ -153,7 +153,7 @@ The bar is **not** "is this an OK time to stop?" (true after almost any complete
 
 Recommend ending this session **only when at least one of these is observably true**:
 
-- **Context pressure is real.** The Claude Code context indicator shows ≥50% used, OR the system has already auto-compacted, OR you (Claude) have noticed yourself re-reading files you read earlier, losing details from earlier in the conversation, or otherwise behaving like you're context-starved.
+- **Context pressure is verifiably real _this turn_.** A `<context-pressure>` system reminder fired **in the current turn**, OR the system has already auto-compacted this session, OR you actually catch yourself re-reading files you read earlier / having lost details from earlier in the conversation. **You CANNOT see the live context indicator from inside a turn** — so this signal must come from a turn-local observable, never from a hunch. Do NOT infer fullness from how much work you've done, how many distinct chunks the session covered, or how long it feels — those are explicit non-signals below. A `<context-pressure>` reminder from an _earlier_ turn is stale; only a current-turn one counts. Absent one of these observables, treat context as fine and stay silent.
 - **The conversation has drifted across multiple unrelated subtasks** _and_ the next requested work is again unrelated to anything currently in cache. (Three distinct topics, with a fourth pivot incoming, is a clear case.)
 - **The user has explicitly signaled a fresh-context-friendly transition** — switching projects, switching repos, "I want to start fresh on this," etc.
 
