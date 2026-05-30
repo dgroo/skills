@@ -160,10 +160,11 @@ If `backlog-scan` isn't on PATH (older host, dotfiles not yet pulled), fall back
 
 ### What to render
 
-Add two lines to the sitrep report, right after Next steps:
+Add these lines to the sitrep report, right after Next steps:
 
-- **Backlog:** Compact inventory. Example: `TODO.md (5 open), stories/ready (3), helping-hands (2), no open PRs, 1 stale branch (refactor-auth).` Skip surfaces with zero items.
+- **Backlog:** Compact inventory. Example: `TODO.md (5 open), stories/ready (3), helping-hands (2), no open PRs, 1 stale branch (refactor-auth).` Skip surfaces with zero items. **Exclude the `HUMAN-REVIEW (open)` count from this line** — it's not pickable work.
 - **Pick:** One specific recommendation with one-line reasoning. Example: `Start stories/ready/payment-retry.md — ready, unblocks 2 downstream items, ~2 hours.`
+- **Human-review:** Only when `backlog-scan`'s `HUMAN-REVIEW (open)` count is >0 _and_ something survives the confidence filter (see Rules). Render as a **gentle gate**, never do-now pressure and never as the Pick — e.g. `👀 N item(s) waiting for your eyes (non-blocking) — want the list, or skip?`. Omit entirely when 0 or when nothing survives.
 
 If nothing's queued anywhere, render: `**Backlog:** Nothing obvious queued — what would you like to work on?` and skip the Pick line.
 
@@ -182,6 +183,7 @@ If nothing's queued anywhere, render: `**Backlog:** Nothing obvious queued — w
 - Don't pad with detailed pros/cons. One pick, one reason. The user will ask if they want more.
 - If you genuinely can't pick (everything looks equally good or equally unclear), say so and list the top 2–3 options for the user to choose from. Don't force a fake recommendation.
 - **Defer to a hot sibling.** If the Sibling-sessions block already flagged an active thread whose topic overlaps your candidate pick, recommend continuing in that window instead. Don't compete with a live session.
+- **HUMAN-REVIEW items are never Pick candidates, and get a confidence filter first.** `backlog-scan`'s `HUMAN-REVIEW (open)` surface is _Derek's to eyeball, not Claude's to do_ — never recommend one as the Pick or fold it into the Backlog line. Before rendering the **Human-review** gate, run the confidence pass from `design/HUMAN-REVIEW.md` (rule 2): for each open item, decide whether it still needs a human. **Plain `/sup` filters from display only** (read-only) — show only survivors, and if any were filtered, you may note `(N look already-resolved — say "prune" to clean them up)`. **Only with `!` or on explicit confirmation** perform the earned auto-cleanup _write_ (rule 1: move stale items to `## Reviewed` with a `**Reviewed:** … — auto: <reason>` line). Items older than ~3 weeks: present as `still worth a look? [keep/drop]` rather than a bare re-list.
 
 ## End-of-session check
 

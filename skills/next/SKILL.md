@@ -59,6 +59,7 @@ Rules:
 - **Only propose what the scan actually surfaced.** No imagined work. If you read a file to check it, characterize it in one line — don't paste contents.
 - **State the dependency reasoning explicitly** in each candidate's description: "do X first — it unblocks Y and Z" beats "X seems important."
 - **REVISIT items are time/event-gated.** Treat far-future or event-only entries as low-priority candidates unless their trigger has plausibly arrived; don't rank a "revisit in August" item above ready work.
+- **HUMAN-REVIEW items are never candidates.** `backlog-scan`'s `HUMAN-REVIEW (open)` surface is _Derek's to eyeball, not Claude's to do_ — never offer one as an AskUserQuestion option, and never auto-pick one with `/next !`. If it has open items, run the confidence filter (`design/HUMAN-REVIEW.md` rule 2 — drop any you can confidently assert are already resolved); if any survive, add a one-line aside _after_ the candidates: `👀 N item(s) also waiting for your eyes (non-blocking) — say "review" to walk them.` The auto-cleanup _write_ (rule 1) happens only on explicit confirmation, not during a plain scan.
 - If nothing's queued anywhere, say so plainly and ask what the user wants to work on — don't manufacture candidates.
 
 ## Context-window check
@@ -108,6 +109,8 @@ Verbs:
 What it scans (via ~/bin/backlog-scan):
   TODO.md · stories/ready · stories/drafts · helping-hands ·
   REVISIT.md (pending) · open PRs · stale branches
+  (HUMAN-REVIEW open items are scanned too but never offered as a
+   pick — surfaced as a non-blocking "waiting for your eyes" aside.)
 
 Ranking (tiebreakers in order):
   unblocks-downstream → makes-other-work-easier → removes-risk →
