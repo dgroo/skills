@@ -1,7 +1,7 @@
 ---
 name: wrapup
 description: Actively assess whether this session is safe to end. Inventories in-flight state, executes routine wrap-prep writes (DIARY entries, story files, NEXT.md updates, queue notes) directly, auto-commits and pushes complete work (surfacing only ambiguous or destructive cases), then gives a definitive READY / WAIT / STAY verdict. With an intent hint, also judges whether THIS session is the right place for that next chunk and pushes back if it is.
-argument-hint: "[<optional intent for next work>]"
+argument-hint: "[?|!|?!] [<optional intent for next work>]"
 ---
 
 # Wrapup — explicit session-end readiness gate
@@ -13,6 +13,23 @@ Use when you're about to bounce the session and want a yes-or-no answer (not sil
 **Companion to `/sup`.** `/sup` is descriptive (situation report, default-silent on end-of-session). `/wrapup` is action-imperative (always answers, always preps). Same neighborhood, different verb class. After a successful `/wrapup` READY verdict, opening a fresh session and running `/sup` will work cleanly — that's the contract.
 
 **Not the same as `/context-save`.** `/context-save` persists this session's working context for `/context-restore` later. `/wrapup` doesn't preserve anything cross-session — it just ensures the _vault and repo state_ would let any fresh CC session pick up cleanly.
+
+## Modifiers — the decisiveness dial
+
+`/wrapup` takes an optional leading `?` / `!` / `?!` modifier (before any intent hint) that sets how eager the skill is to _act_ vs. to _check first_. This is a convention shared across `/wrapup`, `/sup`, and `/next`:
+
+> **`?` = assess, minimize mutation · `!` = act decisively, minimize interruption · `?!` = assess first, then act only on a positive verdict.**
+
+Each skill implements only the modifiers that differ from its default. `/wrapup`'s default _acts_ (it does prep + commits), so it uses the full spectrum — four forms on one axis, check-only → act-iff-green → act-then-report → act-maximally:
+
+| Form         | Posture              | Behavior                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------ | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/wrapup ?`  | **Advise only.**     | Inventory + Phase 4 recap + verdict. **Makes no changes** — no auto-`/cpush`, no DIARY / story / NEXT / queue writes. "Where do we stand?" Overlaps `/sup`'s readiness read by design; it's the lightest touch.                                                                                                                                                                                                              |
+| `/wrapup ?!` | **Gated wrap.**      | Assess readiness _first_. If the verdict is ✅ READY, do the full wrap (Phase 1.5 + Phase 3) and confirm. If ⏸ WAIT / ↺ STAY, surface the verdict + what's blocking and **hold off on prep** — let the user decide whether to proceed anyway. Won't pour effort into wrap-prep when the honest answer is "keep going." The "I came back after an hour — wrap if we're good, else tell me" form.                              |
+| `/wrapup`    | **Default wrap.**    | Assume you're wrapping: do the routine prep + commits regardless (Phase 1.5 + 3 — they're mechanical, low-judgment), _then_ verdict. Ask only on the carve-outs.                                                                                                                                                                                                                                                             |
+| `/wrapup !`  | **Autonomous wrap.** | Like default, but raise the interrupt threshold to the max: resolve everything you can yourself, minimize ⏸ WAIT, make the call on borderline-ambiguous dirt instead of surfacing it. **Only** pause for the genuinely irreversible carve-outs — destructive git ops (force-push, `git reset`, rebase, `rm` of tracked files) still require per-instance confirm per the global Safety rule; `!` does **not** override that. |
+
+`?!` and `!?` are equivalent. A modifier composes with an intent hint: `/wrapup ! picking up slice 3` = autonomous wrap, judged against that intent. The distinction that matters: `?!` checks the verdict _before_ doing prep (optimizes for "should you even be leaving?"); the default does prep _then_ reports (optimizes for "you're leaving — let me get you there").
 
 ## Three verdicts
 
@@ -154,12 +171,20 @@ When invoked as `/wrapup help`, print the following block verbatim:
 ```
 wrapup — Actively assess whether this session is safe to end; prep if needed; give a definitive verdict.
 
-Usage: /wrapup [<optional intent for next work>]
+Usage: /wrapup [?|!|?!] [<optional intent for next work>]
 
 Arguments:
-  (none)            Inventory in-flight state; propose prep; emit READY or WAIT.
+  (none)            Default wrap: do routine prep + commits, then verdict.
+                    Ask only on carve-outs (destructive ops, ambiguous dirt).
   <intent>          Same + judge whether THIS session is the right place
                     for that intent. May emit STAY instead.
+
+Modifiers (decisiveness dial — leading, before any intent):
+  ?                 Advise only — inventory + verdict, makes NO changes.
+  ?!                Gated wrap — wrap iff READY; if WAIT/STAY, stop and tell you.
+  !                 Autonomous wrap — resolve everything you can, minimize WAIT;
+                    only pause for irreversible carve-outs (destructive git ops
+                    still confirm per the Safety rule; ! does not override it).
 
 Verdicts:
   ✅ READY          Clean handoff state. Bounce + /sup will work.

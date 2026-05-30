@@ -19,6 +19,16 @@ allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 3. **Scan the backlog and recommend a pick** (see "Backlog scan & pick" below). Run only when current work is parkable; otherwise skip. If a hot sibling already covers the candidate pick's topic, defer to the sibling instead of recommending a fresh pick here.
 4. **Evaluate the new-session recommendation** (see "New-session check" below). Most of the time, emit nothing. Only fire when the bar is genuinely cleared.
 
+## Modifier — `!` (report, then act)
+
+`/sup` participates in the decisiveness-dial convention shared with `/wrapup` and `/next`: **`?` = assess, minimize mutation · `!` = act decisively, minimize interruption.** `/sup`'s default is _already_ a read-only report, so plain `?` would be a no-op — it isn't implemented here. Only `!` adds behavior:
+
+- **`/sup !`** — produce the full report exactly as below (sequence steps 1–4, including the Pick), **then act on it**: don't stop at recommending the Pick — proceed to start that work, bugs first, with the same autonomy as `/next !`. In effect `/sup !` = `/sup` followed by `/next !` on the resulting top candidate.
+- **Defer to the same guards `/sup` already honors.** If a hot sibling session or an active relay turn outranks the Pick (steps 2–3), surface that and **do not** auto-start — the whole point of those guards is "don't start parallel work to something already in flight." `!` raises decisiveness; it does not bulldoze the don't-collide checks.
+- **The new-session check (step 4) still runs first.** If `/sup` would recommend bouncing to a fresh session, `!` honors that — it surfaces the recommendation rather than starting work in an impaired session.
+
+Plain `/sup` is unchanged: report and recommend, never auto-start.
+
 ## Sitrep mirror
 
 Gather context in parallel:
@@ -200,7 +210,13 @@ backlog scan + pick recommendation; new-session check. Answers "where
 are we, what's next?", "what was I doing in this terminal?", and
 "is something already in flight elsewhere that I should join instead?"
 
-Usage: /sup
+Usage: /sup [!]
+
+Modifier:
+  !   Report as usual, THEN act on the Pick (bugs first), same autonomy
+      as /next !. Defers to hot-sibling / relay / new-session guards —
+      won't auto-start work already in flight elsewhere. Plain ? is a
+      no-op here (/sup is already read-only), so it isn't implemented.
 
 Sequence:
   1. Sitrep mirror       Full upstream /sitrep output (never drops sections,

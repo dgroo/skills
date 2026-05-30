@@ -14,10 +14,22 @@ Both call the same scanner (`~/bin/backlog-scan`) so there's one definition of "
 
 ## Routing
 
-| Invocation   | Does                                               |
-| ------------ | -------------------------------------------------- |
-| `/next`      | Scan, rank, present candidates, let the user pick. |
-| `/next help` | Print usage (see [Help](#help)).                   |
+| Invocation   | Does                                                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `/next`      | Scan, rank, present candidates, let the user pick.                                                                       |
+| `/next !`    | Scan, rank, **auto-pick the top candidate (bugs first) and start it** — no AskUserQuestion. See [Modifier](#modifier--). |
+| `/next help` | Print usage (see [Help](#help)).                                                                                         |
+
+## Modifier — `!` (just start the top pick)
+
+`/next` participates in the decisiveness-dial convention shared with `/wrapup` and `/sup`: **`?` = assess, minimize mutation · `!` = act decisively, minimize interruption.** `/next`'s default _already_ asks before acting (it presents candidates via AskUserQuestion), so plain `?` would be a no-op — it isn't implemented here. Only `!` adds behavior:
+
+- **`/next !`** — run the same scan + ranking (steps 1–3), then **skip the AskUserQuestion and just start the single top candidate**, with **bugs first**: if the scan surfaced open bugs / broken-main / risk items, they outrank features regardless of the normal tiebreaker order (this is the global "fix bugs before new work" rule made explicit). Announce the pick and the one-line why, then begin.
+- **The in-flight guard still wins (step 1).** If `git status --short` shows substantial uncommitted in-flight work, the honest answer is still "finish/commit that first" — surface it and do _not_ auto-start a new pick on top of it. `!` is decisive, not reckless.
+- **The context check still runs (step 5), before starting.** If remaining context is genuinely low _and_ the top pick is substantial, surface the fresh-session / `/compact` suggestion instead of auto-starting in an impaired session — same as plain `/next`, just resolved before work begins rather than after the pick.
+- **Nothing queued → say so, don't invent.** If the scan is empty, `!` doesn't manufacture a pick; it reports the empty backlog like plain `/next`.
+
+Plain `/next` is unchanged: present candidates, let the user choose.
 
 ## Sequence
 
@@ -81,11 +93,16 @@ When invoked as `/next help`, print this block verbatim:
 next — Forward-only "what should I pick up?" Scans queued-work surfaces,
 ranks candidates by dependency + leverage, presents them to pick from.
 
-Usage: /next [help]
+Usage: /next [! | help]
 
 Verbs:
   (none)            Scan, rank, and present next-work candidates via
                     AskUserQuestion. Pick one or specify your own.
+  !                 Skip the question — auto-pick the top candidate
+                    (bugs first) and start it. Defers to the in-flight
+                    guard and the low-context check before starting.
+                    Plain ? is a no-op here (/next already asks), so
+                    it isn't implemented.
   help              Show this message.
 
 What it scans (via ~/bin/backlog-scan):
