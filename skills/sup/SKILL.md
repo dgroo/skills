@@ -1,14 +1,14 @@
 ---
 name: sup
-description: Personalized situation report — mirrors /sitrep's full output, actively scans for queued work and recommends a specific pick, then issues a high-confidence new-session recommendation in bold yellow when warranted. Use when resuming a session, asking "where were we?", or when the chunk of work feels finished.
+description: Personalized situation report — mirrors /sitrep's full output, actively scans for queued work and recommends a specific pick, then issues a high-confidence new-session recommendation in bold yellow when warranted. Also routes a stated intent to the right workspace (proceed here / join a live session / provision an isolated worktree) so parallel threads don't collide. Use when resuming a session, asking "where were we?", when the chunk of work feels finished, or when starting a new thread with "/sup <what I want to do>".
 allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 ---
 
 # Sup — Situation Report (Derek's flavor)
 
-`/sup` is a **strict superset of `/sitrep`** with three additions: (1) a **Session recap** that answers "wait, what the hell was I doing in this terminal window?" for cold returns, (2) actively scanning the repo for queued work and recommending a specific pick, and (3) evaluating whether to recommend a fresh Claude session.
+`/sup` is a **strict superset of `/sitrep`** with these additions: (1) a **Session recap** that answers "wait, what the hell was I doing in this terminal window?" for cold returns, (2) actively scanning the repo for queued work and recommending a specific pick, (3) evaluating whether to recommend a fresh Claude session, and (4) **intent routing** — when invoked with a stated intent (`/sup <what I want to do>`), placing that new thread where it won't collide with work already in flight.
 
-`/sup` answers two questions equally: "where are we with this project, what's next?" _and_ "what was happening in this window when I walked away?" The Last-commit line carries a relative timestamp so the reader can gauge staleness at a glance — the longer it's been, the more the Session recap is doing the work.
+`/sup` answers three questions: "where are we with this project, what's next?", "what was happening in this window when I walked away?", and — when you hand it an intent — "where should this new thread actually run so it doesn't trip over my other sessions?" The Last-commit line carries a relative timestamp so the reader can gauge staleness at a glance — the longer it's been, the more the Session recap is doing the work.
 
 `/sitrep` itself is upstream-tracked (joewalnes/skills) and intentionally left untouched. Use `/sup` instead.
 
@@ -16,8 +16,10 @@ allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 
 1. **Produce the full sitrep output** (see "Sitrep mirror" below). Never drop sections that sitrep would include — especially **Next steps**.
 2. **Surface sibling sessions and relay state** (see "Sibling sessions & relay" below). Always runs — independent of whether current work is parkable. If a hot sibling matches what the user just typed `/sup` to find, it outranks anything in the backlog scan.
-3. **Scan the backlog and recommend a pick** (see "Backlog scan & pick" below). Run only when current work is parkable; otherwise skip. If a hot sibling already covers the candidate pick's topic, defer to the sibling instead of recommending a fresh pick here.
-4. **Evaluate the new-session recommendation** (see "New-session check" below). Most of the time, emit nothing. Only fire when the bar is genuinely cleared.
+3. **Branch on whether an intent was supplied:**
+   - **Intent supplied** (`/sup <what I want to do>`) → **route it** (see "Intent routing" below) instead of scanning the backlog. The user already declared the work; the job is to place it so it doesn't collide — proceed here / join a live thread / provision an isolated worktree. Skip the backlog scan.
+   - **No intent** ("where am I / what's next") → **scan the backlog and recommend a pick** (see "Backlog scan & pick" below). Run only when current work is parkable; otherwise skip. If a hot sibling already covers the candidate pick's topic, defer to the sibling instead of recommending a fresh pick here.
+4. **Evaluate the new-session recommendation** (see "New-session check" below). Most of the time, emit nothing. Only fire when the bar is genuinely cleared. (Runs in both branches.)
 
 ## Modifier — `!` (report, then act)
 
@@ -26,6 +28,7 @@ allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 - **`/sup !`** — produce the full report exactly as below (sequence steps 1–4, including the Pick), **then act on it**: don't stop at recommending the Pick — proceed to start that work, bugs first, with the same autonomy as `/next !`. In effect `/sup !` = `/sup` followed by `/next !` on the resulting top candidate.
 - **Defer to the same guards `/sup` already honors.** If a hot sibling session or an active relay turn outranks the Pick (steps 2–3), surface that and **do not** auto-start — the whole point of those guards is "don't start parallel work to something already in flight." `!` raises decisiveness; it does not bulldoze the don't-collide checks.
 - **The new-session check (step 4) still runs first.** If `/sup` would recommend bouncing to a fresh session, `!` honors that — it surfaces the recommendation rather than starting work in an impaired session.
+- **`/sup ! <intent>`** — route the intent (see "Intent routing"), then act on the placement without waiting for a `go`: if placement is "provision a new worktree," create it and start the work there; if "proceed here," just start. Still defers to placement "join an existing home" — never auto-starts a parallel thread over a live sibling.
 
 Plain `/sup` is unchanged: report and recommend, never auto-start.
 
@@ -77,7 +80,7 @@ Report structure (omit empty sections, keep each to 1–3 lines max):
 
 **Backlog:** One-line inventory of queued work surfaced by the scan (see "Backlog scan & pick"). Only when current chunk is parkable.
 
-**Pick:** One specific recommendation with one-line reasoning. Only when current chunk is parkable.
+**Pick:** One specific recommendation with one-line reasoning, rendered as the **Recommended next** block (see Rules) so a bare `go` acts on it. Only when current chunk is parkable. In the intent-routing branch, the placement decision _is_ this block.
 ```
 
 Same rules as /sitrep: brief, one sentence per item, don't read file contents unless something in the diff looks suspicious, scan diffs for obvious unfinished markers.
@@ -107,6 +110,37 @@ Source: `relay-status` when `design/relay/STATE.md` exists. Relay is the cross-h
 - When `active: <host>`, render: `🟢 Relay active on <host>` plus the cycle summary from the body if short. Higher importance — if the active host **is not** the current host, the ball is elsewhere and starting unrelated work here may step on a pending handoff; surface that explicitly.
 
 This is the cross-host analogue of sibling sessions: same "don't start parallel work to something already in flight" goal, different transport.
+
+## Intent routing
+
+Triggered when `/sup` is invoked **with a stated intent** — `/sup <what I want to do here>`. This is the front door for "I just had an idea and want to start working on it _now_," which is exactly when collisions happen: the user opens a fresh session in a hub repo and starts a thread that trips over another live session in the same files. The job here is **not** to recommend _what_ to do (the user said) — it's to **place** the work so it doesn't collide. It reuses the sibling-session + worktree data already gathered in steps 1–2; it adds no new scanning to the bare-`/sup` hot path.
+
+The underlying model: work has a **divergent** phase (thinking-by-working — usually additive, low-collision) and a **convergent** phase (landing the conclusion into shared files — high-collision, serial). Isolation makes the divergent phase safe to wander; landing becomes a deliberate merge.
+
+Classify the intent into one of three placements:
+
+1. **Proceed here.** No live sibling overlaps the intent, and the intent is additive (a new doc/file) or touches only files no other session is in. Just start — this is the common case. Don't manufacture isolation that isn't needed.
+
+2. **Join an existing home.** A sibling session (from `sibling-sessions.py`) or a topic-matching worktree/branch (`git worktree list`) already owns this intent. Recommend switching to that window/worktree rather than starting a parallel thread. This is the collision `/sup` exists to prevent — surface it loudly; it outranks "proceed here."
+
+3. **Provision a new worktree.** The intent will touch _existing shared files_ (not purely additive) **and** another session is live — so wandering into those files here would collide. Recommend an isolated branch and, on confirmation, provision it: `superpowers:using-git-worktrees` is the canonical path, or directly `git worktree add ~/code/worktrees/<repo>/<short-slug> -b <branch>` (the location convention from `~/.claude/CLAUDE.md`). Then launch/cd a session there.
+
+### Repo ownership (the federated case)
+
+The intent's owning repo may not be the cwd. A skills-behavior change belongs in `dgroo/skills`; a global-config change in `~/.claude` (`dot-claude`); a shell/script change in the dotfiles bare repo; a self-contained feature in its own project repo (the easy case — same-repo worktree, e.g. Changer). **Name the owning repo and provision the worktree _there_**, not in the hub repo you happen to be sitting in. `rcs` and other hubs are the _cockpit_ you launch from, not necessarily where the work lands. When the owning repo is ambiguous, ask before provisioning.
+
+### The `$HOME`-spine carve-out
+
+Two homes **can't** be meaningfully worktree-isolated:
+
+- The **dotfiles bare repo** (work-tree is `$HOME`) — there's no per-thread tree to branch into.
+- **`~/.claude`** — it's a normal repo, but the _checked-out_ copy is the live config the running agent reads; an edit in a worktree wouldn't take effect.
+
+For an intent landing in either, the placement opinion is **"you're the single writer for this config right now"** — check the sibling block and proceed only if no other session is editing it — _not_ "here's a worktree." The design/thinking for such a change can still live in an isolated doc; only the final config write serializes.
+
+### How to close
+
+End with the structured **Recommended next** block (see Rules) so a bare `go`/`yes` acts on the placement — provision-and-start for (3), start-in-place for (1), or "switch to `<window>`" for (2). With `!` (`/sup ! <intent>`), skip the confirmation and act, honoring the same guards.
 
 ## Backlog scan & pick
 
@@ -205,18 +239,29 @@ When invoked as `/sup help`, print the following block verbatim:
 
 ```
 sup — Personalized sitrep (Derek's flavor). Strict superset of /sitrep
-with four additions: Session recap; sibling-session + relay awareness;
-backlog scan + pick recommendation; new-session check. Answers "where
-are we, what's next?", "what was I doing in this terminal?", and
-"is something already in flight elsewhere that I should join instead?"
+with five additions: Session recap; sibling-session + relay awareness;
+backlog scan + pick recommendation; new-session check; intent routing.
+Answers "where are we, what's next?", "what was I doing in this terminal?",
+"is something already in flight elsewhere that I should join instead?",
+and — given an intent — "where should this new thread run so it doesn't
+collide?"
 
-Usage: /sup [!]
+Usage: /sup [!] [<intent>]
+
+Argument:
+  <intent>  A description of the thread you're about to start. Switches
+            step 3 from backlog-scan to intent routing: classify as
+            proceed-here / join-existing-session / provision-new-worktree
+            (in the OWNING repo, federated-aware), then close with a
+            one-word-actionable Recommended-next block. dotfiles + ~/.claude
+            can't be worktree-isolated — there it's single-writer-in-place.
 
 Modifier:
-  !   Report as usual, THEN act on the Pick (bugs first), same autonomy
-      as /next !. Defers to hot-sibling / relay / new-session guards —
-      won't auto-start work already in flight elsewhere. Plain ? is a
-      no-op here (/sup is already read-only), so it isn't implemented.
+  !   Report as usual, THEN act on the Pick / intent placement (bugs
+      first), same autonomy as /next !. Defers to hot-sibling / relay /
+      new-session guards — won't auto-start work already in flight
+      elsewhere. Plain ? is a no-op here (/sup is already read-only), so
+      it isn't implemented.
 
 Sequence:
   1. Sitrep mirror       Full upstream /sitrep output (never drops sections,
@@ -231,14 +276,20 @@ Sequence:
                          last user message. Plus relay-status one-liner when
                          design/relay/STATE.md exists. Always runs.
                          A hot sibling outranks the Backlog pick.
-  3. Backlog scan        Only when current chunk is parkable. Runs the shared
+  3. Branch on intent:
+     • no intent  →    Backlog scan (parkable only). Runs the shared
                          ~/bin/backlog-scan (same machinery as /next): TODO.md,
                          stories/ready, stories/drafts, helping-hands, pending
                          REVISIT, open PRs, stale branches.
-  4. Pick                One specific recommendation with one-line reasoning,
-                         chosen by: unblocks-downstream → removes-risk →
-                         session-capacity → continuity → smaller-concrete-wins.
-                         Defers to a topic-matching hot sibling.
+     • <intent>   →    Intent routing. Classify proceed-here /
+                         join-existing / provision-worktree (owning repo,
+                         federated-aware; dotfiles + ~/.claude are
+                         single-writer-in-place). Skips backlog.
+  4. Pick / placement    One recommendation as a Recommended-next block a bare
+                         `go` executes. Backlog pick chosen by: unblocks-
+                         downstream → removes-risk → session-capacity →
+                         continuity → smaller-concrete-wins. Defers to a
+                         topic-matching hot sibling.
   5. New-session check   Default silence. Fires only when continuing THIS
                          conversation would be measurably worse than starting
                          fresh. Authoritative signal: the real number in
@@ -258,6 +309,7 @@ See SKILL.md for full reference.
 
 ## Rules
 
+- **Close with a one-word-actionable recommendation.** Whether the recommendation is the backlog **Pick** (no-intent flow) or an **Intent routing** placement, render it as a structured **Recommended next** line a bare `go` / `yes` executes without re-typing — e.g. `**Recommended next:** start `stories/ready/payment-retry.md` — reply \`go\` to begin, or name another.` or `**Recommended next:** provision a worktree in `dgroo/skills` for this — reply \`go\`, or \`here\` to work in place.` This collapses the old two-turn ceremony (`/sup` → "ok, pick up what's next") into one: a bare affirmative is equivalent to having run `/sup !` on that recommendation, and honors the same don't-collide guards. (Cold-resume legibility: the recommendation should be executable, not just prose.)
 - The sitrep portion is non-negotiable. **Always show Next steps** when work is non-trivial.
 - **Always show Session recap**, even on a fresh session — render `_Fresh session — no prior activity in this window._` if there's nothing yet. The "what was I doing here" failure mode is what the recap exists to fix; making it conditional defeats that.
 - The new-session line is a high-confidence signal, not a hedge. If you're not sure, omit it.
