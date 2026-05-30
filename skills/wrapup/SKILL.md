@@ -1,6 +1,6 @@
 ---
 name: wrapup
-description: Actively assess whether this session is safe to end. Inventories in-flight state, executes routine wrap-prep writes (DIARY entries, story files, NEXT.md updates, queue notes) directly, asks only for commits, then gives a definitive READY / WAIT / STAY verdict. With an intent hint, also judges whether THIS session is the right place for that next chunk and pushes back if it is.
+description: Actively assess whether this session is safe to end. Inventories in-flight state, executes routine wrap-prep writes (DIARY entries, story files, NEXT.md updates, queue notes) directly, auto-commits and pushes complete work (surfacing only ambiguous or destructive cases), then gives a definitive READY / WAIT / STAY verdict. With an intent hint, also judges whether THIS session is the right place for that next chunk and pushes back if it is.
 argument-hint: "[<optional intent for next work>]"
 ---
 
@@ -16,11 +16,11 @@ Use when you're about to bounce the session and want a yes-or-no answer (not sil
 
 ## Three verdicts
 
-| Verdict      | When                                                                                                                  | What                                                                                         |
-| ------------ | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| ✅ **READY** | Clean tree, decisions journaled, tasks resolved or written down. Or intent hint isn't a fit for this session's cache. | Confirm safe-to-bounce. End.                                                                 |
-| ⏸ **WAIT**   | Something in-flight would be lost or hard to pick up cold.                                                            | List items + proposed prep, ask permission for any writes, execute approved prep, re-assess. |
-| ↺ **STAY**   | Intent hint matches what this session has hot in cache. Bouncing would discard real context value.                    | Push back: explain what's in cache that helps, suggest staying. User decides.                |
+| Verdict      | When                                                                                                                  | What                                                                                                  |
+| ------------ | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| ✅ **READY** | Clean tree, decisions journaled, tasks resolved or written down. Or intent hint isn't a fit for this session's cache. | Confirm safe-to-bounce. End.                                                                          |
+| ⏸ **WAIT**   | Something in-flight would be lost or hard to pick up cold, and resolving it needs a call only you can make.           | List items + proposed prep, surface the ambiguous/destructive call, execute once resolved, re-assess. |
+| ↺ **STAY**   | Intent hint matches what this session has hot in cache. Bouncing would discard real context value.                    | Push back: explain what's in cache that helps, suggest staying. User decides.                         |
 
 ## Sequence
 
@@ -39,22 +39,19 @@ Gather in parallel — same shape as `/sup`'s sitrep mirror, with sharper edges 
 
 Don't read whole files — this is a scan, not an audit. Heuristic: would a fresh CC session running `/sup` on this repo have everything it needs?
 
-### Phase 1.5: Offer pre-wrap commit sweep
+### Phase 1.5: Auto commit-and-push sweep
 
-If Phase 1's `git status` surfaced uncommitted changes that look **complete-and-committable** (not mid-experiment dirt the conversation already flagged as WIP), open with a single up-front offer before the rest of wrap-prep:
-
-> "You have N uncommitted change(s) — run `/cpush` first to land them as atomic commits, then I'll resume wrap-prep against a clean tree?"
-
-- **If yes**: invoke `/cpush` directly. It commits everything as atomic commits and pushes. After it completes, re-confirm `git status` is clean, then continue to Phase 2 / Phase 3 — the "uncommitted changes" bullets in Phase 3 are now mostly moot.
-- **If no**: skip this phase; the existing Phase 3 bullets for uncommitted changes still apply per-file.
+If Phase 1's `git status` surfaced uncommitted changes that look **complete-and-committable** (not mid-experiment dirt the conversation already flagged as WIP), **just run `/cpush` directly** — no up-front offer. Invoking `/wrapup` is itself the instruction to "make sure everything is recorded and pushed so I can start fresh"; treat that as standing authorization to land the session's complete work. `/cpush` commits everything as atomic commits and pushes. After it completes, re-confirm `git status` is clean, then continue to Phase 2 / Phase 3 — the "uncommitted changes" bullets in Phase 3 are now mostly moot.
 
 Skip Phase 1.5 entirely when:
 
 - The tree is already clean.
-- The conversation already established that the dirt is mid-experiment / intentional WIP (don't re-litigate).
+- The conversation already established that the dirt is mid-experiment / intentional WIP (don't re-litigate). Surface it in the verdict instead of committing it.
 - Only stashes are dirty (Phase 3 handles those separately).
 
-Rationale: across observed sessions, `/cpush` then `/wrapup` ran as a two-step ceremony at session end. Surfacing the commit sweep up front collapses it to one entry point, and the diary entries written in Phase 3 can then reference the just-landed SHAs cleanly.
+**Surface-don't-auto carve-outs** (the "something really needs your attention" cases): if landing the work would require a **destructive git op** (force-push, `git reset`, rebase, history rewrite, `rm` of tracked files), stop and ask per-instance — the global Safety rule still governs those, and `/wrapup` does not override it. Likewise, if the dirty tree is genuinely ambiguous (can't tell complete work from mid-experiment dirt from the conversation), surface it rather than guessing.
+
+Rationale: across observed sessions, `/cpush` then `/wrapup` ran as a two-step ceremony at session end, and `/wrapup` was reliably approving the commit + push anyway. Collapsing the offer into an automatic sweep removes the rubber-stamp step; the diary entries written in Phase 3 can then reference the just-landed SHAs cleanly. The only things still gated are the irreversible ones.
 
 ### Phase 2: Judge cache-relevance (only if intent hint given)
 
@@ -76,7 +73,7 @@ If STAY: skip Phase 3, emit ↺ STAY verdict with the specific signals that fire
 
 ### Phase 3: Execute prep (only if Phase 1 found in-flight state)
 
-**Default: just do the writes.** Routine wrap-prep is mechanical journaling and bookkeeping — DIARY entries, story files, NEXT.md updates, queue notes. These are low-judgment, easily edited afterward, and asking-for-OK on each one adds friction without value. Write them directly. Reserve explicit permission for the genuinely costly operations: commits and destructive ops.
+**Default: just do the writes, then commit and push them.** Routine wrap-prep is mechanical journaling and bookkeeping — DIARY entries, story files, NEXT.md updates, queue notes. These are low-judgment, easily edited afterward, and asking-for-OK on each one adds friction without value. Write them directly, then land them — invoking `/wrapup` is the explicit authorization to commit and push the session's work (it overrides the global "never commit unless explicitly asked" default for exactly this skill, because the invocation _is_ the ask). Reserve per-instance confirmation for the genuinely irreversible operations: destructive git ops (force-push, `git reset`, rebase, `rm` of tracked files) and dirty trees you can't confidently classify as complete-vs-WIP.
 
 Standard preps:
 
@@ -84,10 +81,10 @@ Standard preps:
 - **In-flight todos worth not losing**: write to `design/NEXT.md`, `design/stories/drafts/`, or — if the project has a `dev-inbox` — a dev-inbox entry. Default to the lightest-weight surface that won't get forgotten.
 - **New stories surfaced this session**: file in `design/stories/ready/` (design baked) or `design/stories/drafts/` (design still open). Same just-write principle — story files are durable but easily edited.
 - **Open TaskList items that are actually done**: mark them completed. Items genuinely incomplete: leave open + flag in the verdict.
-- **Uncommitted changes that should land**: usually already handled by Phase 1.5's `/cpush` offer. If the user declined `/cpush` (or `/cpush` skipped something), draft an atomic commit message and ask before running `git commit`. (Per global CLAUDE.md "Never commit unless explicitly asked.") If the project has pre-commit hooks, dry-run them first so the user sees any hook output as part of the proposal, not as a mid-commit surprise.
-- **Uncommitted changes that are mid-experiment**: surface — propose either committing-as-WIP, stashing with a descriptive name, or leaving as-is with a note. Default suggestion is "leave as-is, but note it" — most mid-experiment dirt should not become a commit.
+- **Uncommitted changes that should land**: usually already handled by Phase 1.5's automatic `/cpush` sweep. If something was left uncommitted (e.g. `/cpush` skipped it), draft atomic commit(s) and run `/cpush` directly — no OK gate, per the auto-commit-and-push default above. If the project has pre-commit hooks, let `/cpush` run them; if a hook fails, surface the failure rather than forcing past it.
+- **Uncommitted changes that are mid-experiment**: surface — propose either committing-as-WIP, stashing with a descriptive name, or leaving as-is with a note. Default suggestion is "leave as-is, but note it" — most mid-experiment dirt should not become a commit. This is the carve-out the auto-commit default explicitly excludes.
 
-After writes are done, batch any resulting uncommitted changes into one or two atomic commits and ask for OK in a single message. One commit-OK per wrapup is the goal, not one per write.
+After the Phase 3 writes are done, land them too: batch the resulting changes into atomic commit(s) and push via `/cpush` directly — no separate OK. The only things that still pause for you are the carve-outs (destructive ops, ambiguous dirty trees).
 
 ### Phase 4: Session recap
 
@@ -145,7 +142,7 @@ If you're tempted to skip the journal-decisions check because "the diff captures
 - **Always emit a verdict.** Silence is the bug this skill exists to fix.
 - **Always emit the Session recap** (Phase 4) above the verdict, even on trivial sessions. The "what was I doing in this terminal" failure mode is what the recap exists to fix; making it conditional defeats that.
 - **Verdict is final state, not preview.** The ✅ / ⏸ / ↺ block is the user's bounce signal — they see green, they leave. Never render a verdict block (or anything code-fenced that resembles one) as a hypothetical, conditional, or "once X is done" preview. Emit only after all prep is complete. See Phase 5 for the longer rationale.
-- **Never silently auto-commit.** Even when the path is obvious, ask. Mid-experiment dirty trees are sometimes intentional.
+- **Auto-commit and push complete work.** Invoking `/wrapup` is the explicit authorization to land the session's committable changes — commit and push them directly via `/cpush`, no per-write or per-commit OK. This overrides the global "never commit unless explicitly asked" default _for this skill only_, because the invocation is the ask. **Still ask per-instance for the carve-outs:** destructive git ops (force-push, `git reset`, rebase, `rm` of tracked files) per the global Safety rule, and dirty trees you can't confidently classify as complete (mid-experiment WIP is sometimes intentional — surface it, don't commit it).
 - **DIARY entries / story files / NEXT.md / queue notes: just write them.** Routine wrap-prep writes are mechanical journaling, not judgment-heavy decisions. The user edits afterward if framing's off. Propose-then-OK adds friction without judgment value at this stage. (For persona-voice journaling like `diary_propose_entry` — propose-then-curate still applies; that's a different surface where the propose step is the point.)
 - **STAY is high-confidence only.** If you're not sure whether the cache actually helps the named intent, lean READY and let the user push back. Don't manufacture a STAY out of "well, you've been working here."
 - **One sentence per inventory item.** This is a glance, not a report.
