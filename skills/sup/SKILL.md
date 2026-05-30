@@ -153,7 +153,7 @@ The bar is **not** "is this an OK time to stop?" (true after almost any complete
 
 Recommend ending this session **only when at least one of these is observably true**:
 
-- **Context pressure is verifiably real _this turn_.** A `<context-pressure>` system reminder fired **in the current turn**, OR the system has already auto-compacted this session, OR you actually catch yourself re-reading files you read earlier / having lost details from earlier in the conversation. **You CANNOT see the live context indicator from inside a turn** — so this signal must come from a turn-local observable, never from a hunch. Do NOT infer fullness from how much work you've done, how many distinct chunks the session covered, or how long it feels — those are explicit non-signals below. A `<context-pressure>` reminder from an _earlier_ turn is stale; only a current-turn one counts. Absent one of these observables, treat context as fine and stay silent.
+- **Context is verifiably low — read the real number, don't guess.** The statusline writes the percent of context _remaining_ to `~/.claude/state/context-remaining` on every render (the same value `~/.claude/hooks/context-low-check.py` trusts). Read it: `cat ~/.claude/state/context-remaining 2>/dev/null`. This is a turn-local observable — the **authoritative** one — so it beats any hunch. Fire **only when it's genuinely low (under ~30% remaining)**. A clean tree at 85% remaining is _not_ a reason — suggesting a fresh session there is the exact false-positive this gate exists to prevent. If the file is missing or unreadable, fall back to the weaker turn-local observables: a `<context-pressure>` reminder that fired **this turn** (an earlier-turn one is stale), the system having auto-compacted this session, or you actually catching yourself re-reading files / having lost earlier detail. Never infer fullness from how much work you've done, how many chunks the session covered, or how long it feels — those are explicit non-signals below.
 - **The conversation has drifted across multiple unrelated subtasks** _and_ the next requested work is again unrelated to anything currently in cache. (Three distinct topics, with a fourth pivot incoming, is a clear case.)
 - **The user has explicitly signaled a fresh-context-friendly transition** — switching projects, switching repos, "I want to start fresh on this," etc.
 
@@ -174,7 +174,7 @@ When the bar is genuinely cleared, emit as a final Bash call so it renders in re
 
 ```bash
 # Replace <reason> with the specific observable signal — not a generic "good time to stop."
-# Good: "context >70%, next slice is unrelated."
+# Good: "22% context remaining, next slice is unrelated."
 # Bad: "tree is clean, milestone shipped." (← that's just the prerequisite.)
 # Bad: "the pick runs in a different scratch dir." (← that's a non-signal.)
 printf '\n\033[1;33m⚠ THIS SESSION IS USED UP — start a fresh Claude session for the next task. Reason: <reason>\033[0m\n'
@@ -225,7 +225,9 @@ Sequence:
                          Defers to a topic-matching hot sibling.
   5. New-session check   Default silence. Fires only when continuing THIS
                          conversation would be measurably worse than starting
-                         fresh: context ≥50% / auto-compacted / drift across
+                         fresh. Authoritative signal: the real number in
+                         ~/.claude/state/context-remaining (fire under ~30%
+                         remaining). Fallbacks: auto-compacted / drift across
                          unrelated subtasks / explicit fresh-context signal.
                          Emits as ANSI-yellow Bash printf (not markdown).
 
