@@ -102,18 +102,17 @@ This is the cross-host analogue of sibling sessions: same "don't start parallel 
 
 Run **only when the current chunk is parkable** — clean tree, or one obvious commit away from clean. If there's substantive in-flight work (mid-refactor, uncommitted changes spanning multiple files, half-applied feature), **skip this entire section**. Sitrep's Next steps already says what to resume; piling on a backlog pick is noise.
 
-### Where to scan (parallel, skip non-existent paths)
+### Where to scan
 
-Common surfaces, in roughly the order they tend to matter:
+Run the shared scanner — one command, one definition of "where queued work lives" (the same machinery `/next` uses, so the two skills never drift):
 
-- `TODO.md`, `design/TODO.md` — open entries (use `/todo` and `/bug-bash` if present).
-- `design/stories/ready/*.md` — stories explicitly marked ready to work on (Derek's groot-project convention). Outranks `drafts/`.
-- `design/stories/drafts/*.md` — drafted but not yet promoted.
-- `design/helping-hands/*.md` — items needing user action (often unblock other work).
-- `gh pr list --state open --limit 10` — open PRs (skip if `gh` not installed or no GitHub remote).
-- `git branch --no-merged main | head` — stale branches with unmerged work.
+```bash
+backlog-scan
+```
 
-Project-specific patterns to recognize if they exist: `BACKLOG.md`, `ROADMAP.md`, `NOTES.md`, plus anything obvious in the working directory. **Glance briefly — don't deep-read.** Counts and titles are enough.
+It emits a grouped, counted inventory of `TODO.md` (open entries), `design/stories/ready` (outranks drafts), `design/stories/drafts`, `design/helping-hands`, pending `REVISIT.md` items, open PRs, and stale branches — surfaces with nothing are shown as `— 0`. Use its titles and counts directly. **Glance — don't deep-read;** read an individual file only if a candidate genuinely needs disambiguating.
+
+If `backlog-scan` isn't on PATH (older host, dotfiles not yet pulled), fall back to a quick manual glance at `TODO.md`, `design/stories/ready/*.md`, `design/helping-hands/*.md`, and `gh pr list` — but the script is the intended path; surface the gap so it gets installed.
 
 ### What to render
 
@@ -216,9 +215,10 @@ Sequence:
                          last user message. Plus relay-status one-liner when
                          design/relay/STATE.md exists. Always runs.
                          A hot sibling outranks the Backlog pick.
-  3. Backlog scan        Only when current chunk is parkable. Scans TODO.md,
-                         design/stories/ready, design/stories/drafts,
-                         design/helping-hands, open PRs, stale branches.
+  3. Backlog scan        Only when current chunk is parkable. Runs the shared
+                         ~/bin/backlog-scan (same machinery as /next): TODO.md,
+                         stories/ready, stories/drafts, helping-hands, pending
+                         REVISIT, open PRs, stale branches.
   4. Pick                One specific recommendation with one-line reasoning,
                          chosen by: unblocks-downstream → removes-risk →
                          session-capacity → continuity → smaller-concrete-wins.
