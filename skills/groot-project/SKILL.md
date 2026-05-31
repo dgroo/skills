@@ -358,6 +358,7 @@ This project uses the `/groot-project` `design/` subtree, a root-level `DIARY.md
 - **User-action items** — `design/helping-hands/`. For tasks that need the user's hands, credentials, paid subscriptions, or physical access. Not for things Claude can do.
 - **Engineering diary** — root `DIARY.md`, rolling chronological narrative (latest entries on top). Separate from `design/notes/` (frozen snapshots) and `design/plans/` (forward-looking implementation blueprints).
 - **Changelog** — `git log` is canonical. No separate `CHANGELOG.md` by default.
+- **Cross-host handoff (optional, not enabled)** — if this project will be driven from more than one host, the Roci↔Serenity relay can hand work between Claude Code instances via git commits (human pulled in only for pushes/decisions). Off by default; run `/relay-setup` to add a `design/relay/` mailbox. Skip for single-host projects.
 - **Atomic commits, pre-commit test/lint, test-first, mistake retrospectives, encoding preferences** — covered globally in `~/.claude/CLAUDE.md`. Do not duplicate here.
 
 If `/project-setup` is invoked later, it should _infer skips_ from this block (and from the file/heading evidence above) rather than from item numbers — Joe's upstream may renumber. Specifically:
