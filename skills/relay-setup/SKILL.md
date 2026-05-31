@@ -18,7 +18,7 @@ After the skill runs, Derek reviews + pushes, then either edits STATE.md to flip
 ## How this fits with neighbors
 
 - **Relay scripts** live in dotfiles at `~/bin/relay-*` (`relay-status`, `relay-handoff`, `relay-wait`, `relay-flag-human`). The skill DOES NOT install them — they're a dotfiles dependency. It does check for them and warns if missing. Install via `dotpull` if needed.
-- **Design doc** for the protocol: `~/code/0.llm/remote-coding-setup/design/relay/DESIGN.md`. Read that first if you're not familiar with the relay.
+- **Design doc** for the protocol: `~/code/groot-claude-coord/design/relay/DESIGN.md`. Read that first if you're not familiar with the relay.
 - **`/groot-project`** may eventually offer this as a Phase X option for newly bootstrapped projects. For now, run `/relay-setup` separately after `/groot-project` if you want the relay.
 
 ## When NOT to run this
@@ -101,11 +101,11 @@ Prerequisites:
 Does NOT commit (lets you review staged changes first). Does NOT push.
 
 Protocol design doc:
-  ~/code/0.llm/remote-coding-setup/design/relay/DESIGN.md
+  ~/code/groot-claude-coord/design/relay/DESIGN.md
 
 See SKILL.md for full reference.
 ```
 
 ## Background
 
-Full design: `~/code/0.llm/remote-coding-setup/design/relay/DESIGN.md`. Decision rationale, state machine, failure modes, and the four resolved design questions live there. This skill is just the per-project init step from the "Sequencing for build" footer of that doc.
+Full design: `~/code/groot-claude-coord/design/relay/DESIGN.md`. Decision rationale, state machine, failure modes, and the four resolved design questions live there. This skill is just the per-project init step from the "Sequencing for build" footer of that doc.
