@@ -1,6 +1,6 @@
 ---
 name: sup
-description: Personalized situation report — mirrors /sitrep's full output, actively scans for queued work and recommends a specific pick, then issues a high-confidence new-session recommendation in bold yellow when warranted. Also routes a stated intent to the right workspace (proceed here / join a live session / provision an isolated worktree) so parallel threads don't collide. Use when resuming a session, asking "where were we?", when the chunk of work feels finished, or when starting a new thread with "/sup <what I want to do>".
+description: Personalized situation report — mirrors /sitrep's full output, actively scans for queued work and recommends a specific pick, then issues a high-confidence new-session recommendation in bold yellow when warranted. Also routes a stated intent to the right workspace (proceed here / join a live session / provision an isolated worktree) so parallel threads don't collide; the `wt` modifier forces the worktree placement (act-unless-overkill). Use when resuming a session, asking "where were we?", when the chunk of work feels finished, or when starting a new thread with "/sup <what I want to do>" (or "/sup wt <intent>" when you already know it wants isolation).
 allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 ---
 
@@ -31,6 +31,17 @@ allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 - **`/sup ! <intent>`** — route the intent (see "Intent routing"), then act on the placement without waiting for a `go`: if placement is "provision a new worktree," create it and start the work there; if "proceed here," just start. Still defers to placement "join an existing home" — never auto-starts a parallel thread over a live sibling.
 
 Plain `/sup` is unchanged: report and recommend, never auto-start.
+
+## Modifier — `wt` (force a worktree)
+
+`/sup wt <intent>` is a **placement override**, the inverse of the default router's "_might_ suggest a worktree." Here the user has pre-decided that this thread wants isolation; the skill's job flips from "should this be isolated?" to "isolate it — unless you, the agent, think that's overkill." Requires an intent (it's an intent-routing variant); bare `/sup wt` with no intent is meaningless — treat it as plain `/sup`.
+
+- **Act, don't ask.** Route the intent as usual, but treat **a worktree in the owning repo as the presumed placement**, and act on it with the same autonomy as `!`: provision the worktree and start the work without waiting for `go`. `wt` therefore _subsumes_ `!` — no need to type both (`/sup ! wt` is harmless but redundant).
+- **Push back when it's genuinely overkill.** The user explicitly delegates this veto. Don't provision — surface the objection and the cheaper placement, and let a bare `go` override — when the intent is **purely additive** (a new doc/file with nothing to collide with) or when **no parallel work touches the target files** (isolation buys nothing). A worktree's whole cost is setup + a later merge; if there's nothing to be isolated _from_, say so.
+- **Hard carve-out — not a judgment call.** If the owning repo is the **dotfiles bare repo** or **`~/.claude`** (the `$HOME`-spine carve-out), a worktree is _impossible_, not merely unwise — there's no per-thread tree to branch into. Don't provision; fall back to single-writer-in-place and say why. This overrides the "act" default.
+- **Same don't-collide guards.** `wt` defers to placement "join an existing home" exactly as `!` does — if a live sibling or topic-matching worktree already owns the intent, surface that and switch rather than provisioning a _parallel_ worktree over in-flight work. And it provisions in the **owning repo** (federated-aware), not the hub cwd you typed it in.
+
+Provision via `git worktree add ~/code/worktrees/<repo>/<short-slug> -b <branch>` (the `~/.claude/CLAUDE.md` location convention) or `superpowers:using-git-worktrees`, then launch/cd a session there.
 
 ## Sitrep mirror
 
@@ -249,7 +260,7 @@ Answers "where are we, what's next?", "what was I doing in this terminal?",
 and — given an intent — "where should this new thread run so it doesn't
 collide?"
 
-Usage: /sup [!] [<intent>]
+Usage: /sup [! | wt] [<intent>]
 
 Argument:
   <intent>  A description of the thread you're about to start. Switches
@@ -259,12 +270,18 @@ Argument:
             one-word-actionable Recommended-next block. dotfiles + ~/.claude
             can't be worktree-isolated — there it's single-writer-in-place.
 
-Modifier:
-  !   Report as usual, THEN act on the Pick / intent placement (bugs
-      first), same autonomy as /next !. Defers to hot-sibling / relay /
-      new-session guards — won't auto-start work already in flight
-      elsewhere. Plain ? is a no-op here (/sup is already read-only), so
-      it isn't implemented.
+Modifiers:
+  !    Report as usual, THEN act on the Pick / intent placement (bugs
+       first), same autonomy as /next !. Defers to hot-sibling / relay /
+       new-session guards — won't auto-start work already in flight
+       elsewhere. Plain ? is a no-op here (/sup is already read-only), so
+       it isn't implemented.
+  wt   Placement override (needs an intent): presume a worktree in the
+       OWNING repo and act on it (provision + start, subsumes !) — the
+       inverse of the router's "might suggest a worktree." Pushes back
+       instead when it's overkill (purely additive / nothing to isolate
+       from); falls back to single-writer-in-place for dotfiles + ~/.claude
+       (no tree to branch). Honors the same join-existing guard.
 
 Sequence:
   1. Sitrep mirror       Full upstream /sitrep output (never drops sections,
