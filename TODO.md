@@ -7,7 +7,8 @@
 
 ## Open
 
-(none)
+- [ ] **P3** (bug) `/sup` sibling-detection false-positives on the just-`/clear`ed session — 2026-06-02
+  After a `/clear`, `sibling-sessions.py` reports the *predecessor* transcript as a hot parallel sibling: the clear writes an `away_summary` to the old jsonl, so it shows up as "active Ns ago" with a topic hint that matches the current arc (because it *is* the current arc). This led `/sup` to recommend "switch windows rather than restart here" when there was no real parallel session. Fix idea: suppress a sibling whose latest `away_summary` timestamp ≈ the current session's start time (the `/clear` fingerprint), or whose jsonl stopped being written right as the current one began. Confirmed live on Serenity26 in the Changer theme-prototype worktree.
 
 ## Done
 
