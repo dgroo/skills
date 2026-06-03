@@ -18,6 +18,7 @@ allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 2. **Surface sibling sessions and relay state** (see "Sibling sessions & relay" below). Always runs — independent of whether current work is parkable. If a hot sibling matches what the user just typed `/sup` to find, it outranks anything in the backlog scan.
 3. **Branch on whether an intent was supplied:**
    - **Intent supplied** (`/sup <what I want to do>`) → **route it** (see "Intent routing" below) instead of scanning the backlog. The user already declared the work; the job is to place it so it doesn't collide — proceed here / join a live thread / provision an isolated worktree. Skip the backlog scan.
+     - **Strip a leading `and`.** Derek habitually writes `/sup and <intent>` — the `and` is a grammatical lead-in meaning "do the don't-collide check *and* here's what I want to work on," not part of the intent. Drop a single leading `and` (and surrounding whitespace) before routing, so `/sup and roci --newc` routes the intent `roci --newc`. It's a politeness particle, not a separate mode — the collision check already runs in this branch regardless. (A bare `/sup` with no intent stays the situation-report; `and` only ever appears alongside a real intent.)
    - **No intent** ("where am I / what's next") → **scan the backlog and recommend a pick** (see "Backlog scan & pick" below). Run only when current work is parkable; otherwise skip. If a hot sibling already covers the candidate pick's topic, defer to the sibling instead of recommending a fresh pick here.
 4. **Evaluate the new-session recommendation** (see "New-session check" below). Most of the time, emit nothing. Only fire when the bar is genuinely cleared. (Runs in both branches.)
 
@@ -125,7 +126,7 @@ This is the cross-host analogue of sibling sessions: same "don't start parallel 
 
 ## Intent routing
 
-Triggered when `/sup` is invoked **with a stated intent** — `/sup <what I want to do here>`. This is the front door for "I just had an idea and want to start working on it _now_," which is exactly when collisions happen: the user opens a fresh session in a hub repo and starts a thread that trips over another live session in the same files. The job here is **not** to recommend _what_ to do (the user said) — it's to **place** the work so it doesn't collide. It reuses the sibling-session + worktree data already gathered in steps 1–2; it adds no new scanning to the bare-`/sup` hot path.
+Triggered when `/sup` is invoked **with a stated intent** — `/sup <what I want to do here>` (a leading `and` is stripped first; see Sequence step 3). This is the front door for "I just had an idea and want to start working on it _now_," which is exactly when collisions happen: the user opens a fresh session in a hub repo and starts a thread that trips over another live session in the same files. The job here is **not** to recommend _what_ to do (the user said) — it's to **place** the work so it doesn't collide. It reuses the sibling-session + worktree data already gathered in steps 1–2; it adds no new scanning to the bare-`/sup` hot path.
 
 The underlying model: work has a **divergent** phase (thinking-by-working — usually additive, low-collision) and a **convergent** phase (landing the conclusion into shared files — high-collision, serial). Isolation makes the divergent phase safe to wander; landing becomes a deliberate merge.
 
@@ -269,6 +270,8 @@ Argument:
             (in the OWNING repo, federated-aware), then close with a
             one-word-actionable Recommended-next block. dotfiles + ~/.claude
             can't be worktree-isolated — there it's single-writer-in-place.
+            A leading "and" is stripped, so "/sup and <intent>" == "/sup
+            <intent>" (the "and" is just a grammatical lead-in).
 
 Modifiers:
   !    Report as usual, THEN act on the Pick / intent placement (bugs
