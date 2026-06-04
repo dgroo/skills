@@ -1,6 +1,6 @@
 ---
 name: next
-description: Forward-only "what should I pick up?" — scans the project's queued-work surfaces (TODO, ready/draft stories, helping-hands, REVISIT, open PRs, stale branches) and presents a few dependency- and leverage-ranked candidates via AskUserQuestion. Pick one or specify your own. Use when asking "what's next?", "what should I work on?", "what should I pick up?", or "/next". Companion to /sup — /next is forward-only with no situation recap and offers multiple options; /sup is situation-report-first with a single pick.
+description: Forward-only "what should I pick up?" — scans the project's queued-work surfaces (TODO, ready/draft stories, helping-hands, REVISIT, open PRs, stale branches) and presents a few dependency- and leverage-ranked candidates via AskUserQuestion. Pick one or specify your own. Use when asking "what's next?", "what should I work on?", "what should I pick up?", or "/next". Companion to /sup — /next is forward-only with no situation recap and offers the options as an interactive AskUserQuestion chooser; /sup is situation-report-first and surfaces the same ranking as a non-blocking list (no prompt).
 allowed-tools: Read, Glob, Grep, Bash, AskUserQuestion
 ---
 
@@ -120,8 +120,9 @@ Also: after you pick, a conservative context-window check may suggest a
 fresh session / clear / compact — only when remaining context is genuinely
 low AND the pick is substantial. Reads ~/.claude/state/context-remaining.
 
-Companion to /sup (situation-report-first, single pick). /next is
-forward-only, no recap, multiple options.
+Companion to /sup (situation-report-first; same ranking as a
+non-blocking list, no prompt). /next is forward-only, no recap, and
+presents the options as an interactive AskUserQuestion chooser.
 
 See SKILL.md for full reference.
 ```

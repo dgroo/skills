@@ -1,12 +1,12 @@
 ---
 name: sup
-description: Personalized situation report — mirrors /sitrep's full output, actively scans for queued work and recommends a specific pick, then issues a high-confidence new-session recommendation in bold yellow when warranted. Also routes a stated intent to the right workspace (proceed here / join a live session / provision an isolated worktree) so parallel threads don't collide; the `wt` modifier forces the worktree placement (act-unless-overkill). Use when resuming a session, asking "where were we?", when the chunk of work feels finished, or when starting a new thread with "/sup <what I want to do>" (or "/sup wt <intent>" when you already know it wants isolation).
+description: Personalized situation report — mirrors /sitrep's full output, actively scans for queued work and ranks the top candidates (#1 go-able, non-blocking — no AskUserQuestion), then issues a high-confidence new-session recommendation in bold yellow when warranted. Also routes a stated intent to the right workspace (proceed here / join a live session / provision an isolated worktree) so parallel threads don't collide; the `wt` modifier forces the worktree placement (act-unless-overkill). Use when resuming a session, asking "where were we?", when the chunk of work feels finished, or when starting a new thread with "/sup <what I want to do>" (or "/sup wt <intent>" when you already know it wants isolation).
 allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 ---
 
 # Sup — Situation Report (Derek's flavor)
 
-`/sup` is a **strict superset of `/sitrep`** with these additions: (1) a **Session recap** that answers "wait, what the hell was I doing in this terminal window?" for cold returns, (2) actively scanning the repo for queued work and recommending a specific pick, (3) evaluating whether to recommend a fresh Claude session, and (4) **intent routing** — when invoked with a stated intent (`/sup <what I want to do>`), placing that new thread where it won't collide with work already in flight.
+`/sup` is a **strict superset of `/sitrep`** with these additions: (1) a **Session recap** that answers "wait, what the hell was I doing in this terminal window?" for cold returns, (2) actively scanning the repo for queued work and ranking the top candidates (#1 go-able, non-blocking), (3) evaluating whether to recommend a fresh Claude session, and (4) **intent routing** — when invoked with a stated intent (`/sup <what I want to do>`), placing that new thread where it won't collide with work already in flight.
 
 `/sup` answers three questions: "where are we with this project, what's next?", "what was happening in this window when I walked away?", and — when you hand it an intent — "where should this new thread actually run so it doesn't trip over my other sessions?" The Last-commit line carries a relative timestamp so the reader can gauge staleness at a glance — the longer it's been, the more the Session recap is doing the work.
 
@@ -19,7 +19,7 @@ allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 3. **Branch on whether an intent was supplied:**
    - **Intent supplied** (`/sup <what I want to do>`) → **route it** (see "Intent routing" below) instead of scanning the backlog. The user already declared the work; the job is to place it so it doesn't collide — proceed here / join a live thread / provision an isolated worktree. Skip the backlog scan.
      - **Strip a leading `and`.** Derek habitually writes `/sup and <intent>` — the `and` is a grammatical lead-in meaning "do the don't-collide check *and* here's what I want to work on," not part of the intent. Drop a single leading `and` (and surrounding whitespace) before routing, so `/sup and roci --newc` routes the intent `roci --newc`. It's a politeness particle, not a separate mode — the collision check already runs in this branch regardless. (A bare `/sup` with no intent stays the situation-report; `and` only ever appears alongside a real intent.)
-   - **No intent** ("where am I / what's next") → **scan the backlog and recommend a pick** (see "Backlog scan & pick" below). Run only when current work is parkable; otherwise skip. If a hot sibling already covers the candidate pick's topic, defer to the sibling instead of recommending a fresh pick here.
+   - **No intent** ("where am I / what's next") → **scan the backlog and rank the top candidates** (see "Backlog scan & pick" below). Run only when current work is parkable; otherwise skip. If a hot sibling already covers the top candidate's topic, defer to the sibling instead of recommending fresh work here.
 4. **Evaluate the new-session recommendation** (see "New-session check" below). Most of the time, emit nothing. Only fire when the bar is genuinely cleared. (Runs in both branches.)
 
 ## Modifier — `!` (report, then act)
@@ -92,7 +92,7 @@ Report structure (omit empty sections, keep each to 1–3 lines max):
 
 **Backlog:** One-line inventory of queued work surfaced by the scan (see "Backlog scan & pick"). Only when current chunk is parkable.
 
-**Pick:** One specific recommendation with one-line reasoning, rendered as the **Recommended next** block (see Rules) so a bare `go` acts on it. Only when current chunk is parkable. In the intent-routing branch, the placement decision _is_ this block.
+**Picks:** The top 2–3 ranked candidates, one line each, with **#1 rendered as the `Recommended next` block** (see Rules) so a bare `go` acts on it; #2–3 let you see the ranking and name another without running `/next`. Non-blocking — no AskUserQuestion (that's `/next`). Only when current chunk is parkable. In the intent-routing branch this collapses to a single block — the placement decision _is_ the Recommended next.
 ```
 
 Same rules as /sitrep: brief, one sentence per item, don't read file contents unless something in the diff looks suspicious, scan diffs for obvious unfinished markers.
@@ -176,10 +176,10 @@ If `backlog-scan` isn't on PATH (older host, dotfiles not yet pulled), fall back
 Add these lines to the sitrep report, right after Next steps:
 
 - **Backlog:** Compact inventory. Example: `TODO.md (5 open), stories/ready (3), helping-hands (2), no open PRs, 1 stale branch (refactor-auth).` Skip surfaces with zero items. **Exclude the `HUMAN-REVIEW (open)` count from this line** — it's not pickable work.
-- **Pick:** One specific recommendation with one-line reasoning. Example: `Start stories/ready/payment-retry.md — ready, unblocks 2 downstream items, ~2 hours.`
+- **Picks:** The top 2–3 candidates as a compact ranked list — same ranking the [picking criteria](#picking-criteria-tiebreakers-in-order) define (the ranking `/next` also uses), each one line with its leverage/dependency reason. Render **#1 as the `Recommended next` block** (see Rules) so a bare `go` acts on it; #2–3 are listed so you can see the ranking and name another without having to run `/next` afterward. **Non-blocking** — do _not_ open an AskUserQuestion here (that interactive chooser is `/next`'s job; `/sup` stays a glance). Example: `1. stories/ready/payment-retry.md — unblocks 2 downstream items (Recommended next — reply go) · 2. helping-hands/rotate-keys.md — gates the deploy story · 3. TODO: prune done-log — small, self-contained.`
 - **Human-review:** Only when `backlog-scan`'s `HUMAN-REVIEW (open)` count is >0 _and_ something survives the confidence filter (see Rules). Render as a **gentle gate**, never do-now pressure and never as the Pick — e.g. `👀 N item(s) waiting for your eyes (non-blocking) — want the list, or skip?`. Omit entirely when 0 or when nothing survives.
 
-If nothing's queued anywhere, render: `**Backlog:** Nothing obvious queued — what would you like to work on?` and skip the Pick line.
+If nothing's queued anywhere, render: `**Backlog:** Nothing obvious queued — what would you like to work on?` and skip the Picks list.
 
 ### Picking criteria (tiebreakers in order)
 
@@ -308,11 +308,13 @@ Sequence:
                          join-existing / provision-worktree (owning repo,
                          federated-aware; dotfiles + ~/.claude are
                          single-writer-in-place). Skips backlog.
-  4. Pick / placement    One recommendation as a Recommended-next block a bare
-                         `go` executes. Backlog pick chosen by: unblocks-
+  4. Picks / placement   Top 2-3 ranked candidates (non-blocking list, no
+                         AskUserQuestion — that's /next); #1 is a Recommended-
+                         next block a bare `go` executes. Ranked by: unblocks-
                          downstream → removes-risk → session-capacity →
                          continuity → smaller-concrete-wins. Defers to a
-                         topic-matching hot sibling.
+                         topic-matching hot sibling. Intent branch collapses
+                         to a single placement block.
   5. New-session check   Default silence. Fires only when continuing THIS
                          conversation would be measurably worse than starting
                          fresh. Authoritative signal: the real number in
