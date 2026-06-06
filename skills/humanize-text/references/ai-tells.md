@@ -71,3 +71,5 @@ These are **never** mechanical and **never** silently edited. Surface them; the 
 ## The constellation rule
 
 No single item here convicts. A lone em-dash, one tricolon, one "moreover" — all human. The signal is **density and co-occurrence**: several layers firing together in a short span. Weight detection toward clusters, not isolated hits, and always let the voice profile veto a token the author genuinely owns.
+
+**Genre conditions the whole list.** Several layers here (Layer 3 openers, Layer 4 signposting/structure, Layer 6 markdown) are normal in technical-narrative and design docs but suspect in casual prose or email. Load the target's genre from the voice profile first; raise the conviction bar for layers the author legitimately uses in that genre. The cross-genre invariants (em-dash habits, spacing) are the exception — they hold regardless of genre.

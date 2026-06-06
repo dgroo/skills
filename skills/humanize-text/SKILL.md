@@ -56,7 +56,7 @@ Editing prose in place is destructive if there's no way back. Before proposing e
 | `review`       | Detect-and-report only. No proposal, no write. Good for "how bad is this?". |
 | `profile`      | Print the active voice profile.                                             |
 | `profile edit` | Edit `~/.claude/voice/profile.md` directly.                                 |
-| `profile add`  | Add real writing samples or confirmed personal tells to the profile.        |
+| `profile add`  | Add real writing samples or confirmed personal tells, tagged by genre.      |
 | `help`         | Print usage (see Help section).                                             |
 
 ---
@@ -67,11 +67,15 @@ Editing prose in place is destructive if there's no way back. Before proposing e
 
 Resolve the file or grab the pasted text. Run the safety gate above. For pasted text, skip straight to detection — nothing gets written.
 
-### 2. Load the voice profile
+### 2. Load the voice profile and match the genre
 
-Read `~/.claude/voice/profile.md`. It records, per author, the tells that are _actually theirs_ and a few real writing samples for calibration.
+Read `~/.claude/voice/profile.md`. It is organized in three tiers: **cross-genre invariants** (habits true in everything the author writes — highest confidence, never genre-gated), **per-genre calibration** (what's normal _in this genre_), and a **coverage tracker** of which genres have samples.
 
-If the profile is **missing or empty**, do not guess from the repo. Bootstrap it: ask the author to paste 2–3 samples of writing they personally typed (chat messages, emails, Slack), extract the recurring habits, write them to the profile, and _then_ run detection. A first run is allowed to be a profile-building run.
+**Voice is genre-conditioned, so genre comes first.** Identify the target's genre — chat, email, technical-narrative (walkthroughs, design docs), prose/marketing — by content and structure; if it's ambiguous, ask. Then load Tier-1 invariants plus the matching Tier-2 bucket. The same construct can be a tell in one genre and the author's own habit in another (a punchy "Here's where X earns its keep" reads as the AI "Here's the thing" reveal in casual prose, but is native to this author's walkthrough voice — the profile records exactly these).
+
+**If the genre is uncalibrated** (not in the coverage tracker): run **Tier-1 invariants only**, mark every Tier-2-type finding **low confidence** and route it to review rather than the silent diff, and offer to seed a bucket for that genre — from the text at hand or a pasted hand-written sample (`/humanize-text profile add`).
+
+**If the profile is missing or empty:** do not guess from the repo. Bootstrap it — ask for 2–3 samples the author personally typed, extract the habits, tag them by genre, write the profile, _then_ run detection. A first run is allowed to be a profile-building run.
 
 ### 3. Detect the tells
 
@@ -118,7 +122,7 @@ Ask: **accept mechanical / accept mechanical + selected word-choice / use origin
 
 **Why a persistent file, not per-run inference:** voice is stable and slow to change; rebuilding it from scratch every run is wasted effort and drifts. The file grows: every time the author corrects a false positive ("that em-dash is mine"), append it.
 
-**Shape:** real samples + a list of confirmed-personal habits. Keep it small and concrete. It is not documentation — it's calibration data.
+**Shape:** three tiers — cross-genre invariants, per-genre calibration (with a coverage tracker), and real samples tagged by genre. Keep it small and concrete; keep genres to a few broad buckets, not a fine taxonomy (over-splitting makes every run hit an "uncalibrated" genre and nag). It is not documentation — it's calibration data.
 
 **Tracking:** `~/.claude/voice/` can be tracked in the dot-claude repo so the profile follows the author across machines. Surface that on first creation; don't assume it.
 
