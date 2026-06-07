@@ -55,7 +55,7 @@ Gather context in parallel:
 5. `git stash list` — anything stashed
 6. Check for running background tasks (TaskList tool)
 7. If `scripts/upstream-check.sh` exists at repo root, run it — surfaces unpulled upstream commits. (Only meaningful in the skills repo; silently skip elsewhere.)
-8. `python3 ~/.claude/skills/sup/sibling-sessions.py` — surfaces other CC sessions active in this project's cwd within the last 2 hours, with a topic hint per session. Prints nothing when no siblings; just include verbatim.
+8. `python3 ~/.claude/skills/sup/sibling-sessions.py` — surfaces other CC sessions in this project's cwd whose last turn was within the last 2 hours, each tagged `active` / `idle` / `predecessor` (liveness is the last real turn, not the file mtime), with a topic hint. Prints nothing when no siblings; just include verbatim. **Only `active` lines are possible live collisions.**
 9. If `design/relay/STATE.md` exists, run `relay-status` for a one-line relay state; silently skip if the file doesn't exist or `relay-status` isn't on PATH.
 10. Scan conversation history for what was last discussed
 
@@ -68,7 +68,7 @@ Report structure (omit empty sections, keep each to 1–3 lines max):
 
 **Worktrees:** Only when `git worktree list` shows >1 entry. Render each as `path · branch · commit`. If any sibling's branch name plausibly matches the current task topic or what's about to be discussed, explicitly flag: `→ This work likely belongs on <branch> — confirm before editing on main.` Don't ask reflexively when siblings exist for unrelated topics; only flag when there's a topic match.
 
-**Sibling sessions:** Verbatim block from `sibling-sessions.py` when non-empty. Omit when the script prints nothing. If any sibling's topic plausibly matches what the user just invoked `/sup` for (continuing recent work, post-`/clear` confusion), explicitly flag `→ Looks like that work is live in `<id>` — switch windows rather than restarting here.` See "Sibling sessions & relay" section.
+**Sibling sessions:** Verbatim block from `sibling-sessions.py` when non-empty. Omit when the script prints nothing. If an **`active`** sibling's topic plausibly matches what the user just invoked `/sup` for, explicitly flag `→ Looks like that work is live in `<id>` — switch windows rather than restarting here.` A `predecessor`/`idle` line that matches is just your own prior work (post-`/clear` is the common case) — ambient context, not a live thread. See "Sibling sessions & relay" section.
 
 **Relay:** One-line summary of `relay-status` output when in a project with `design/relay/STATE.md`. Examples: `⚪ parked since 2026-05-21` or `🟢 active on rocinante24, last handoff 2026-05-21T02:51Z`. Omit when no relay scaffolding.
 
@@ -103,14 +103,23 @@ The `/sup` failure mode this section exists to prevent: user has multiple CC ses
 
 ### Sibling sessions (local)
 
-Source: `python3 ~/.claude/skills/sup/sibling-sessions.py`. The script reads `~/.claude/projects/<encoded-cwd>/*.jsonl` files, excludes the current session via `$CLAUDE_CODE_SESSION_ID`, filters to files modified within the last 120 minutes (configurable via `$SUP_SIBLING_WINDOW_MIN`), and emits a topic hint per sibling. Topic priority: latest `away_summary` content → `custom-title` → last user message.
+Source: `python3 ~/.claude/skills/sup/sibling-sessions.py`. The script reads `~/.claude/projects/<encoded-cwd>/*.jsonl` files, excludes the current session via `$CLAUDE_CODE_SESSION_ID`, and emits a topic hint per sibling. Topic priority: latest `away_summary` content → `custom-title` → last user message.
+
+**Liveness comes from the last actual turn, not the file mtime — and the script says so explicitly with a per-line `active` / `idle` / `predecessor` label. Trust the label; do not re-derive liveness from the age string.** The mtime of a session's jsonl bumps when the session *ends* (summary/metadata writes), so the old mtime-based reading would report a just-closed session as "active 20s ago" — the exact false collision that sent a `/sup` chasing a window that wasn't live. The labels mean:
+
+- **`active`** — last turn within `$SUP_SIBLING_LIVE_MIN` (default 8m) **and** after the current session's first turn. This is the only label that may be a genuine live collision.
+- **`predecessor`** — ended within the live window *before* this session started. Almost always the pre-`/clear` self (`/clear` rotates `$CLAUDE_CODE_SESSION_ID`, so the old id is no longer caught by the exclusion and returns as a same-topic "sibling"). **Never a collision — never elevate it.**
+- **`idle`** — shown for context (older prior session) but not live.
+
+The outer "show at all" cutoff stays `$SUP_SIBLING_WINDOW_MIN` (default 120m).
 
 When the block is non-empty:
 
 - **Include the verbatim output** in the report under `**Sibling sessions:**`.
-- **Read each topic hint and decide whether one matches the current invocation's context.** Strong signals: the user just `/clear`d and is asking "where were we," a sibling's topic mentions the same files/skills/stories you're about to recommend, the sibling is very recent (≤15 min) and the current session is freshly cleared.
-- **When a match is plausible, elevate it.** Add an explicit `→ Looks like that work is live in `<id>` — switch windows rather than restarting here.` line. This outranks anything the Backlog scan would otherwise recommend.
-- **When no match is plausible**, the block is still useful as ambient awareness ("there are 3 other windows in this project") — keep the verbatim emission, skip the elevation.
+- **Only `active` lines are elevation candidates.** A `predecessor` or `idle` line whose topic matches what you're about to do is *expected* (it's usually your own prior work) — note it as ambient context, never as "that work is live elsewhere."
+- **For an `active` line, read the topic and decide whether it matches the current invocation's context.** Strong signals: the user just `/clear`d and is asking "where were we," its topic mentions the same files/skills/stories you're about to recommend.
+- **When an `active` match is plausible, elevate it.** Add an explicit `→ Looks like that work is live in `<id>` — switch windows rather than restarting here.` line. This outranks anything the Backlog scan would otherwise recommend.
+- **When no `active` match is plausible**, the block is still useful as ambient awareness ("there are 3 other windows in this project") — keep the verbatim emission, skip the elevation.
 - **Same-checkout siblings — the real risk is data loss, not duplicate work.** A sibling sharing *this checkout* (not a worktree) can't be footprint-orthogonal: they share one index, working tree, and branch, regardless of topic. For just-me repos the *cosmetic* collisions — interleaved commits, one session sweeping another's staged edits into its commit, messy merge history — are **fine and not worth flagging or blocking on**. What *is* worth flagging is the narrow set that can actually lose work or wedge the tree: when the sibling block is non-empty and a sibling shares this checkout, **never force-push**, and before any destructive or history-rewriting git op (`reset --hard`, branch switch / `checkout`, `rebase`, `stash`, `clean`) confirm `git status` shows only your intended changes — those ops can silently clobber a sibling's uncommitted or unpushed work. A rejected (non-fast-forward) push is resolved by `fetch` + **merge** (never force, never rebase over commits a sibling may be holding), after verifying the tree is clean and the changed-file sets are disjoint. This is the only sibling concern that rises to "stop and check"; everything else is ambient awareness.
 
 If `sibling-sessions.py` is missing or errors, silently skip the section. The skill should never block on it.
@@ -293,12 +302,15 @@ Sequence:
                          Includes Session recap — always emitted, bulleted
                          summary of what THIS conversation has done.
   2. Sibling + relay     Scans ~/.claude/projects/<cwd>/ for other CC
-                         sessions active in the last 120 min (configurable
-                         via $SUP_SIBLING_WINDOW_MIN). Topic hint per session
-                         pulled from latest away_summary / custom-title /
-                         last user message. Plus relay-status one-liner when
-                         design/relay/STATE.md exists. Always runs.
-                         A hot sibling outranks the Backlog pick.
+                         sessions whose last turn was within 120 min
+                         (configurable via $SUP_SIBLING_WINDOW_MIN), each
+                         tagged active / idle / predecessor by LAST TURN, not
+                         file mtime ($SUP_SIBLING_LIVE_MIN, default 8m, sets
+                         the active window; predecessor = the pre-/clear self).
+                         Topic hint per session pulled from latest away_summary
+                         / custom-title / last user message. Plus relay-status
+                         one-liner when design/relay/STATE.md exists. Always
+                         runs. Only an `active` sibling outranks the Backlog pick.
   3. Branch on intent:
      • no intent  →    Backlog scan (parkable only). Runs the shared
                          ~/bin/backlog-scan (same machinery as /next): TODO.md,
