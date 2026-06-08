@@ -168,46 +168,26 @@ End with the structured **Recommended next** block (see Rules) so a bare `go`/`y
 
 Run **only when the current chunk is parkable** — clean tree, or one obvious commit away from clean. If there's substantive in-flight work (mid-refactor, uncommitted changes spanning multiple files, half-applied feature), **skip this entire section**. Sitrep's Next steps already says what to resume; piling on a backlog pick is noise.
 
-### Where to scan
+### Build the candidate pool
 
-Run the shared scanner — one command, one definition of "where queued work lives" (the same machinery `/next` uses, so the two skills never drift):
+Read [`backlog-ranking.md`](../next/backlog-ranking.md) (installed at `~/.claude/skills/next/backlog-ranking.md` — the candidate model shared with `/next`, so the two can't drift) and follow it: run `backlog-scan` (§1), harvest this conversation's still-**outstanding** loose ends (§2), then rank the merged pool by the ranking criteria (§3) under the grounding rules (§4).
 
-```bash
-backlog-scan
-```
-
-It emits a grouped, counted inventory of `TODO.md` (open entries), `design/stories/ready` (outranks drafts), `design/stories/drafts`, `design/helping-hands`, pending `REVISIT.md` items, open PRs, and stale branches — surfaces with nothing are shown as `— 0`. Use its titles and counts directly. **Glance — don't deep-read;** read an individual file only if a candidate genuinely needs disambiguating.
-
-If `backlog-scan` isn't on PATH (older host, dotfiles not yet pulled), fall back to a quick manual glance at `TODO.md`, `design/stories/ready/*.md`, `design/helping-hands/*.md`, and `gh pr list` — but the script is the intended path; surface the gap so it gets installed.
-
-### Also harvest conversation loose ends
-
-The backlog is only what got _filed_; a live session almost always leaves still-open work that never made it to a file, and that's a legitimate Pick candidate. Pull outstanding threads from this conversation into the candidate pool alongside the backlog: things the assistant said it would do but didn't, items it _surfaced_ but didn't act on (the "surface opportunities, don't silently act" rule), carry-forwards / deferred sub-tasks it parked, bugs noticed-but-not-fixed. This is `/next`'s step 3, run here too so `/sup`'s Pick sees the same universe `/next` does.
-
-Two distinctions keep it honest: (a) **forward-only, not the recap** — you've already produced the Session recap above, which is _descriptive_ (what happened, finished work included); this harvest takes only the still-**outstanding** subset and feeds the Pick. (b) **same two filters as `/next`** — dedup against the backlog scan and against what's already committed this session (filed or shipped ≠ open), and route not-mine items (another host's `dotpull`, user-hands/credential-gated work) to the **Human-review**-style aside, not the Pick. On a fresh session this yields nothing and the Pick is pure backlog, exactly as before.
+One `/sup`-specific note on the harvest: the Session recap you produced above is the _descriptive_ "what happened" (finished work included); the §2 harvest is _forward-only_ and feeds the Pick — only the still-open subset. Render the result per "What to render" below — `/sup` shows a non-blocking Pick, **not** `/next`'s AskUserQuestion chooser.
 
 ### What to render
 
 Add these lines to the sitrep report, right after Next steps:
 
 - **Backlog:** Compact inventory. Example: `TODO.md (5 open), stories/ready (3), helping-hands (2), no open PRs, 1 stale branch (refactor-auth).` Skip surfaces with zero items. **Exclude the `HUMAN-REVIEW (open)` count from this line** — it's not pickable work.
-- **Picks:** The top 2–3 candidates as a compact ranked list, drawn from the merged pool (backlog + conversation loose ends) — same ranking the [picking criteria](#picking-criteria-tiebreakers-in-order) define (the ranking `/next` also uses), each one line with its leverage/dependency reason. **Mark conversation-derived candidates** (e.g. `(this session)`) so the source is legible — they didn't come from a file the user can re-read. Render **#1 as the `Recommended next` block** (see Rules) so a bare `go` acts on it; #2–3 are listed so you can see the ranking and name another without having to run `/next` afterward. **Non-blocking** — do _not_ open an AskUserQuestion here (that interactive chooser is `/next`'s job; `/sup` stays a glance). Example: `1. stories/ready/payment-retry.md — unblocks 2 downstream items (Recommended next — reply go) · 2. helping-hands/rotate-keys.md — gates the deploy story · 3. TODO: prune done-log — small, self-contained.`
+- **Picks:** The top 2–3 candidates as a compact ranked list, drawn from the merged pool (backlog + conversation loose ends) — ranked per [`backlog-ranking.md`](../next/backlog-ranking.md) §3 (the same criteria `/next` uses), each one line with its leverage/dependency reason. **Mark conversation-derived candidates** (e.g. `(this session)`) so the source is legible — they didn't come from a file the user can re-read. Render **#1 as the `Recommended next` block** (see Rules) so a bare `go` acts on it; #2–3 are listed so you can see the ranking and name another without having to run `/next` afterward. **Non-blocking** — do _not_ open an AskUserQuestion here (that interactive chooser is `/next`'s job; `/sup` stays a glance). Example: `1. stories/ready/payment-retry.md — unblocks 2 downstream items (Recommended next — reply go) · 2. helping-hands/rotate-keys.md — gates the deploy story · 3. TODO: prune done-log — small, self-contained.`
 - **Human-review:** Only when `backlog-scan`'s `HUMAN-REVIEW (open)` count is >0 _and_ something survives the confidence filter (see Rules). Render as a **gentle gate**, never do-now pressure and never as the Pick — e.g. `👀 N item(s) waiting for your eyes (non-blocking) — want the list, or skip?`. Omit entirely when 0 or when nothing survives.
 
 If nothing's queued anywhere, render: `**Backlog:** Nothing obvious queued — what would you like to work on?` and skip the Picks list.
 
-### Picking criteria (tiebreakers in order)
-
-1. **Unblocks downstream work.** Helping-hands often gate other items; ready stories may be prerequisites for drafts.
-2. **Removes risk.** Security, data loss, broken main, compliance.
-3. **Matches session capacity.** If context is already getting full (but you're not recommending a new session), prefer something small. If fresh, can be ambitious.
-4. **Continuity with current context.** If files just touched relate to a queued item, that's a strong pull. Conversation-harvested loose ends score high here almost by definition (they came out of what you were _just_ doing), so weight them on genuine leverage/unblocking, not the continuity they trivially have, or they'll always win.
-5. **Tied?** Smaller concrete item over larger ambiguous one.
-
 ### Rules for this section
 
-- Only recommend something you've actually seen in a file, command output, or this conversation's scrollback. **No imagined options** — a conversation candidate must be a real, quotable loose end (something actually said or left undone), not a task you inferred the project "should" want.
-- If you read a story/helping-hands file to check it, surface a _one-line_ characterization — don't paste contents.
+Ranking criteria and the baseline grounding rules (no imagined options, conversation candidates must be quotable, REVISIT is time-gated, HUMAN-REVIEW is never a candidate) live in [`backlog-ranking.md`](../next/backlog-ranking.md) §3–4. The `/sup`-specific additions:
+
 - Don't pad with detailed pros/cons. One pick, one reason. The user will ask if they want more.
 - If you genuinely can't pick (everything looks equally good or equally unclear), say so and list the top 2–3 options for the user to choose from. Don't force a fake recommendation.
 - **Defer to a hot sibling.** If the Sibling-sessions block already flagged an active thread whose topic overlaps your candidate pick, recommend continuing in that window instead. Don't compete with a live session.
