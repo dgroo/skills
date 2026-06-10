@@ -174,6 +174,24 @@ Read [`backlog-ranking.md`](../next/backlog-ranking.md) (installed at `~/.claude
 
 One `/sup`-specific note on the harvest: the Session recap you produced above is the _descriptive_ "what happened" (finished work included); the §2 harvest is _forward-only_ and feeds the Pick — only the still-open subset. Render the result per "What to render" below — `/sup` shows a non-blocking Pick, **not** `/next`'s AskUserQuestion chooser.
 
+After `backlog-scan`, also check two additional surfaces and fold their results into the candidate pool:
+
+- **Global spark inbox.** Run `spark-drain status` (infers the project from the
+  git repo name). It prints `<project_count> <total_active_count>`.
+  - If `project_count > 0`: surface `spark-drain list` output as a candidate —
+    "N spark(s) waiting for this project" — and offer to file them
+    (`spark-drain file`) into `design/IDEAS.md`, or review/skip. Filing is the
+    user's call, not automatic.
+  - If only `total_active_count > 0`: add a single low-priority line —
+    "+M spark(s) in the global inbox for other projects" — so they're not invisible.
+  - If `spark-drain` is absent or errors (e.g. on a host without the inbox cloned),
+    silently skip — never block the report.
+- **Project sparkfile backlog.** If `design/IDEAS.md` exists and has entries
+  (lines starting `- ` below the `---` header), surface a low-priority line —
+  "N unreviewed spark(s) in design/IDEAS.md — `/idea review`?" — so filed sparks
+  don't rot unread. (This closes the standing gap that neither skill scanned the
+  sparkfile at all.) Skip silently if the file is absent or has no entries.
+
 ### What to render
 
 Add these lines to the sitrep report, right after Next steps:
@@ -305,7 +323,10 @@ Sequence:
                          REVISIT, open PRs, stale branches — plus a harvest of
                          outstanding loose ends from this conversation (forward-
                          only, deduped vs backlog), so the Pick sees what /next
-                         does.
+                         does. Also runs spark-drain status (project sparks as
+                         a candidate; global-inbox-only as a low-priority line;
+                         absent/erroring tool silently skipped) and checks
+                         design/IDEAS.md for unreviewed filed sparks.
      • <intent>   →    Intent routing. Classify proceed-here /
                          join-existing / provision-worktree (owning repo,
                          federated-aware; dotfiles + ~/.claude are

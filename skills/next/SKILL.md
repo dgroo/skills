@@ -97,6 +97,23 @@ What it scans:
     REVISIT.md (pending) · open PRs · stale branches
     (HUMAN-REVIEW open items are scanned too but never offered as a
      pick — surfaced as a non-blocking "waiting for your eyes" aside.)
+  Global spark inbox (spark-drain):
+    Run `spark-drain status` (infers the project from the git repo
+    name). It prints `<project_count> <total_active_count>`.
+    If project_count > 0: surface `spark-drain list` output as a
+    candidate — "N spark(s) waiting for this project" — and offer to
+    file them (`spark-drain file`) into `design/IDEAS.md`, or
+    review/skip. Filing is the user's call, not automatic.
+    If only total_active_count > 0: add a single low-priority line —
+    "+M spark(s) in the global inbox for other projects" — so they're
+    not invisible.
+    If spark-drain is absent or errors, silently skip — never block
+    the report.
+  Project sparkfile backlog (design/IDEAS.md):
+    If the file exists and has entries (lines starting `- ` below the
+    `---` header), surface a low-priority candidate — "N unreviewed
+    spark(s) in design/IDEAS.md — `/idea review`?" — so filed sparks
+    don't rot unread. Skip silently if absent or has no entries.
   This conversation:
     outstanding loose ends from the current session — things the
     assistant said it'd do, surfaced-but-not-acted-on items, parked
