@@ -7,7 +7,8 @@
 
 ## Open
 
-- [ ] **P3** (bug) `/sup` sibling-detection false-positives on the just-`/clear`ed session — 2026-06-02
+- [ ] **P3** (chore) Decide: stay a fork of joewalnes/skills, or restructure as a wrapper/overlay — 2026-06-09
+  Derek recalls an rcs-session conversation proposing converting this repo from a fork of Joe's into something that *wraps* it (pull upstream skills without fork history). The outcome was never recorded — searched all design docs, diaries, TODO/REVISIT surfaces, and CC transcripts (2026-06-09); no trace outside the session that re-raised it. Needs a fresh decision: fork (status quo: `upstream-check.sh`/`check-upstream-edits.sh` + `make upstream-*` targets manage drift) vs wrapper (e.g. upstream as a plugin-marketplace install or git submodule/subtree, personal skills as pure overlay — cf. the "third-party skills via plugin marketplace" precedent in rcs auto-memory). Blocks beginners-mind R17 (renaming `upstream-*` scripts to `fork-*` is wasted churn if the restructure happens).
   After a `/clear`, `sibling-sessions.py` reports the *predecessor* transcript as a hot parallel sibling: the clear writes an `away_summary` to the old jsonl, so it shows up as "active Ns ago" with a topic hint that matches the current arc (because it *is* the current arc). This led `/sup` to recommend "switch windows rather than restart here" when there was no real parallel session. Fix idea: suppress a sibling whose latest `away_summary` timestamp ≈ the current session's start time (the `/clear` fingerprint), or whose jsonl stopped being written right as the current one began. Confirmed live on Serenity26 in the Changer theme-prototype worktree.
 
 ## Done
