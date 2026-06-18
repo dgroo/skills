@@ -30,7 +30,7 @@ Skip when the project doesn't have a `REVISIT.md` and the item being filed is th
 
 ## Auto-discovery
 
-`REVISIT.md` lives at the project root (sibling of `TODO.md`, `DIARY.md`). If absent and the user is asking to file, propose creating it. Don't silently scaffold into a different convention.
+**`design/REVISIT.md` is the canonical home** (sibling of `design/TODO.md`, `design/NEXT.md`, `design/DIARY.md` in the groot-project design-corpus layout); a root `REVISIT.md` is the legacy Joe-style fallback. Prefer `design/REVISIT.md` when it exists, else a root `REVISIT.md`. If neither exists and the user is asking to file, propose creating `design/REVISIT.md` when the project has a `design/` corpus (else root). Don't silently scaffold into a different convention.
 
 If multiple roots are in play (worktrees, nested repos), use the nearest enclosing root (walk up from `$PWD` to the first directory containing `.git/`).
 
@@ -129,7 +129,7 @@ If both flags are missing, ask which trigger applies. Don't default; the trigger
 ### 4. Commit
 
 ```
-git add REVISIT.md
+git add <path-to-REVISIT.md>   # design/REVISIT.md (canonical) or root REVISIT.md (legacy)
 git commit -m "revisit: <slug> (when: <date or event>)"
 ```
 

@@ -32,6 +32,8 @@ Discover the project's design layout. Typical:
 
 If the project uses a different layout (`docs/architecture/`, `docs/specs/`, etc.), adapt accordingly. If unclear, ask via `AskUserQuestion` rather than guess.
 
+**Cheap canonical-drift glance (so the base skill figures it out — no subcommand needed).** While discovering the layout, also note obvious structural drift from the canonical model: meta-files (`TODO.md` / `NEXT.md` / `REVISIT.md` / `DIARY.md`) at the **repo root** instead of `design/`, a `plans/` dir the canon folds into `stories/`, an older stories layout. If you spot any, **surface it as a finding and offer the full [Canonical conformance mode](#canonical-conformance-mode)** ("this project's meta-files are on the legacy root layout — want me to run the conformance pass and walk a migration?"). The user gets the conformance behavior from a bare `/cleanup-design`; `/cleanup-design conformance` just skips straight to it without the drift-audit. Keep this glance cheap — a directory listing, not a deep diff; the conformance mode does the real work only if the user opts in.
+
 ### 2. Scan
 
 Run focused checks per artifact category.
