@@ -176,21 +176,15 @@ One `/sup`-specific note on the harvest: the Session recap you produced above is
 
 After `backlog-scan`, also check two additional surfaces and fold their results into the candidate pool:
 
-- **Global spark inbox.** Run `spark-drain status` (infers the project from the
-  git repo name). It prints `<project_count> <total_active_count>`.
-  - If `project_count > 0`: surface `spark-drain list` output as a candidate —
-    "N spark(s) waiting for this project" — and offer to file them
-    (`spark-drain file`) into `design/IDEAS.md`, or review/skip. Filing is the
-    user's call, not automatic.
-  - If only `total_active_count > 0`: add a single low-priority line —
-    "+M spark(s) in the global inbox for other projects" — so they're not invisible.
-  - If `spark-drain` is absent or errors (e.g. on a host without the inbox cloned),
-    silently skip — never block the report.
-- **Project sparkfile backlog.** If `design/IDEAS.md` exists and has entries
-  (lines starting `- ` below the `---` header), surface a low-priority line —
-  "N unreviewed spark(s) in design/IDEAS.md — `/idea review`?" — so filed sparks
-  don't rot unread. (This closes the standing gap that neither skill scanned the
-  sparkfile at all.) Skip silently if the file is absent or has no entries.
+- **Global spark inbox (count only).** Run `spark-drain status` (project inferred
+  from the git repo name; a fast directory scan, no LLM). If `project_count > 0`, add
+  exactly ONE non-blocking line — "N spark(s) waiting for this project — `/next` to
+  review/file" — and stop. Do **not** list them or offer to file in `/sup`; that's
+  `/next`'s job. Silent when `project_count` is 0. If `spark-drain` is absent or
+  errors, skip silently.
+- **Project sparkfile backlog.** If `design/IDEAS.md` exists and has entries (lines
+  starting `- ` below the `---` header), add a low-priority line — "N unreviewed
+  spark(s) in design/IDEAS.md — `/idea review`?". Silent if absent or empty.
 
 ### What to render
 
@@ -323,10 +317,10 @@ Sequence:
                          REVISIT, open PRs, stale branches — plus a harvest of
                          outstanding loose ends from this conversation (forward-
                          only, deduped vs backlog), so the Pick sees what /next
-                         does. Also runs spark-drain status (project sparks as
-                         a candidate; global-inbox-only as a low-priority line;
-                         absent/erroring tool silently skipped) and checks
-                         design/IDEAS.md for unreviewed filed sparks.
+                         does. Also runs spark-drain status for a one-line count
+                         of pending project sparks (absent/erroring tool silently
+                         skipped) and checks design/IDEAS.md for unreviewed filed
+                         sparks as a count.
      • <intent>   →    Intent routing. Classify proceed-here /
                          join-existing / provision-worktree (owning repo,
                          federated-aware; dotfiles + ~/.claude are
