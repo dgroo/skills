@@ -1,11 +1,16 @@
 ---
 name: cleanup-design
-description: Use when asked to clean up, audit, or refresh the project's design corpus ("clean up design", "what's stale", "should anything move to done", "audit the design docs", "any drift between recent decisions and docs", "post-decision sweep"). For maintaining design-doc invariants in projects that use `design/` (or equivalent) with stories, helping-hands, notes, and canonical design docs.
+description: Use when asked to clean up, audit, or refresh the project's design corpus ("clean up design", "what's stale", "should anything move to done", "audit the design docs", "any drift between recent decisions and docs", "post-decision sweep"), OR to check a project against the canonical design-corpus model / catch a drifted project up on conventions ("does this match our standard layout", "conform this project", "/cleanup-design conformance"). For maintaining design-doc invariants in projects that use `design/` (or equivalent) with stories, helping-hands, notes, and canonical design docs.
 ---
 
 # cleanup-design
 
 Audits and refreshes a project's design corpus — `stories/`, `helping-hands/`, `notes/`, and canonical design docs (`DESIGN.md` or similar). Catches drift that accumulates when decisions are made in one place but the docs elsewhere haven't been updated yet.
+
+## Two modes
+
+- **Drift audit (default)** — the phases below. Catches drift _within_ the project: a decision made in one place that the docs elsewhere haven't caught up to. Run with bare `/cleanup-design`.
+- **Canonical conformance** (`/cleanup-design conformance`) — diffs the project's _structure_ against the federation's canonical design-corpus model, catching drift _from the standard itself_: meta-files in the wrong place, an outdated stories layout, a convention the project predates. This is the self-repair pass for "I'm back in a project I haven't touched in weeks — catch it up on our conventions." See [Canonical conformance mode](#canonical-conformance-mode).
 
 ## When to use vs. skip
 
@@ -103,6 +108,24 @@ The most useful finding type is _drift_: a recently-made decision whose spec has
 
 This is what catches "we made decision X in a helping-hand but DESIGN.md still says ~X."
 
+## Canonical conformance mode
+
+**Goal:** answer "does this project match our _current_ canonical design-corpus model, and what would bring it into line?" — the self-repair pass for a project that has drifted from the evolving standard.
+
+**Single source of truth — read it, don't hardcode.** The canonical model lives in `~/code/groot-claude-coord/design/design-corpus/DESIGN.md` (the federation design-corpus spec: the meta-file lane table, per-project-variation rules, and the §8 migration steps + "consumers to update" list). **Read that file at run time and diff against it — never bake a copy of the layout into this skill**, or the two drift (the exact failure this skill exists to prevent). If `~/code/groot-claude-coord/` is absent (different org/host), say so and skip conformance — there's no canon to diff against.
+
+**Steps:**
+
+1. **Load the canon.** Read the design-corpus `DESIGN.md`. Extract the meta-file lane table (which file lives where — `design/TODO.md`, `design/NEXT.md`, …), the stories layout, and §8 (migration steps + the consumers-to-update list).
+2. **Inventory the project.** Where are this project's `TODO.md` / `NEXT.md` / `REVISIT.md` / `DIARY.md` (root vs `design/`)? What's the `stories/` shape (`drafts/ready/done` vs flat+frontmatter vs older)? Is there a `plans/` that canon folds into `stories/`? Any missing canonical surface (`HUMAN-REVIEW.md`, per-host diary shards)?
+3. **Diff → findings.** One finding per divergence: _what canon says · what the project has · the fix · safe-or-deliberate._
+4. **Classify safe vs. deliberate — this is the load-bearing judgment.**
+   - **Safe** (apply on approval): additive, no consumer-path risk — create a missing `HUMAN-REVIEW.md`, backfill frontmatter, fix a stale cross-reference.
+   - **Deliberate** (flag with a migration plan, never one-click): **moving root meta-files into `design/` is the canonical example** — §8 calls it out as breaking path-hardcoding consumers. Before proposing such a move, **walk §8's consumers-to-update list and verify each actually tolerates the new path** — do not assume. The known trap: `~/bin/backlog-scan` reads root `TODO.md` and root `REVISIT.md` (only `NEXT.md` is `design/`-preferred with a root fallback), so migrating those two to `design/` would _silently stop them being scanned_ until backlog-scan is taught the new path. When the tooling doesn't yet support the canonical location, the finding is **"canon says X but the tooling isn't wired for it — fix the tooling first, or stay put"**, not "migrate now." Use `git mv` only after the consumer check passes.
+5. **Present + execute** as in the default mode (per-item or bulk; never auto-act on the deliberate class without an explicit go).
+
+**Don't manufacture conformance churn.** A project deliberately on an older-but-working layout is not a bug. Surface the drift, note that it works today (cite _why_ — e.g. "backlog-scan reads root `TODO.md`"), and let the user choose. Most of the value here is _visibility_, not forced uniformity — and a canon/tooling contradiction surfaced is itself a useful finding (route it to the user, since fixing it means changing the canon or the tooling, not the project).
+
 ## Common mistakes
 
 - **Aggressive auto-archive.** Moving a story to `done/` because acceptance criteria _look_ met. Always confirm with the user.
@@ -129,12 +152,22 @@ When invoked as `/cleanup-design help`, print the following block verbatim:
 ```
 cleanup-design — Audit and refresh a project's design corpus for drift.
 
-Usage: /cleanup-design
+Usage: /cleanup-design [conformance]
 
-Walks stories/, helping-hands/, notes/, and canonical design docs; catches
-drift between recently-made decisions and the docs that should reflect them.
+Two modes:
+  (default)     Drift audit — walks stories/, helping-hands/, notes/, and
+                canonical design docs; catches drift between recently-made
+                decisions and the docs that should reflect them.
+  conformance   Diffs the project's STRUCTURE against the canonical
+                design-corpus model in groot-claude-coord (read at run time,
+                not hardcoded). Catches meta-files in the wrong place, an
+                outdated stories layout, a convention the project predates.
+                The "catch a stale project up on our conventions" pass.
+                Classifies fixes safe (apply) vs. deliberate (migration plan,
+                verify §8 consumers first — e.g. backlog-scan reads root
+                TODO.md, so moving it to design/ needs the tooling taught).
 
-Phases (run in sequence):
+Drift-audit phases (run in sequence):
   Orient            Discover project's design layout.
   Scan              Per-artifact checks: stories, helping-hands, notes,
                     canonical docs, resume pointers. Drift detection is
