@@ -10,7 +10,7 @@ Run the shared scanner — one command, one definition of "where filed work live
 backlog-scan
 ```
 
-It emits a grouped, counted inventory of `TODO.md` (open entries), `design/stories/ready` (outranks drafts), `design/stories/drafts`, `design/helping-hands`, pending `REVISIT.md` items, open PRs, and stale branches — surfaces with nothing shown as `— 0`. Use its titles and counts directly. **Glance — don't deep-read;** read an individual file only when a candidate genuinely needs disambiguating (e.g. to confirm a dependency).
+It emits a grouped, counted inventory of a `## Next up` pinned section (the cross-session handoff — emitted first; see §3 rule 0), `TODO.md` (open entries), `design/stories/ready` (outranks drafts), `design/stories/drafts`, `design/helping-hands`, pending `REVISIT.md` items, open PRs, and stale branches — surfaces with nothing shown as `— 0`. Use its titles and counts directly. **Glance — don't deep-read;** read an individual file only when a candidate genuinely needs disambiguating (e.g. to confirm a dependency).
 
 If `backlog-scan` isn't on PATH (older host, dotfiles not yet pulled), fall back to a quick manual glance at `TODO.md`, `design/stories/ready/*.md`, `design/helping-hands/*.md`, and `gh pr list` — but the script is the intended path; surface the gap so it gets installed.
 
@@ -31,6 +31,8 @@ The backlog is only what got _filed_; a live session almost always leaves loose 
 On a genuinely fresh session with no prior turns this yields nothing and the pick is pure backlog — the harvest is purely additive.
 
 ## 3. Ranking criteria (tiebreakers, in order)
+
+**0. Pinned `## Next up` items come first — in their listed order — above every heuristic below.** A `## Next up` section at the top of `TODO.md` (surfaced by `backlog-scan` as `Next up (pinned, ordered)`) is work a prior session _explicitly anointed_ for this one, in priority order. Honor that order verbatim: the first pinned item is the pick, the second is next, and so on — do **not** re-rank them by the criteria below, which exist only to order the _unpinned_ pool beneath them. This ordering is exactly what a `/clear` would otherwise discard (it lives only in scrollback and `/sup`'s recap), so a pinned list is the prior session's decision surviving into this one. Label these as queued-last-session (e.g. `(pinned)`) so the source is legible. An item stays pinned until it ships, at which point it moves to `## Done`; if a pinned item is genuinely stale or no longer wanted, say so rather than silently dropping it.
 
 1. **Unblocks downstream work.** Helping-hands often gate other items; a ready story may be a prerequisite for drafts. The thing that makes _other_ things possible wins — lead with it.
 2. **Makes other work easier (leverage).** Infrastructure, a shared script, a refactor several queued items would build on. Lowers the cost of everything after it.
