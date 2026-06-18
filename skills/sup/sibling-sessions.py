@@ -45,6 +45,21 @@ LIVE_WINDOW_MIN = int(os.environ.get("SUP_SIBLING_LIVE_MIN", "8"))
 MAX_SIBLINGS = int(os.environ.get("SUP_SIBLING_MAX", "5"))
 TOPIC_MAX_LEN = 120
 
+# --- Cold-return mode (--cold) ----------------------------------------------
+# When you've been away from a project for a while, the default 120m window and
+# this conversation's scrollback are both blind — the live windows are gone (and
+# may have died in a reboot), but the transcripts persist on disk. Cold mode
+# reconstructs "what you had going last time you were here" from those files.
+#
+# Self-gating: cold mode prints nothing when the gap since last presence is below
+# COLD_THRESHOLD_HOURS, so the caller can invoke it unconditionally and treat any
+# output as the cold signal.
+COLD_THRESHOLD_HOURS = float(os.environ.get("SUP_COLD_THRESHOLD_HOURS", "20"))
+COLD_LOOKBACK_DAYS = int(os.environ.get("SUP_COLD_LOOKBACK_DAYS", "14"))
+COLD_CLUSTER_HOURS = float(os.environ.get("SUP_COLD_CLUSTER_HOURS", "48"))
+COLD_MAX_ROWS = int(os.environ.get("SUP_COLD_MAX", "10"))
+COLD_TOPIC_MAX_LEN = 60
+
 
 def encode_cwd(cwd: str) -> str:
     """Match Claude Code's project-dir encoding: replace `/` and `.` with `-`."""
@@ -140,7 +155,89 @@ def scan_session(jsonl_path: Path) -> dict | None:
     }
 
 
+def run_cold(extra_cwds: list[str]) -> int:
+    """Reconstruct the session cluster from the last time you were in this project.
+
+    Scans this checkout's project dir plus any worktree checkouts passed as args
+    (their sessions live under a differently-encoded project dir, so the default
+    cwd-scoped scan can't see them). Computes the gap since you were last present;
+    prints nothing — staying silent so the caller can treat output as the cold
+    signal — unless that gap exceeds COLD_THRESHOLD_HOURS.
+    """
+    primary = os.getcwd()
+    current_session = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+    now = time.time()
+    lookback_cutoff = now - COLD_LOOKBACK_DAYS * 86400
+
+    # (cwd, checkout-label) — the primary checkout plus each worktree path.
+    targets: list[tuple[str, str]] = [(primary, "main checkout")]
+    for path in extra_cwds:
+        path = path.strip()
+        if path and path != primary:
+            targets.append((path, Path(path).name))
+
+    sessions = []  # (last_turn_ts, session_id, info, checkout_label)
+    for cwd, label in targets:
+        project_dir = Path.home() / ".claude" / "projects" / encode_cwd(cwd)
+        if not project_dir.is_dir():
+            continue
+        for jsonl in project_dir.glob("*.jsonl"):
+            session_id = jsonl.stem
+            if session_id == current_session:
+                continue
+            info = scan_session(jsonl)
+            if info is None or info["last_turn_ts"] is None:
+                continue
+            if info["last_turn_ts"] < lookback_cutoff:
+                continue
+            sessions.append((info["last_turn_ts"], session_id, info, label))
+
+    if not sessions:
+        return 0
+
+    last_presence = max(s[0] for s in sessions)
+    gap_hours = (now - last_presence) / 3600.0
+    if gap_hours < COLD_THRESHOLD_HOURS:
+        return 0  # warm — caller stays terse, this prints nothing
+
+    # The "cluster" = sessions whose last turn falls within COLD_CLUSTER_HOURS
+    # before your last presence: the set of windows you had going at the time,
+    # not every session in the lookback period.
+    cluster_cutoff = last_presence - COLD_CLUSTER_HOURS * 3600
+    cluster = sorted((s for s in sessions if s[0] >= cluster_cutoff), reverse=True)[
+        :COLD_MAX_ROWS
+    ]
+
+    header = (
+        f"**Cold-return briefing:** last active here {human_age(now - last_presence)} — "
+        f"reconstructing what you had going (transcripts survive reboots; the live "
+        f"windows may not)."
+    )
+    if len(cluster) == 1:
+        intro = "Last time you were here, one session was going:"
+    else:
+        intro = f"Last time you were here, {len(cluster)} sessions were going:"
+
+    rows = [
+        "| Session | Working on… | Where | Last turn |",
+        "| --- | --- | --- | --- |",
+    ]
+    for last_turn_ts, session_id, info, label in cluster:
+        topic = truncate(info["topic"] or "(no topic hint)", COLD_TOPIC_MAX_LEN)
+        rows.append(
+            f"| `{session_id[:8]}` | {topic} | {label} | "
+            f"{human_age(now - last_turn_ts)} |"
+        )
+
+    print("\n".join([header, "", intro, "", *rows]))
+    return 0
+
+
 def main() -> int:
+    argv = sys.argv[1:]
+    if argv and argv[0] == "--cold":
+        return run_cold(argv[1:])
+
     cwd = os.getcwd()
     project_dir = Path.home() / ".claude" / "projects" / encode_cwd(cwd)
     if not project_dir.is_dir():

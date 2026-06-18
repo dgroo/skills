@@ -6,7 +6,9 @@ allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 
 # Sup — Situation Report (Derek's flavor)
 
-`/sup` is a **strict superset of `/sitrep`** with these additions: (1) a **Session recap** that answers "wait, what the hell was I doing in this terminal window?" for cold returns, (2) actively scanning the repo for queued work and ranking the top candidates (#1 go-able, non-blocking), (3) evaluating whether to recommend a fresh Claude session, and (4) **intent routing** — when invoked with a stated intent (`/sup <what I want to do>`), placing that new thread where it won't collide with work already in flight.
+`/sup` is a **strict superset of `/sitrep`** with these additions: (1) a **Session recap** that answers "wait, what the hell was I doing in this terminal window?" for cold returns, (2) actively scanning the repo for queued work and ranking the top candidates (#1 go-able, non-blocking), (3) evaluating whether to recommend a fresh Claude session, (4) **intent routing** — when invoked with a stated intent (`/sup <what I want to do>`), placing that new thread where it won't collide with work already in flight, and (5) a **Cold-return briefing** that fires only when you've been away from the project long enough to have lost the thread — reconstructing the sessions you had going and flagging unfinished work (stale worktrees, stashes, dirty trees) that survived the gap, so mid-flight work doesn't get silently dropped.
+
+The recap/briefing split tracks how recall decays: an in-flight `/sup` (after a `/clear`, or while juggling a few things in one sitting) can assume you remember what's going on, so it stays terse. But after days away — possibly across a reboot that killed every tmux window — you remember almost nothing, and that's exactly when mid-flight work gets dropped. The Cold-return briefing is the time-aware tier for that case; it self-gates on a staleness threshold (default 20h) and emits nothing in the warm case.
 
 `/sup` answers three questions: "where are we with this project, what's next?", "what was happening in this window when I walked away?", and — when you hand it an intent — "where should this new thread actually run so it doesn't trip over my other sessions?" The Last-commit line carries a relative timestamp so the reader can gauge staleness at a glance — the longer it's been, the more the Session recap is doing the work.
 
@@ -16,6 +18,7 @@ allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 
 1. **Produce the full sitrep output** (see "Sitrep mirror" below). Never drop sections that sitrep would include — especially **Next steps**.
 2. **Surface sibling sessions and relay state** (see "Sibling sessions & relay" below). Always runs — independent of whether current work is parkable. If a hot sibling matches what the user just typed `/sup` to find, it outranks anything in the backlog scan.
+   - **Cold-return probe.** As part of this step, run the `--cold` probe (gather step 9). It self-gates on a staleness threshold and is silent in the warm case; when it emits, render the **Cold-return briefing** (see report structure). This is the time-aware tier — see "Cold-return briefing" for the full rationale.
 3. **Branch on whether an intent was supplied:**
    - **Intent supplied** (`/sup <what I want to do>`) → **route it** (see "Intent routing" below) instead of scanning the backlog. The user already declared the work; the job is to place it so it doesn't collide — proceed here / join a live thread / provision an isolated worktree. Skip the backlog scan.
      - **Strip a leading `and`.** Derek habitually writes `/sup and <intent>` — the `and` is a grammatical lead-in meaning "do the don't-collide check *and* here's what I want to work on," not part of the intent. Drop a single leading `and` (and surrounding whitespace) before routing, so `/sup and roci --newc` routes the intent `roci --newc`. It's a politeness particle, not a separate mode — the collision check already runs in this branch regardless. (A bare `/sup` with no intent stays the situation-report; `and` only ever appears alongside a real intent.)
@@ -132,6 +135,47 @@ Source: `relay-status` when `design/relay/STATE.md` exists. Relay is the cross-h
 - When `active: <host>`, render: `🟢 Relay active on <host>` plus the cycle summary from the body if short. Higher importance — if the active host **is not** the current host, the ball is elsewhere and starting unrelated work here may step on a pending handoff; surface that explicitly.
 
 This is the cross-host analogue of sibling sessions: same "don't start parallel work to something already in flight" goal, different transport.
+
+## Cold-return briefing
+
+The failure this section exists to prevent: you work a project across several sessions, walk away, and come back **days later** — maybe after a reboot that killed every tmux window. You remember almost nothing. A worktree with half-finished work sits on disk; a session you had going on a different thread is gone from the screen. Today's `/sup` would render `_Fresh session_` and tell you nothing, because both of its recall mechanisms are blind here:
+
+- The **Session recap** is built from _this conversation's scrollback_ — empty on a cold return.
+- `sibling-sessions.py` only looks back 120 minutes — the sessions you had going days ago fall outside the window.
+
+But the data survives: **transcripts persist on disk** (even when the live windows are gone), and so does **git** (worktrees, stashes, dirty trees, branches). The Cold-return briefing reconstructs the picture from those durable sources. It's the time-aware tier of the recap: the warm in-flight `/sup` assumes you remember; this fires only when enough time has passed that you don't.
+
+### The recall-decay model
+
+Recall decays with time-away, so the report's verbosity should scale inversely:
+
+- **Warm** (gap under the threshold — a `/clear`, or juggling threads in one sitting): assume you remember. Terse, as today. The briefing emits **nothing**.
+- **Cold** (gap over the threshold — days away, reboots): assume you remember little. Expand: reconstruct what you had going and flag what's unfinished.
+
+One threshold, two states — deliberately **not** a multi-tier ladder. `SUP_COLD_THRESHOLD_HOURS` (default **20h** — long enough that an overnight gap in active work doesn't trip it, short enough to catch a real absence). The signal is **time since you were last _present_** (the most recent last-turn across all transcripts in this checkout + its worktrees), **not** time since last commit — you can read for an hour and commit nothing.
+
+### Mechanism
+
+Gather step 9 calls `sibling-sessions.py --cold <worktree-cwds…>`:
+
+- Pass every **worktree path** from `git worktree list`. Worktree sessions live under a differently-encoded `~/.claude/projects/<cwd>` dir, so the default cwd-scoped scan can't see them — this is how the briefing can say "one of them was in worktree `<name>`."
+- The script computes the gap and **prints nothing when warm**, so the skill invokes it unconditionally and treats any output as the cold signal.
+- When cold, it emits the **session cluster** — the sessions whose last turn falls within `SUP_COLD_CLUSTER_HOURS` (default 48h) before your last presence, i.e. the windows you actually had going at the time, not every session in the lookback period — as a table: id · topic · checkout · last-turn age.
+
+When the probe emits, the skill renders the verbatim table, then adds the **git-derived "what's unfinished" picture** — the genuine dropped-work detector:
+
+- **Stale/unmerged worktrees** — for each worktree, flag any that is dirty or ahead of `master`, with its last-commit age. An unmerged worktree untouched for days is orphaned work you forgot. _This is the highest-value signal in the whole briefing_ — it maps directly to "we occasionally dropped work that was mid-flight."
+- **Stashes** with age; **uncommitted changes** in the main checkout that have been sitting.
+- The **2–3 most recent diary entries** (`diary/<host>.md` or `DIARY.md`) — the narrative "why," which is exactly what's gone after days away.
+
+### Framing rules
+
+- **Past tense, reconstructed.** "Last time you were here you _had_ 3 sessions going" — sourced from transcripts, not live windows. After a reboot those windows are gone; claiming they're live is the one way this misleads. Say explicitly it's reconstructed from transcripts + git.
+- **Strictly gated.** Fires _only_ cold. If this expansion shows up after a midday `/clear`, it's noise and you'll learn to ignore it — same alarm-fatigue trap as the exit-readiness tail. The self-gating script enforces this; don't render the section on a warm probe.
+
+### Tunable knobs
+
+`SUP_COLD_THRESHOLD_HOURS` (default 20) · `SUP_COLD_LOOKBACK_DAYS` (default 14, the outer scan horizon) · `SUP_COLD_CLUSTER_HOURS` (default 48, the "had going at the time" grouping window) · `SUP_COLD_MAX` (default 10 rows).
 
 ## Intent routing
 
@@ -262,12 +306,13 @@ When invoked as `/sup help`, print the following block verbatim:
 
 ```
 sup — Personalized sitrep (Derek's flavor). Strict superset of /sitrep
-with five additions: Session recap; sibling-session + relay awareness;
-backlog scan + pick recommendation; new-session check; intent routing.
-Answers "where are we, what's next?", "what was I doing in this terminal?",
-"is something already in flight elsewhere that I should join instead?",
-and — given an intent — "where should this new thread run so it doesn't
-collide?"
+with six additions: Session recap; sibling-session + relay awareness;
+backlog scan + pick recommendation; new-session check; intent routing;
+cold-return briefing. Answers "where are we, what's next?", "what was I
+doing in this terminal?", "is something already in flight elsewhere that
+I should join instead?", "I've been away for days — what did I have going
+and is anything unfinished?", and — given an intent — "where should this
+new thread run so it doesn't collide?"
 
 Usage: /sup [! | wt] [<intent>]
 
@@ -310,6 +355,14 @@ Sequence:
                          / custom-title / last user message. Plus relay-status
                          one-liner when design/relay/STATE.md exists. Always
                          runs. Only an `active` sibling outranks the Backlog pick.
+  2b. Cold-return        Fires ONLY when you've been away past a staleness
+                         threshold ($SUP_COLD_THRESHOLD_HOURS, default 20h);
+                         silent otherwise (warm in-flight case). Reconstructs
+                         the session cluster you had going from transcripts
+                         (incl. worktree checkouts, passed as args) + flags
+                         unfinished work that survived the gap: stale/unmerged
+                         worktrees, stashes, dirty tree, recent diary entries.
+                         The dropped-mid-flight-work guard for multi-day gaps.
   3. Branch on intent:
      • no intent  →    Backlog scan (parkable only). Runs the shared
                          ~/bin/backlog-scan (same machinery as /next): TODO.md,
