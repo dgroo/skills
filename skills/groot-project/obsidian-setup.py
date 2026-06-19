@@ -58,8 +58,31 @@ PLUGINS = {
         "kepano/obsidian-minimal-settings",
         "8.2.3",
     ),  # 1.11.1
+    # See uncommitted work: obsidian-git is the change list / commit / diff panel;
+    # git-file-explorer colors modified+untracked files right in the file tree
+    # (the "highlight" half — obsidian-git is panels-only). Both matter when a
+    # vault's design/ is live-synced: cross-host dirt shows up at a glance.
+    "obsidian-git": ("Vinzent03/obsidian-git", "2.38.5"),  # no minApp
+    "git-file-explorer": (
+        "MateusMolina/obsidian-git-file-explorer",
+        "0.8.0",
+    ),  # minApp 0.15.0
 }
 PLUGIN_ASSETS = ("main.js", "manifest.json", "styles.css")  # styles.css optional
+
+# Per-plugin data.json shipped after fetch (gitignored, regenerated each run).
+# obsidian-git: these vaults are roots of ACTIVE code repos, so disable every
+# background git op — its source-control view stays read-mostly and commits are
+# only ever a deliberate button-press. (Defaults are already off; pin it loudly
+# so a future default flip can't start auto-committing code.)
+PLUGIN_DATA = {
+    "obsidian-git": {
+        "autoSaveInterval": 0,
+        "autoPushInterval": 0,
+        "autoPullInterval": 0,
+        "autoPullOnBoot": False,
+    },
+}
 
 THEME_NAME = "Minimal"
 THEME_REPO = "kepano/obsidian-minimal"
@@ -328,6 +351,13 @@ def fetch_artifacts(vault: Path, dry_run: bool) -> None:
                 dry_run,
                 optional=optional,
             )
+        data = PLUGIN_DATA.get(pid)
+        if data is not None:
+            if dry_run:
+                print(f"  would write plugins/{pid}/data.json")
+            else:
+                (plugin_dir / "data.json").write_text(json.dumps(data, indent=2) + "\n")
+                print(f"  wrote plugins/{pid}/data.json")
 
 
 GITIGNORE_HEADER = (
