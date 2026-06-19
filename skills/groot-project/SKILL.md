@@ -520,6 +520,32 @@ In `status` mode (re-audit of an existing project), check whether `.groot-projec
 
 If the project already has a known port (the user had `vite --port 5173` hardcoded in a script before this phase ran), surface it during Phase 7B and offer to write that port to `[ports].dev` instead of running the fresh allocation. Don't silently take a different port from what's already in use.
 
+### Phase 7C: Obsidian vault baseline
+
+If the project has (or wants) an Obsidian vault, give it the federation-standard `.obsidian/` baseline so a wall of stacked Obsidian windows stops looking identical and every vault gets a consistent, readable setup. This is the **second view onto the project's color**: Phase 7 painted the terminal from `[terminal].background`; this paints the vault's window chrome from the same value. Depends on Phase 7 having recorded a color.
+
+**Detect first (Obsidian is opt-in).** Check for `./.obsidian/`:
+
+- **Exists** → apply the baseline (idempotent merge — never clobbers user keys).
+- **Absent** → ask: _"Set up an Obsidian vault baseline for this project? (Y/skip)"_. Only create `.obsidian/` on an explicit yes. In `--auto` mode, **skip** when absent (don't conjure vaults unprompted); apply only when `.obsidian/` already exists.
+
+**What it does** (via the helper, which reads `[terminal].background` and derives a vivid same-hue accent):
+
+```
+~/.claude/skills/groot-project/obsidian-setup.py [PROJECT_DIR] [--no-fetch] [--dry-run]
+```
+
+- **Committed config** (declares the baseline, version-controlled): `appearance.json` (Minimal theme + derived accent), `app.json` (excluded files — `node_modules/`, `.next/`, build/test dirs — so search/graph/switcher aren't polluted; repo-root docs like `DIARY.md`/`TODO.md`/`CLAUDE.md` stay visible), `community-plugins.json` (the curated set), `core-plugins.json` (sensible core plugins on, merged), `snippets/project-color.css` (chrome-only paint — titlebar/ribbon/status-bar; **never the note body**, so distinguishable and readable don't fight).
+- **Fetched, gitignored artifacts** (the `node_modules` half): the Minimal theme + plugin bundles are pulled into `themes/` and `plugins/` at **pinned versions** (declared in `obsidian-setup.py`). A fresh clone re-runs this phase to repopulate them. The script appends the gitignore split itself (`workspace*.json`, `plugins/`, `themes/`).
+
+**Curated plugin set** (each maps a real workflow): `dataview` (query `design/stories/` by frontmatter), `templater-obsidian` (dynamic `STORY_TEMPLATE`), `obsidian-style-settings` + `obsidian-minimal-settings` (drive Minimal + snippet controls). Versions are **pinned to the newest release that runs on stable Obsidian** — not "latest", which is a trap: Templater 2.21+ requires Obsidian 1.13.0 (an insider beta), so a "latest" install would download a plugin that silently refuses to enable. Bump the pins in `obsidian-setup.py` deliberately, re-checking each `minAppVersion` against current stable.
+
+**Network + fallback.** The fetch step needs network and shells out to `curl` (macOS's bundled Python trips `CERTIFICATE_VERIFY_FAILED` on `urllib`). Offline or air-gapped: pass `--no-fetch` to write/merge config only; the artifacts come down on the next online run. First Obsidian open after setup may prompt once to enable community plugins.
+
+**Idempotency.** Re-running merges: config keys are set/appended, never removed; gitignore lines are appended only if missing; fetched artifacts are re-pulled at the pinned versions (so bumping a pin and re-running is the update path). In `status` mode, a project with a `.obsidian/` that lacks `cssTheme: "Minimal"` or the `userIgnoreFilters` exclusions is a drift item.
+
+**Don't version-gate on the macOS app bundle.** Obsidian self-updates its running version while the `Info.plist` `CFBundleShortVersionString` stays frozen at the *installer* version (e.g. plist reads 1.8.7 while the app runs 1.12.7). So a plist read understates the real version — never use it to decide a plugin won't load. The pins are chosen against current stable instead; trust them over a plist probe.
+
 ### Phase 8: Spinner verbs
 
 Themed spinner-verb pool for `.claude/settings.json`. Each project gets in-character verbs in place of Claude Code's defaults — small delight, basically free.
