@@ -336,6 +336,14 @@ GITIGNORE_HEADER = (
 # A bare ignore of the whole vault dir — hides the committed config too.
 BARE_OBSIDIAN = {".obsidian", ".obsidian/", "/.obsidian", "/.obsidian/"}
 
+# todo: when adopting the baseline in a project with a lint/format pre-commit
+# hook, the fetched plugin JS under .obsidian/plugins/ breaks it — tools that
+# don't read .gitignore (eslint flat-config globalIgnores, prettier) scan the
+# minified bundles and fail. Hand-fixed two adopting projects (one's eslint
+# config, another's prettierignore) on first adoption; this script should
+# detect a project's lint/format config and add `.obsidian/**` to its ignores
+# as part of setup.
+
 
 def update_gitignore(project_dir: Path, dry_run: bool) -> None:
     print("gitignore:")
