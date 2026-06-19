@@ -53,6 +53,7 @@ Gather in parallel — same shape as `/sup`'s sitrep mirror, with sharper edges 
    - Non-trivial **decisions** made this session (architecture, tradeoffs, scope calls) that aren't in `DIARY.md` or `design/` notes yet. These are the highest-leverage "would be lost" items — code commits don't capture the why.
    - In-flight reasoning ("I was about to…", "next step is…") that isn't pinned anywhere durable.
    - Half-done refactors mentioned but not finished.
+6. **Independent-review cadence** — run `last-codex-review --nudge` (a read-only dotfiles helper; `~/.codex` rollouts keyed by repo cwd, no state). It is silent unless it's been >21 days since an independent (non-Claude) Codex look at this repo _and_ non-doc code has changed since — in which case it prints a one-line `↳ Independent review: …` nudge toward a `/codex review` sweep. This is a periodic, codebase-wide reminder (Derek won't remember on his own), **not** a per-session gate. Capture its output for Phase 4; if the command is absent (older host / dotfiles not pulled) just skip — never block on it.
 
 Don't read whole files — this is a scan, not an audit. Heuristic: would a fresh CC session running `/sup` on this repo have everything it needs?
 
@@ -120,6 +121,8 @@ Format:
 ```
 
 **Source: conversation scrollback** (what the assistant actually did this session), augmented by commits if they happened. Not `git log` alone — commits miss decisions reached, drafts started, and discussions that didn't ship, which are exactly the things you don't remember. If working context has been compressed/auto-summarized and earlier work isn't visible, emit one bullet `_Earlier work in this session not in working context._` rather than fabricating.
+
+If Phase 1's independent-review check (step 6) produced a nudge line, surface it on its own line **between the recap and the verdict block** — it's non-blocking context, never part of the ✅/⏸/↺ judgment. One line, verbatim from the helper; don't expand on it (it's a "maybe, sometime" reminder Derek may skip).
 
 The recap sits **above** the verdict; the verdict still gets to be the final emission per Phase 5's load-bearing-UI rule.
 
