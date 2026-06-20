@@ -201,7 +201,12 @@ def load_json(path: Path) -> dict:
 
 
 def write_json(path: Path, data, dry_run: bool) -> None:
-    rendered = json.dumps(data, indent=2) + "\n"
+    # No trailing newline on purpose: Obsidian rewrites these committed config
+    # files (appearance/app/community-plugins/core-plugins.json) WITHOUT one
+    # every time it saves settings, so appending "\n" here drifts them to
+    # git-dirty after every Obsidian session. Matching Obsidian's own
+    # serialization keeps a re-saved vault's tracked config clean.
+    rendered = json.dumps(data, indent=2)
     if dry_run:
         print(f"  would write {path.name}:\n{indent(rendered)}")
         return
