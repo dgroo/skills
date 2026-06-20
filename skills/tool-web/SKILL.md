@@ -30,7 +30,7 @@ Any of these rules may be broken with a good reason and explicit user approval.
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tool Name</title>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -56,7 +56,13 @@ Keep it minimal. No unnecessary meta tags, no favicon link (browsers handle the 
 
 The boilerplate above includes the meta tags needed for iOS "Add to Home Screen" to launch as a full-screen standalone app (no Safari chrome).
 
-**Safe areas** — on notched/Dynamic Island iPhones, `viewport-fit=cover` lets the page extend edge-to-edge. Use `env()` to avoid content behind the notch or home indicator:
+**Safe areas — opt in only if you really want edge-to-edge.** The default boilerplate omits `viewport-fit=cover` because it has a real downside in regular Safari: the page extends behind the URL bar overlay, which then covers the top of your content (and the soft keyboard accessory covers the bottom). For most tools the default — Safari constrains the page to its safe area — is what you want.
+
+If you genuinely want edge-to-edge content (typically only worth it in standalone PWA mode, where Safari's chrome is gone), add `viewport-fit=cover` back to the viewport meta and use `env()` to keep content out of the notch / home indicator:
+
+```html
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+```
 
 ```css
 body {
@@ -96,10 +102,12 @@ const isStandalone = window.navigator.standalone === true
 
 ```css
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { min-height: 100dvh; -webkit-font-smoothing: antialiased; }
+body { -webkit-font-smoothing: antialiased; }
 img, svg { display: block; max-width: 100%; }
 input, button, textarea, select { font: inherit; }
 ```
+
+No `min-height: 100dvh` on body. It's a footgun for any UI with a sticky-bottom element: iOS Safari doesn't shrink `dvh` when the soft keyboard appears, so the body stays full-viewport-tall and your input bar ends up below the keyboard. If you need full-height layout, drive it from `visualViewport.height` via JS — see the **iOS Safari** section.
 
 ### Template Hiding
 
@@ -173,6 +181,87 @@ Mobile-first. Use `min-width` breakpoints:
 Use `clamp()` for fluid sizing: `font-size: clamp(1rem, 2.5vw, 1.25rem);`
 
 Test at 320px minimum viewport width. No horizontal scrolling at any size.
+
+### iOS Safari
+
+iOS Safari has several layout quirks that other browsers — including Chrome on iOS, which uses the same WebKit engine but a different chrome — don't expose you to. Hit these once and you'll lose an afternoon. Here's the survival kit.
+
+**Soft keyboard doesn't shrink `100dvh`.** On iOS Safari, the dynamic viewport unit ignores the on-screen keyboard. `interactive-widget=resizes-content` in the viewport meta is silently ignored by WebKit (the console literally says "not recognized"). If your UI has a sticky-bottom element (chat input, action bar, sticky CTA), it'll end up *behind* the keyboard.
+
+The fix is to mirror `visualViewport.height` into a CSS variable (or set `body.style.height` directly) from JS:
+
+```js
+function trackViewport() {
+  const vv = window.visualViewport;
+  const h = vv ? vv.height : window.innerHeight;
+  const w = vv ? vv.width  : window.innerWidth;
+  document.documentElement.style.setProperty('--vvh', h + 'px');
+  document.documentElement.style.setProperty('--vvw', w + 'px');
+  document.body.style.height = h + 'px';
+  document.body.style.width  = w + 'px';
+}
+trackViewport();
+window.addEventListener('resize', trackViewport);
+window.addEventListener('orientationchange', trackViewport);
+window.visualViewport?.addEventListener('resize', trackViewport);
+window.visualViewport?.addEventListener('scroll', trackViewport);
+```
+
+Setting `body.style.height` directly (rather than just exposing `--vvh` for CSS to consume) sidesteps a quirk where iOS Safari sometimes doesn't recompute `height: var(--vvh)` reliably when the viewport changes. Inline style wins.
+
+**Layout viewport can be wider than the visible window.** On newer iPhones (17 Pro, etc.) `window.innerWidth` reports e.g. 377 but the `<html>` element renders at 402 — that 25pt gap is content you've rendered off-screen. Same JS as above pins both `documentElement.style.width` and `body.style.width` to `visualViewport.width`, which is the actual visible width.
+
+**Native `<select>` ignores CSS width.** iOS pads native dropdowns for touch targets — set `width: 140px` and you'll get ~160px in practice, which can blow out a tight header layout. Kill the native chevron with `appearance: none` and supply your own via a background SVG:
+
+```css
+.select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg-secondary)
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 5 6 8 9 5'/></svg>")
+    no-repeat right 8px center;
+  background-size: 12px 12px;
+  padding: 8px 26px 8px 10px;
+  width: 140px;        /* now actually 140px */
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+```
+
+**Long unbreakable tokens overflow the page.** `word-wrap: break-word` (or its modern alias `overflow-wrap: break-word`) only breaks if no other break point exists, and Safari's heuristic for "possible break point" is permissive enough that a 30-char user-ID-style string stays intact and pushes the message box past the viewport. Use the more aggressive value:
+
+```css
+.msg, .content {
+  overflow-wrap: anywhere;
+}
+```
+
+`anywhere` lets the browser break mid-token when needed. Safe for all content.
+
+**Diagnostic overlay.** When you can't get Safari Web Inspector cabled up, an in-page overlay reading `window.innerWidth/innerHeight`, `visualViewport.{width,height,offsetTop}`, `documentElement.{scrollWidth,offsetWidth}`, and `body.{scrollWidth,offsetWidth,style.width,style.height}` is the fastest way to figure out what's actually happening. Hide it behind `?debug=1` so it's there when you need it:
+
+```html
+<div id="dbg" style="position:fixed;top:0;left:0;width:var(--vvw,100%);font:10px ui-monospace,monospace;color:#fff;background:rgba(220,0,0,0.85);padding:2px 6px;white-space:pre-wrap;z-index:99999;display:none"></div>
+<script>
+if (new URLSearchParams(location.search).has('debug')) {
+  const el = document.getElementById('dbg');
+  el.style.display = 'block';
+  function snap() {
+    const vv = window.visualViewport;
+    el.textContent = [
+      `win  ${window.innerWidth}x${window.innerHeight}`,
+      `vv   ${vv ? vv.width.toFixed(0)+'x'+vv.height.toFixed(0) : '-'}`,
+      `html ow=${document.documentElement.offsetWidth} oh=${document.documentElement.offsetHeight}`,
+      `body ow=${document.body.offsetWidth} oh=${document.body.offsetHeight}`,
+    ].join('\n');
+  }
+  snap();
+  setInterval(snap, 500);
+  window.visualViewport?.addEventListener('resize', snap);
+}
+</script>
+```
 
 ### Visual Hierarchy
 
@@ -473,4 +562,57 @@ rodney stop
 ```
 
 Write a brief test sequence and run it to verify the tool works after building it.
+
+### Three tiers — rodney isn't enough on its own
+
+rodney drives headless **Chrome**. It's fast, scriptable, and great for cross-page logic — but it does *not* reproduce Safari-specific bugs (URL bar overlay, native `<select>` sizing, soft-keyboard layout, word-break heuristics). If your tool is going to be used on iPhone, layer in the higher tiers below.
+
+**Tier 1 — Chrome via rodney.** Smoke tests, interactions, JS assertions. What's shown above.
+
+**Tier 2 — WebKit engine via Playwright.** Closer to Safari than Chrome — catches word-break, viewport behavior, sticky positioning differences. Doesn't simulate Safari's browser chrome (URL bar, accessory bar, native control rendering).
+
+```bash
+npm i -D playwright
+npx playwright install webkit
+```
+
+```js
+import { webkit, devices } from 'playwright';
+const browser = await webkit.launch();
+const ctx = await browser.newContext(devices['iPhone 15 Pro']);
+const page = await ctx.newPage();
+await page.goto('http://localhost:8000/tool.html');
+// page.evaluate / page.screenshot / page.click / ...
+```
+
+**Tier 3 — actual Safari via iOS Simulator.** Real Safari on simulated iPhone. Catches everything Tier 2 misses — URL bar overlay, native control sizing, keyboard accessory overlap, viewport meta tag interpretation.
+
+```bash
+# One-time: open Xcode.app once to bootstrap CoreSimulator. simctl will hang
+# until you've done this. Then in Xcode → Settings → Platforms, install an iOS
+# runtime (~7GB) if none is listed.
+
+# List available iPhone devices
+xcrun simctl list devices available | grep iPhone
+
+# Boot one
+xcrun simctl boot 'iPhone 17 Pro'
+
+# Open Safari to a URL
+xcrun simctl openurl booted "http://localhost:8000/tool.html"
+
+# Take a screenshot
+xcrun simctl io booted screenshot /tmp/sim.png
+
+# Tap at coords (in screen points)
+xcrun simctl io booted tap 195 400
+```
+
+The screenshots from `xcrun simctl io ... screenshot` are pixel-accurate to real iPhones. For interactive debugging, plug a real iPhone in or use the simulator and attach macOS Safari's Web Inspector via the **Develop** menu (Mac Safari → Settings → Advanced → Show Develop menu, then Develop → [your device] → page URL).
+
+**Auth-gated pages.** If your tool requires HTTP Basic / Bearer auth, neither Playwright nor `simctl openurl` accepts credentials in the URL reliably (modern Safari strips them). Workarounds:
+- Playwright: `browser.newContext({ httpCredentials: {...}, extraHTTPHeaders: { Authorization: '...' } })`
+- iOS Simulator: easier to run a separate auth-disabled instance on a loopback port for testing
+
+Pick the lowest tier that catches the bug you're chasing. Most CSS/layout changes only need Tier 1–2; iOS-Safari-specific issues need Tier 3.
 
