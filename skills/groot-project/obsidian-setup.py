@@ -84,6 +84,19 @@ PLUGIN_DATA = {
     },
 }
 
+# Some plugins bake their highlight color into the bundle as an inline
+# `!important` style — unreachable from settings AND unoverridable by a CSS
+# snippet (inline !important wins the cascade). git-file-explorer is one: it
+# paints changed/untracked files a fixed amber (#b38522) in main.js (and the
+# matching widget badge in styles.css). The only lever is rewriting the literal
+# after fetch, which we do so the change-highlight matches the window chrome.
+# Keyed by the EXACT upstream hex so a version bump that moves or renames it
+# fails loudly (0-occurrence warning) instead of silently reverting to amber.
+#   id: upstream_color_literal
+PLUGIN_ACCENT_PATCH = {
+    "git-file-explorer": "#b38522",
+}
+
 THEME_NAME = "Minimal"
 THEME_REPO = "kepano/obsidian-minimal"
 THEME_VERSION = "8.2.1"  # minApp 1.9.0
@@ -336,7 +349,42 @@ def fetch(url: str, dest: Path, dry_run: bool, optional: bool = False) -> bool:
     return True
 
 
-def fetch_artifacts(vault: Path, dry_run: bool) -> None:
+def patch_plugin_accent(
+    plugin_dir: Path, literal: str, accent: str, dry_run: bool
+) -> None:
+    """Rewrite a plugin's hardcoded highlight color to the project accent.
+
+    Operates across the fetched text assets (main.js carries the inline
+    `!important` filename color; styles.css the matching widget badge) so both
+    move together. Warns — never errors — when the literal is absent, since a
+    version bump that relocates it should surface, not silently break setup.
+    """
+    if dry_run:
+        print(f"  would recolor plugins/{plugin_dir.name}: {literal} -> {accent}")
+        return
+    total = 0
+    for asset in ("main.js", "styles.css"):
+        f = plugin_dir / asset
+        if not f.exists():
+            continue
+        src = f.read_text()
+        n = src.count(literal)
+        if n:
+            f.write_text(src.replace(literal, accent))
+            total += n
+    if total == 0:
+        print(
+            f"  ! plugins/{plugin_dir.name}: no '{literal}' to recolor — the "
+            "plugin version may have moved it; highlight stays upstream",
+            file=sys.stderr,
+        )
+    else:
+        print(
+            f"  recolored plugins/{plugin_dir.name}: {literal} -> {accent} ({total}x)"
+        )
+
+
+def fetch_artifacts(vault: Path, accent: str, dry_run: bool) -> None:
     print("fetch:")
     theme_dir = vault / "themes" / THEME_NAME
     for f in THEME_FILES:
@@ -351,6 +399,9 @@ def fetch_artifacts(vault: Path, dry_run: bool) -> None:
                 dry_run,
                 optional=optional,
             )
+        literal = PLUGIN_ACCENT_PATCH.get(pid)
+        if literal is not None:
+            patch_plugin_accent(plugin_dir, literal, accent, dry_run)
         data = PLUGIN_DATA.get(pid)
         if data is not None:
             if dry_run:
@@ -450,7 +501,7 @@ def main() -> None:
     if args.no_fetch:
         print("fetch:  skipped (--no-fetch)")
     else:
-        fetch_artifacts(vault, args.dry_run)
+        fetch_artifacts(vault, accent, args.dry_run)
     print()
     update_gitignore(project_dir, args.dry_run)
 
