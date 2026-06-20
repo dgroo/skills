@@ -37,6 +37,14 @@ is the *sweep + the checklist*, not new audit logic. What's already there:
 - **`/groot-project`** is already re-runnable + idempotent ("detects what's there, only
   adds what's missing") — but currently checks *structural presence*, not *currency*.
 - **`/terminal-setup`** owns terminal color + `.groot-project.toml` migration.
+- **`groot-project/obsidian-setup.py`** (Obsidian baseline, Phase 7C) configures a
+  project's Obsidian vault to the federation baseline. Crucially, it **derives the vault
+  accent from `.groot-project.toml [terminal].background`** — the *same* source the
+  terminal color uses. It's re-runnable and ships `--dry-run`. A delegate (see decision 4).
+- **`last-codex-review` (dotfiles) + `/wrapup`'s review-cadence nudge** already own
+  "independent review is stale": `last-codex-review --nudge` reads `~/.codex` rollouts
+  keyed by repo cwd (no state file), silent unless >21d since a non-Claude Codex review
+  *and* non-doc code changed since. `/wrapup` already surfaces it. A delegate.
 - **`/beginners-mind`** is the closest cousin — a stateful, periodic project audit that
   surfaces improvements — but it's the **wrong home**: its identity is the *under-briefed
   fresh observer*, deliberately NOT told the conventions. This sweep is the opposite — a
@@ -73,6 +81,14 @@ The sweep delegates to each domain owner's conformance mode and aggregates one r
 must **not** reimplement design-audit (cleanup-design owns it) or color-setup
 (terminal-setup owns it). This respects the federation's one-owner-per-mechanism rule.
 
+**Implementation shape — detect/dry-run → aggregate → `go` applies live.** Each delegate
+ideally exposes a *detect* mode that reports drift without mutating; the sweep runs all of
+them to build the findings report, and a bare `go` (decision 2) re-runs the safe set for
+real. `obsidian-setup.py`'s `--dry-run` is the validating precedent — it "prints what
+would change; writes nothing." The convention to push onto delegates as they're wired in:
+a `--dry-run`/`--check` mode and an exit/stdout contract the sweep can parse. (`last-codex-review --nudge`
+already fits — it's read-only and emits one line or nothing.)
+
 ### 4. Checklist = pointers to owners, not copies of values
 
 The sweep checks the project against a **checklist of "what a current project should
@@ -81,10 +97,17 @@ have/be."** The governing principle (Derek): **a single source of truth per conv
 expected value. So:
 
 - terminal-color check → *delegates to `/terminal-setup`* (owns the truth)
+- **Obsidian-vault check → *delegates to `obsidian-setup.py --dry-run`*** — and this is
+  the cleanest worked example of the principle: the Obsidian accent is *derived from*
+  `.groot-project.toml [terminal].background`, the **same single source** the terminal
+  color reads. Terminal and Obsidian aren't two color conventions — they're two *views*
+  of one source (`.groot-project.toml`), each with its own owner/applier. The sweep never
+  knows "the expected color"; it asks each owner "are you in sync with the source?"
 - design-streamlined check → *delegates to `/cleanup-design conformance`*
 - CLAUDE.md-blocks check → *compares the project CLAUDE.md against groot-project's own
   skeleton* (the source of that truth)
-- code-review-staleness → *bespoke check* (git log + a recorded marker)
+- review-staleness check → *delegates to `last-codex-review --nudge`* (dotfiles; owns the
+  "is an independent review overdue" signal — 21d + code-changed)
 
 **Why this matters for rot:** because each check reads its owner live, a check's expected
 value *can't* go stale. The only remaining rot risk is "we forgot to add a check for a
@@ -116,35 +139,49 @@ Graduate to this only if the discipline rule visibly fails.
 | Check | Owner / source of truth | Kind |
 | --- | --- | --- |
 | design/ streamlined & conformant | `/cleanup-design conformance` | delegate |
-| terminal bg color set + current scheme | `/terminal-setup` + `.groot-project.toml` | delegate |
-| Obsidian colors current | *TBD — needs a source of truth* | bespoke |
-| independent code review within N | git log + a recorded marker | bespoke |
+| terminal bg color set + current scheme | `/terminal-setup` (source: `.groot-project.toml`) | delegate |
+| Obsidian vault on baseline (accent from project color) | `obsidian-setup.py --dry-run` (source: `.groot-project.toml`, shared w/ terminal) | delegate |
+| independent review not stale (>21d + code changed) | `last-codex-review --nudge` (dotfiles) | delegate |
 | CLAUDE.md carries current convention blocks | groot-project's CLAUDE.md skeleton | bespoke (compare) |
 | diary sharded per host | groot-project diary convention | bespoke (presence) |
 | gbrain registered / synced | `/sync-gbrain` | delegate |
 
-(Seed only — grows via decision 5.)
+(Seed only — grows via decision 5. Note how many rows resolved to *delegate* once the
+owners landed — reinforces decision 3: this is an orchestrator, not an audit engine.)
+
+## Resolved since drafting (Phase 7C landed)
+
+- **Code-review staleness — resolved.** `last-codex-review --nudge` (dotfiles) is the
+  owner: reads `~/.codex` rollouts keyed by repo cwd, no state file, threshold 21d +
+  non-doc-code-changed. `/wrapup` already consumes it. The sweep delegates to the same
+  helper.
+- **Obsidian colors source of truth — resolved (and it's not a separate convention).**
+  The vault accent derives from `.groot-project.toml [terminal].background` via
+  `obsidian-setup.py` — the same single source as the terminal color. No new home
+  needed; the check delegates to `obsidian-setup.py --dry-run`.
 
 ## Open questions
 
-- **Code-review staleness signal.** How is "last independent review" recorded —
-  a marker file, a git trailer, a `.groot-project.toml` field? And what's `N`
-  (commits? calendar? since-last-review-marker)?
-- **Obsidian colors source of truth.** Where does "current Obsidian color convention"
-  live so a check can read it? Today it may not have a single home — may need one created
-  first (which is itself a single-source-of-truth fix).
 - **`go` apply-safe-set boundary.** Precisely which finding classes are auto-safe under a
   bare `go` vs. held back for explicit per-item confirmation. Destructive or
   restructuring fixes (design-doc moves, deletions) are clearly held back.
 - **Report shape.** Grouped by drifted/conformant/needs-you, à la `/sup`'s sections;
   conformant items collapse to a count.
+- **Delegate detect-mode contract.** Not every owner has a `--dry-run`/`--check` yet
+  (`obsidian-setup.py` and `last-codex-review` do; `/cleanup-design`, `/terminal-setup`
+  may need a detect-only path). Define the stdout/exit contract the sweep parses.
+- **Ordering / prerequisites.** `obsidian-setup.py` requires `.groot-project.toml` to
+  exist (it errors and points at `/terminal-setup`). The sweep must run the color-source
+  checks before the views that derive from them.
 - **beginners-mind boundary.** Keep the under-briefed-fresh-eyes pass and the
   maximally-briefed-conformance pass clearly separate; cross-reference, don't overlap.
 
 ## Next
 
-- Resolve the code-review-staleness marker question (smallest concrete dependency).
-- Decide the Obsidian-color source of truth (may be a prerequisite single-source fix).
-- Draft the discipline rule for `~/.claude/CLAUDE.md`.
-- Then extend `/groot-project` SKILL.md: state detection → sweep → findings report →
-  `go`-applies-safe-set.
+- Define the delegate detect-mode contract + the `go` safe-set boundary (the two
+  remaining design dependencies).
+- Draft the discipline rule for `~/.claude/CLAUDE.md` (decision 5).
+- Then extend `/groot-project` SKILL.md: state detection → run delegates' detect modes →
+  findings report → `go`-applies-safe-set. **Collision caveat:** `groot-project/SKILL.md`
+  is under active development (Phase 7C). Implementing the sweep there wants a worktree or
+  coordination — not a parallel edit.
