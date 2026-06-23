@@ -6,7 +6,7 @@ allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 
 # Sup — Situation Report (Derek's flavor)
 
-`/sup` is a **strict superset of `/sitrep`** with these additions: (1) a **Session recap** that answers "wait, what the hell was I doing in this terminal window?" for cold returns, (2) actively scanning the repo for queued work and ranking the top candidates (#1 go-able, non-blocking), (3) evaluating whether to recommend a fresh Claude session, (4) **intent routing** — when invoked with a stated intent (`/sup <what I want to do>`), placing that new thread where it won't collide with work already in flight, and (5) a **Cold-return briefing** that fires only when you've been away from the project long enough to have lost the thread — reconstructing the sessions you had going and flagging unfinished work (stale worktrees, stashes, dirty trees) that survived the gap, so mid-flight work doesn't get silently dropped.
+`/sup` is a **strict superset of `/sitrep`** with these additions: (1) a **Session recap** that answers "wait, what the hell was I doing in this terminal window?" for cold returns, (2) actively scanning the repo for queued work and ranking the top candidates (#1 go-able, non-blocking), (3) evaluating whether to recommend a fresh Claude session, (4) **intent routing** — when invoked with a stated intent (`/sup <what I want to do>`), placing that new thread where it won't collide with work already in flight, and (5) a **Cold-return briefing** that fires only when you've been away long enough to have lost the thread — gauged by the gap since your _previous prompt in this session_, so it works even in a window you never closed. When you're returning to a long-running window it flags the gap and defers to the recap; in a fresh session it reconstructs the sessions you had going and flags unfinished work (stale worktrees, stashes, dirty trees), so mid-flight work doesn't get silently dropped.
 
 The recap/briefing split tracks how recall decays: an in-flight `/sup` (after a `/clear`, or while juggling a few things in one sitting) can assume you remember what's going on, so it stays terse. But after days away — possibly across a reboot that killed every tmux window — you remember almost nothing, and that's exactly when mid-flight work gets dropped. The Cold-return briefing is the time-aware tier for that case; it self-gates on a staleness threshold (default 20h) and emits nothing in the warm case.
 
@@ -74,6 +74,8 @@ Report structure (omit empty sections, keep each to 1–3 lines max):
 **Sibling sessions:** Verbatim block from `sibling-sessions.py` when non-empty. Omit when the script prints nothing. If an **`active`** sibling's topic plausibly matches what the user just invoked `/sup` for, explicitly flag `→ Looks like that work is live in `<id>` — switch windows rather than restarting here.` A `predecessor`/`idle` line that matches is just your own prior work (post-`/clear` is the common case) — ambient context, not a live thread. See "Sibling sessions & relay" section.
 
 **Relay:** One-line summary of `relay-status` output when in a project with `design/relay/STATE.md`. Examples: `⚪ parked since 2026-05-21` or `🟢 active on rocinante24, last handoff 2026-05-21T02:51Z`. Omit when no relay scaffolding.
+
+**Cold-return:** Render only when the `--cold` probe (gather step 9) emitted output — it self-gates on the resume-boundary gap, so silence = warm = omit. Two shapes (the script picks): (a) a one-line **away-flag** (`↻ You were away ~30h …`) when returning to a long-running window — surface it verbatim and let the **Session recap** below do the work; add nothing else. (b) a **reconstruction table** of the sessions you had going, when this is a fresh session — render it verbatim, then add the git-derived unfinished-work picture (stale/unmerged worktrees, stashes, dirty tree, recent diary entries). See "Cold-return briefing" for the full model.
 
 **State:** Combined snapshot — clean/dirty tree, stashes, background tasks, todos, "fresh session" or "mid-task." If there's enough going on, split into the longer fields below.
 
@@ -147,31 +149,30 @@ But the data survives: **transcripts persist on disk** (even when the live windo
 
 ### The recall-decay model
 
-Recall decays with time-away, so the report's verbosity should scale inversely:
+Recall decays with time-away, so verbosity scales inversely — but "time-away" is **the gap since you last _did something here_, not the age of the window.** You can be cold in a session you never closed: walk away for a day, the tmux window survives, but you've forgotten the thread.
 
-- **Warm** (gap under the threshold — a `/clear`, or juggling threads in one sitting): assume you remember. Terse, as today. The briefing emits **nothing**.
-- **Cold** (gap over the threshold — days away, reboots): assume you remember little. Expand: reconstruct what you had going and flag what's unfinished.
+- **Warm** (gap under threshold): you've been working here — assume you remember. Silent.
+- **Cold** (gap over threshold): you're returning after an idle stretch — help you re-orient.
 
-One threshold, two states — deliberately **not** a multi-tier ladder. `SUP_COLD_THRESHOLD_HOURS` (default **20h** — long enough that an overnight gap in active work doesn't trip it, short enough to catch a real absence). The signal is **time since you were last _present_** (the most recent last-turn across all transcripts in this checkout + its worktrees), **not** time since last commit — you can read for an hour and commit nothing.
+One threshold, two states — not a ladder. `SUP_COLD_THRESHOLD_HOURS` (default **20h**). **The trigger is the resume-boundary gap: `now − your previous prompt in this session`** — the honest "when did you last do something here", measured from the current session's own human-prompt timestamps (the gap between the in-flight prompt and the one before it). That's what makes it fire correctly whether you opened a fresh window **or** returned to a long-running one. (The original implementation _excluded_ the current session and read the gap off a stale predecessor — so a long-running session you'd worked in all day misread as "4d cold" off a 4-day-old sibling. Measuring the in-session inter-prompt gap is the fix.) Not time-since-commit — you can read for an hour and commit nothing.
 
 ### Mechanism
 
-Gather step 9 calls `sibling-sessions.py --cold <worktree-cwds…>`:
+Gather step 9 calls `sibling-sessions.py --cold <worktree-cwds…>` (pass every **worktree path** from `git worktree list` — worktree sessions live under a differently-encoded `~/.claude/projects/<cwd>` dir, invisible to the cwd-scoped scan otherwise). The script **prints nothing when warm**, so the skill invokes it unconditionally and treats any output as the cold signal. When cold, it picks one of **two content modes** by whether the Session recap can help:
 
-- Pass every **worktree path** from `git worktree list`. Worktree sessions live under a differently-encoded `~/.claude/projects/<cwd>` dir, so the default cwd-scoped scan can't see them — this is how the briefing can say "one of them was in worktree `<name>`."
-- The script computes the gap and **prints nothing when warm**, so the skill invokes it unconditionally and treats any output as the cold signal.
-- When cold, it emits the **session cluster** — the sessions whose last turn falls within `SUP_COLD_CLUSTER_HOURS` (default 48h) before your last presence, i.e. the windows you actually had going at the time, not every session in the lookback period — as a table: id · topic · checkout · last-turn age.
+- **Returning to a long-running window** (you have prior prompts in this session → the recap is populated): the recap already covers "what was I doing here", so the probe emits a **one-line away-flag** — `↻ You were away ~30h — the Session recap below covers what you were doing here.` — and defers. **No other-session table.** This is the common case, and the one the original design got wrong (it dumped an irrelevant predecessor table). The skill just surfaces the flag; it does **not** add the git-derived section below.
+- **Fresh session** (this prompt is the first → the recap is empty): the probe reconstructs the **other-session cluster** — the sessions whose last turn falls within `SUP_COLD_CLUSTER_HOURS` (default 48h) before your last activity, pulled from other transcripts incl. worktree checkouts — as a table: id · topic · checkout · last-turn age. Here the recap can't help, so the reconstruction is the point.
 
-When the probe emits, the skill renders the verbatim table, then adds the **git-derived "what's unfinished" picture** — the genuine dropped-work detector:
+**Only in the fresh-session reconstruction case**, the skill then adds the **git-derived "what's unfinished" picture** — the genuine dropped-work detector:
 
-- **Stale/unmerged worktrees** — for each worktree, flag any that is dirty or ahead of `master`, with its last-commit age. An unmerged worktree untouched for days is orphaned work you forgot. _This is the highest-value signal in the whole briefing_ — it maps directly to "we occasionally dropped work that was mid-flight."
+- **Stale/unmerged worktrees** — for each worktree, flag any dirty or ahead of `master`, with its last-commit age. An unmerged worktree untouched for days is orphaned work you forgot. _Highest-value signal in the briefing_ — it maps directly to "we occasionally dropped work that was mid-flight."
 - **Stashes** with age; **uncommitted changes** in the main checkout that have been sitting.
-- The **2–3 most recent diary entries** (`diary/<host>.md` or `DIARY.md`) — the narrative "why," which is exactly what's gone after days away.
+- The **2–3 most recent diary entries** (`diary/<host>.md` or `DIARY.md`) — the narrative "why." (In the long-running-return case, skip these — the recap + `/sup`'s normal worktree/state sections already cover them; the away-flag only orients.)
 
 ### Framing rules
 
-- **Past tense, reconstructed.** "Last time you were here you _had_ 3 sessions going" — sourced from transcripts, not live windows. After a reboot those windows are gone; claiming they're live is the one way this misleads. Say explicitly it's reconstructed from transcripts + git.
-- **Strictly gated.** Fires _only_ cold. If this expansion shows up after a midday `/clear`, it's noise and you'll learn to ignore it — same alarm-fatigue trap as the exit-readiness tail. The self-gating script enforces this; don't render the section on a warm probe.
+- **Past tense, reconstructed** (fresh-session table only). "Last time you were here you _had_ 3 sessions going" — sourced from transcripts, not live windows; after a reboot those windows are gone, so don't imply they're live.
+- **Strictly gated.** Fires _only_ when the resume-boundary gap exceeds the threshold. The self-gating script enforces this; don't render on a warm probe, and keep the away-flag to its one line — don't expand it.
 
 ### Tunable knobs
 
@@ -355,14 +356,17 @@ Sequence:
                          / custom-title / last user message. Plus relay-status
                          one-liner when design/relay/STATE.md exists. Always
                          runs. Only an `active` sibling outranks the Backlog pick.
-  2b. Cold-return        Fires ONLY when you've been away past a staleness
-                         threshold ($SUP_COLD_THRESHOLD_HOURS, default 20h);
-                         silent otherwise (warm in-flight case). Reconstructs
-                         the session cluster you had going from transcripts
-                         (incl. worktree checkouts, passed as args) + flags
-                         unfinished work that survived the gap: stale/unmerged
-                         worktrees, stashes, dirty tree, recent diary entries.
-                         The dropped-mid-flight-work guard for multi-day gaps.
+  2b. Cold-return        Fires ONLY when the resume-boundary gap (now - your
+                         PREVIOUS prompt in this session) exceeds a threshold
+                         ($SUP_COLD_THRESHOLD_HOURS, default 20h); silent
+                         otherwise. Measured in-session, so it's right whether
+                         you opened fresh or returned to a long-running window.
+                         Two modes: returning to a long-running window -> a
+                         one-line away-flag deferring to the Session recap;
+                         fresh session -> reconstructs the session cluster you
+                         had going (incl. worktree checkouts) + flags unfinished
+                         work (stale/unmerged worktrees, stashes, dirty tree,
+                         recent diary). The dropped-mid-flight-work guard.
   3. Branch on intent:
      • no intent  →    Backlog scan (parkable only). Runs the shared
                          ~/bin/backlog-scan (same machinery as /next): TODO.md,

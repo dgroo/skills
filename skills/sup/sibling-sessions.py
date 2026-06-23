@@ -155,21 +155,105 @@ def scan_session(jsonl_path: Path) -> dict | None:
     }
 
 
-def run_cold(extra_cwds: list[str]) -> int:
-    """Reconstruct the session cluster from the last time you were in this project.
+def _human_prompt_times(jsonl_path: Path) -> list[float]:
+    """Sorted epoch timestamps of genuine human prompts in a transcript.
 
-    Scans this checkout's project dir plus any worktree checkouts passed as args
-    (their sessions live under a differently-encoded project dir, so the default
-    cwd-scoped scan can't see them). Computes the gap since you were last present;
-    prints nothing — staying silent so the caller can treat output as the cold
-    signal — unless that gap exceeds COLD_THRESHOLD_HOURS.
+    A real user prompt is a type=="user" entry carrying human text — NOT a
+    tool_result (those are also type=="user" but are the agent's own tool output,
+    not the human acting). Filtering to human prompts is what lets us measure the
+    *resume-boundary gap*: time since the human last actually did something here,
+    not mere agent/tool churn.
+    """
+    times: list[float] = []
+    try:
+        with jsonl_path.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if obj.get("type") != "user":
+                    continue
+                content = obj.get("message", {}).get("content")
+                # Skip tool-result entries — agent output, not a human turn.
+                if isinstance(content, list) and any(
+                    isinstance(b, dict) and b.get("type") == "tool_result"
+                    for b in content
+                ):
+                    continue
+                if not _user_text(obj):
+                    continue
+                ts = parse_ts(obj.get("timestamp"))
+                if ts is not None:
+                    times.append(ts)
+    except OSError:
+        return []
+    return sorted(times)
+
+
+def run_cold(extra_cwds: list[str]) -> int:
+    """Emit a cold-return signal when the human is returning after an idle gap.
+
+    The trigger is the *resume-boundary gap*: how long this window sat idle before
+    the current prompt — i.e. now − the human's PREVIOUS prompt in this session.
+    That is the honest "when did you last do something here", and it fires
+    correctly whether you opened a fresh window OR returned to a long-running one.
+    (The earlier logic excluded the current session and so misread a long-running
+    session as cold off a stale 4d-old predecessor, while reporting the wrong gap;
+    measuring the in-session inter-prompt gap fixes both.)
+
+    Two content modes once cold:
+      - long-running session (you have prior prompts here) → the Session recap
+        already covers "what was I doing", so emit a one-line away-flag that
+        defers to it. No stale other-session table.
+      - fresh session (this prompt is the first) → the recap is empty, so
+        reconstruct the other-session cluster you had going.
+
+    Prints nothing when warm, so the caller treats any output as the cold signal.
     """
     primary = os.getcwd()
     current_session = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
     now = time.time()
+    threshold_s = COLD_THRESHOLD_HOURS * 3600
     lookback_cutoff = now - COLD_LOOKBACK_DAYS * 86400
 
-    # (cwd, checkout-label) — the primary checkout plus each worktree path.
+    # Human-prompt timestamps in the CURRENT session — the resume-boundary signal.
+    my_prompts: list[float] = []
+    if current_session:
+        cur_path = (
+            Path.home()
+            / ".claude"
+            / "projects"
+            / encode_cwd(primary)
+            / f"{current_session}.jsonl"
+        )
+        if cur_path.is_file():
+            my_prompts = _human_prompt_times(cur_path)
+
+    # Long-running window: measure the gap since the prompt BEFORE the in-flight
+    # one (exclude the current prompt itself, which is ~now). Defer to the recap.
+    if len(my_prompts) >= 2:
+        away_gap = now - my_prompts[-2]
+        if away_gap < threshold_s:
+            return 0  # warm — you've been working here
+        # Duration, not an age — no "ago" suffix, and keep hours up to 2 days so a
+        # 30h return reads honestly as "~30h" rather than collapsing to "~1d".
+        if away_gap < 48 * 3600:
+            dur = f"{int(away_gap / 3600)}h"
+        else:
+            dur = f"{int(away_gap / 86400)}d"
+        print(
+            f"**Cold-return note:** ↻ You were away ~{dur} — "
+            "the Session recap below covers what you were doing here."
+        )
+        return 0
+
+    # Fresh session (no in-session history to compare): measure the gap against
+    # the most recent activity in OTHER sessions (this checkout + worktrees); if
+    # cold, reconstruct the cluster you had going — the recap can't help here.
     targets: list[tuple[str, str]] = [(primary, "main checkout")]
     for path in extra_cwds:
         path = path.strip()
@@ -193,31 +277,26 @@ def run_cold(extra_cwds: list[str]) -> int:
             sessions.append((info["last_turn_ts"], session_id, info, label))
 
     if not sessions:
-        return 0
+        return 0  # nothing to compare against — can't establish a gap
 
     last_presence = max(s[0] for s in sessions)
-    gap_hours = (now - last_presence) / 3600.0
-    if gap_hours < COLD_THRESHOLD_HOURS:
-        return 0  # warm — caller stays terse, this prints nothing
+    if (now - last_presence) < threshold_s:
+        return 0  # warm — you were active here recently in another window
 
-    # The "cluster" = sessions whose last turn falls within COLD_CLUSTER_HOURS
-    # before your last presence: the set of windows you had going at the time,
-    # not every session in the lookback period.
     cluster_cutoff = last_presence - COLD_CLUSTER_HOURS * 3600
     cluster = sorted((s for s in sessions if s[0] >= cluster_cutoff), reverse=True)[
         :COLD_MAX_ROWS
     ]
-
     header = (
         f"**Cold-return briefing:** last active here {human_age(now - last_presence)} — "
-        f"reconstructing what you had going (transcripts survive reboots; the live "
-        f"windows may not)."
+        "reconstructing what you had going (transcripts survive reboots; the live "
+        "windows may not)."
     )
-    if len(cluster) == 1:
-        intro = "Last time you were here, one session was going:"
-    else:
-        intro = f"Last time you were here, {len(cluster)} sessions were going:"
-
+    intro = (
+        "Last time you were here, one session was going:"
+        if len(cluster) == 1
+        else f"Last time you were here, {len(cluster)} sessions were going:"
+    )
     rows = [
         "| Session | Working on… | Where | Last turn |",
         "| --- | --- | --- | --- |",
@@ -228,7 +307,6 @@ def run_cold(extra_cwds: list[str]) -> int:
             f"| `{session_id[:8]}` | {topic} | {label} | "
             f"{human_age(now - last_turn_ts)} |"
         )
-
     print("\n".join([header, "", intro, "", *rows]))
     return 0
 
