@@ -58,6 +58,7 @@ Each phase has one of three modes: **auto-default-Y** (skill announces and proce
 | 4   | Office-hours import             | auto-default-Y              | If a design doc exists, layer its content into DESIGN.md and CLAUDE.md.                                             |
 | 5   | Language detection + .gitignore | always-asks                 | Ask Python / TypeScript / Rust / Go / Other / None.                                                                 |
 | 6   | Makefile                        | auto-default-Y / drift-flag | Create if missing; flag drift if present but missing standard targets.                                              |
+| 6B  | Pre-commit hook                 | auto-default-Y              | Generate `hooks/pre-commit` (formats staged Markdown via prettier); compose, never clobber an existing hook.        |
 | 7   | Terminal background             | always-interactive          | Invoke `/terminal-setup` (delegates fully).                                                                         |
 | 7B  | Port allocation                 | auto-default-Y              | Invoke `~/bin/pick-a-port --write` to claim a dev port in `[ports]`. Skip with `--no-port` if not a server project. |
 | 8   | Spinner verbs                   | always-asks                 | Themed `.claude/settings.json` spinner pool. Skip if already set.                                                   |
@@ -452,7 +453,7 @@ After the language is known, print a hint: _"Run `uv init` (Python) / `npm init`
 If no Makefile exists, generate one with Derek's standard targets:
 
 ```makefile
-.PHONY: all init build run lint test dist clean help
+.PHONY: all init build run lint test dist clean hooks-install help
 
 # Default target: init, build, lint, test, dist (per ~/.claude/CLAUDE.md)
 all: init build lint test dist  ## Run init, build, lint, test, dist in sequence
@@ -478,6 +479,12 @@ dist:  ## Package for distribution
 clean:  ## Clean generated assets
 	# <language-specific>
 
+hooks-install:  ## Install git pre-commit hook (formats staged Markdown)
+	@mkdir -p .git/hooks
+	@cp hooks/pre-commit .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "installed .git/hooks/pre-commit — formats staged Markdown on commit"
+
 help:  ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##.*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 ```
@@ -494,6 +501,40 @@ If a Makefile exists, check for the standard targets (`init`, `build`, `run`, `l
 
 - Print: _"Existing Makefile is missing standard targets: <list>. Add them? (Y/n)"_
 - If Y: append the missing targets to the existing Makefile without modifying existing ones. Use `# Standard targets added by /groot-project` as a separator comment.
+
+### Phase 6B: Pre-commit hook (Markdown formatting)
+
+Generate a `hooks/pre-commit` script that auto-formats staged Markdown with `prettier --prose-wrap never` and re-stages it, so prose is never hard-wrapped at a fixed column (single newlines render as mid-sentence `<br>` in Obsidian and most external viewers — the viewer should own wrap width). This pairs with the global rule in `~/.claude/CLAUDE.md` ("Never hard-wrap Markdown prose"): the CLAUDE.md rule governs Claude's output, this hook catches human- and other-tool-authored wrapping too.
+
+Mode: **auto-default-Y**. Create `hooks/pre-commit` if absent; add the `hooks-install` target to the Makefile (Phase 6 already does this for new Makefiles — for an existing Makefile, offer to append it). Print a hint to run `make hooks-install` (the skill does not install into `.git/hooks/` itself — that's a per-clone action the user runs).
+
+**Composition, never clobber.** If `hooks/pre-commit` already exists (e.g., a project that already runs lint+test on commit), do **not** overwrite it. Instead offer to insert the Markdown-format block near the top of the existing hook, before its other checks. If `.git/hooks/pre-commit` exists but `hooks/pre-commit` doesn't, surface that and ask before touching it.
+
+**`hooks/pre-commit` template:**
+
+```sh
+#!/bin/sh
+# <project> pre-commit hook — installed by `make hooks-install` (copies into .git/hooks/).
+# Auto-formats staged Markdown so prose is never hard-wrapped (the viewer owns
+# wrap width; single newlines render as <br> in Obsidian + most viewers).
+# Skip on demand with `git commit --no-verify` — but prefer fixing the cause.
+set -e
+
+md=$(git diff --cached --name-only --diff-filter=ACM -- '*.md' '*.markdown')
+if [ -n "$md" ]; then
+  if command -v bunx >/dev/null 2>&1; then
+    echo "→ pre-commit: prettier --prose-wrap never (staged Markdown)"
+    printf '%s\n' "$md" | xargs bunx --bun prettier --prose-wrap never --write
+    printf '%s\n' "$md" | xargs git add
+  else
+    echo "⚠ pre-commit: bunx not found — skipping Markdown formatting (brew install oven-sh/bun/bun)"
+  fi
+fi
+
+echo "✓ pre-commit checks passed"
+```
+
+(Assumes kebab-case filenames with no spaces — the design-doc convention. `bunx --bun prettier` needs no install step; first run downloads prettier into bun's cache.) In `--auto` mode this phase runs unchanged (no prompts). In `status` mode, flag a missing `hooks/pre-commit` as drift.
 
 ### Phase 7: Terminal background
 
@@ -804,6 +845,7 @@ Phases (in order):
   4. Office-hours import            (auto if a doc exists)
   5. Language detection + .gitignore  (always asks)
   6. Makefile                       (auto if missing; drift-flag if drifted)
+  6B. Pre-commit hook               (auto: hooks/pre-commit formats staged Markdown)
   7. Terminal background            (delegates to /terminal-setup)
   8. Spinner verbs                  (always asks; auto-skips)
   9. GitHub remote                  (always asks)
