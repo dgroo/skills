@@ -32,7 +32,8 @@ Gather state and print a summary before asking anything:
 - Is this a git repo? (`git rev-parse --is-inside-work-tree 2>/dev/null`)
 - Does a recent `/office-hours` design doc exist at `~/.gstack/projects/<basename>/*.md`? Take the most recent.
 - What language signals exist? Presence of `pyproject.toml`, `setup.py`, `package.json`, `Cargo.toml`, `go.mod`.
-- What standard files / directories are present? `README.md`, `Makefile`, `design/`, `design/DESIGN.md`, `design/helping-hands/`, `design/plans/`, `design/stories/`, `design/stories/llm_generated/`, `design/stories/user_updated/`, `design/stories/z.done/`, `design/stories/STORY_TEMPLATE.md`, `design/notes/`, `.gitignore`, `CLAUDE.md`, `DIARY.md`, `TODO.md`.
+- What standard files / directories are present? `README.md`, `Makefile`, `design/`, `design/DESIGN.md`, `design/helping-hands/`, `design/plans/`, `design/stories/`, `design/stories/drafts/`, `design/stories/ready/`, `design/stories/done/`, `design/stories/STORY_TEMPLATE.md`, `design/notes/`, `.gitignore`, `CLAUDE.md`, `DIARY.md`, `TODO.md`.
+- **Obsidian vault state** (drives Phase 7C): does `./.obsidian/` exist? If so, is it the federation baseline or bare — i.e. does `.obsidian/appearance.json` carry `cssTheme: "Minimal"` and does `.obsidian/app.json` have `userIgnoreFilters`? A `.obsidian/` that exists but lacks these is a Phase 7C **drift** item, not a skip. (This is easy to miss — a default `.obsidian/` written by opening Obsidian once looks present but is empty `{}`.)
 - **Misplaced files at `design/` root**: any markdown file directly in `design/` other than `README.md` and `DESIGN.md`. List them — Phase 2's migration step will offer to move them into the right subdir.
 - **Collision detection** (read but don't act yet — these inform later phases):
   - Joe-style artifacts: `TODO.md`, `DIARY.md`, `CHANGELOG.md` at the project root (indicates `/project-setup` has run or the user uses that convention).
