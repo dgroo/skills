@@ -209,6 +209,8 @@ priority: medium # high | medium | low
 
 # Story Title
 
+**tl;dr:** One plain-language sentence — what this story does and why, skimmable without reading the body.
+
 ## Problem
 
 What problem does this solve? What's the current pain point or gap?
