@@ -128,29 +128,30 @@ The recap sits **above** the verdict; the verdict still gets to be the final emi
 
 ### Phase 5: Verdict
 
-Emit one of the three verdicts as a bright-yellow ANSI block (visible at a glance, matches `/sup`'s end-of-session signal shape):
+Emit one of the three verdicts as a **visible markdown headline in your assistant text** (not a Bash `printf` — see the note below), so it lands as the unmissable last thing the user reads:
 
-```bash
-# ✅ READY
-printf '\n\033[1;32m✅ READY TO WRAP — safe to bounce. A fresh session with /sup will pick up cleanly.\033[0m\n'
-
-# ⏸ WAIT
-printf '\n\033[1;33m⏸ NOT YET — <N> item(s) need attention first.\033[0m\n'
-# Then list the items.
-
-# ↺ STAY (intent-hint variant)
-printf '\n\033[1;36m↺ STAY HERE — this session has <specific signals> in cache for <intent>; bouncing discards real context. Recommend continuing.\033[0m\n'
+```markdown
+## ✅ READY TO WRAP — safe to bounce. A fresh session with /sup will pick up cleanly.
+```
+```markdown
+## ⏸ NOT YET — <N> item(s) need attention first.
+```
+(Then list the items.)
+```markdown
+## ↺ STAY HERE — this session has <specific signals> in cache for <intent>; bouncing discards real context. Recommend continuing.
 ```
 
-For READY and STAY, that's the whole emission — no extra prose. For WAIT, list the items below the yellow block with explicit next steps the user can act on.
+Render it as an actual `##` heading in your response (the emoji carries the colour-free signal — ✅ / ⏸ / ↺ — per the color-blind-safe rule), **not** inside a code fence. For READY and STAY, that's the whole emission — no extra prose after it. For WAIT, list the items below the heading with explicit next steps the user can act on.
 
-**The verdict block is a final-state signal, never a preview.** The user reads green and bounces. Treat the block as load-bearing UI: it appears once, at the very end, only after all wrap-prep writes have landed, the Phase 4 recap has rendered, and any commit-OK has been granted and executed. Do NOT render a verdict (or anything visually shaped like one — including a `✅ READY …` line inside a markdown code fence, since the rendering matches the real block closely enough to mislead a quick-glance reader) before that point. If you find yourself wanting to surface "once X is done, the verdict will be ✅" — stop. Do X. Then emit the verdict. The block's job is to be unambiguous; conditional/preview/hypothetical verdicts are the bug this rule prevents.
+> **Why markdown, not ANSI `printf`.** This verdict used to be a bright-yellow ANSI block emitted via `printf`. That broke: current Claude Code builds collapse successful Bash stdout behind a folded "Ran 1 shell command", so the load-bearing verdict became invisible — produced but hidden. Assistant-text markdown can't be collapsed like a tool result, so it's robustly visible across CC versions. Don't reintroduce the `printf` form. (Fixed 2026-06-25; same fix applied to `/sup`.)
+
+**The verdict heading is a final-state signal, never a preview.** The user reads it and bounces. Treat it as load-bearing UI: it appears once, at the very end, only after all wrap-prep writes have landed, the Phase 4 recap has rendered, and any commit-OK has been granted and executed. Do NOT render a verdict (or anything shaped like one) before that point. If you find yourself wanting to surface "once X is done, the verdict will be ✅" — stop. Do X. Then emit the verdict. The heading's job is to be unambiguous; conditional/preview/hypothetical verdicts are the bug this rule prevents.
 
 ## Output expectations
 
 - **One verdict per invocation.** Don't hedge across two verdicts ("READY-ish but maybe STAY"). Pick the one that fits and explain.
-- **The yellow block is the headline.** Anything above it is inventory + recap; the block itself is the answer.
-- **Brief above the block.** If READY, no prose beyond the Session recap. If WAIT, items list below. If STAY, the rationale is _inside_ the yellow line; expand only if the user asks. The Phase 4 Session recap always renders regardless of verdict.
+- **The verdict heading is the headline.** Anything above it is inventory + recap; the heading itself is the answer.
+- **Brief above the heading.** If READY, no prose beyond the Session recap. If WAIT, items list below. If STAY, the rationale is _inside_ the heading line; expand only if the user asks. The Phase 4 Session recap always renders regardless of verdict.
 - **Don't repeat /sup's content.** `/wrapup` is not a sitrep. Don't list the backlog, don't recommend a pick, don't reproduce git status. That's `/sup`'s job after the bounce. The Session recap is the one exception — it's the "what was I doing" signal both skills emit.
 
 ## Companion to /sup
@@ -163,7 +164,7 @@ If you're tempted to skip the journal-decisions check because "the diff captures
 
 - **Always emit a verdict.** Silence is the bug this skill exists to fix.
 - **Always emit the Session recap** (Phase 4) above the verdict, even on trivial sessions. The "what was I doing in this terminal" failure mode is what the recap exists to fix; making it conditional defeats that.
-- **Verdict is final state, not preview.** The ✅ / ⏸ / ↺ block is the user's bounce signal — they see green, they leave. Never render a verdict block (or anything code-fenced that resembles one) as a hypothetical, conditional, or "once X is done" preview. Emit only after all prep is complete. See Phase 5 for the longer rationale.
+- **Verdict is final state, not preview.** The ✅ / ⏸ / ↺ heading is the user's bounce signal — they read it, they leave. Never render a verdict heading (or anything that resembles one) as a hypothetical, conditional, or "once X is done" preview. Emit only after all prep is complete. See Phase 5 for the longer rationale.
 - **Auto-commit and push complete work.** Invoking `/wrapup` is the explicit authorization to land the session's committable changes — commit and push them directly via `/cpush`, no per-write or per-commit OK. This overrides the global "never commit unless explicitly asked" default _for this skill only_, because the invocation is the ask. **Still ask per-instance for the carve-outs:** destructive git ops (force-push, `git reset`, rebase, `rm` of tracked files) per the global Safety rule, and dirty trees you can't confidently classify as complete (mid-experiment WIP is sometimes intentional — surface it, don't commit it).
 - **DIARY entries / story files / `design/NEXT.md` / queue notes: just write them.** Routine wrap-prep writes are mechanical journaling, not judgment-heavy decisions. The user edits afterward if framing's off. Propose-then-OK adds friction without judgment value at this stage. (For persona-voice journaling like `diary_propose_entry` — propose-then-curate still applies; that's a different surface where the propose step is the point.)
 - **STAY is high-confidence only.** If you're not sure whether the cache actually helps the named intent, lean READY and let the user push back. Don't manufacture a STAY out of "well, you've been working here."

@@ -1,6 +1,6 @@
 ---
 name: sup
-description: Personalized situation report — mirrors /sitrep's full output, actively scans for queued work and ranks the top candidates (#1 go-able, non-blocking — no AskUserQuestion), then issues a high-confidence new-session recommendation in bold yellow when warranted. Also routes a stated intent to the right workspace (proceed here / join a live session / provision an isolated worktree) so parallel threads don't collide; the `wt` modifier forces the worktree placement (act-unless-overkill). Use when resuming a session, asking "where were we?", when the chunk of work feels finished, or when starting a new thread with "/sup <what I want to do>" (or "/sup wt <intent>" when you already know it wants isolation).
+description: Personalized situation report — mirrors /sitrep's full output, actively scans for queued work and ranks the top candidates (#1 go-able, non-blocking — no AskUserQuestion), then issues a high-confidence new-session recommendation as a visible markdown heading when warranted. Also routes a stated intent to the right workspace (proceed here / join a live session / provision an isolated worktree) so parallel threads don't collide; the `wt` modifier forces the worktree placement (act-unless-overkill). Use when resuming a session, asking "where were we?", when the chunk of work feels finished, or when starting a new thread with "/sup <what I want to do>" (or "/sup wt <intent>" when you already know it wants isolation).
 allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 ---
 
@@ -282,22 +282,22 @@ These are **not sufficient reasons** by themselves. If these are all you have, s
 
 ### How to emit
 
-When the bar is genuinely cleared, emit as a final Bash call so it renders in real terminal yellow. Phrase it so the reader can't mistake it for "you'll need another session for the next task" — it's specifically _end this one_:
+When the bar is genuinely cleared, emit it as a **visible markdown headline in your assistant text** (not a Bash `printf` — see the note below) so it can't be missed. Phrase it so the reader can't mistake it for "you'll need another session for the next task" — it's specifically _end this one_:
 
-```bash
-# Replace <reason> with the specific observable signal — not a generic "good time to stop."
-# Good: "22% context remaining, next slice is unrelated."
-# Bad: "tree is clean, milestone shipped." (← that's just the prerequisite.)
-# Bad: "the pick runs in a different scratch dir." (← that's a non-signal.)
-printf '\n\033[1;33m⚠ THIS SESSION IS USED UP — start a fresh Claude session for the next task. Reason: <reason>\033[0m\n'
+```markdown
+## ⚠ THIS SESSION IS USED UP — start a fresh Claude session for the next task. Reason: <reason>
 ```
 
-Optional prep line first, only if commits/notes/etc. are actually needed before stopping:
+Replace `<reason>` with the specific observable signal — not a generic "good time to stop."
+- Good: "22% context remaining, next slice is unrelated."
+- Bad: "tree is clean, milestone shipped." (← that's just the prerequisite.)
+- Bad: "the pick runs in a different scratch dir." (← that's a non-signal.)
 
-```bash
-printf '\n\033[1;33mBefore stopping: <prep>\033[0m\n'
-printf '\033[1;33m⚠ THIS SESSION IS USED UP — start a fresh Claude session for the next task. Reason: <reason>\033[0m\n'
-```
+Optional prep line first, only if commits/notes/etc. are actually needed before stopping — render it as a bold line immediately above the heading:
+
+**Before stopping:** \<prep>
+
+> **Why markdown, not ANSI `printf`.** This signal used to be a yellow ANSI block via `printf`. Current Claude Code builds collapse successful Bash stdout behind a folded "Ran 1 shell command", so a `printf` verdict renders invisible. Assistant-text markdown can't be collapsed, so it stays visible across CC versions. Don't reintroduce the `printf` form. The ⚠ glyph carries the signal without relying on colour (color-blind-safe). (Fixed 2026-06-25; same fix applied to `/wrapup`.)
 
 If you're tempted to soften with "you could…" or "consider…" — don't. Either you have observable evidence the current session is impaired (fire), or you don't (silent). Hedged recommendations are noise.
 
@@ -395,7 +395,7 @@ Sequence:
                          ~/.claude/state/context-remaining (fire under ~30%
                          remaining). Fallbacks: auto-compacted / drift across
                          unrelated subtasks / explicit fresh-context signal.
-                         Emits as ANSI-yellow Bash printf (not markdown).
+                         Emits as a visible markdown ## heading (not printf).
 
 Non-signals (do NOT trigger new-session by themselves):
   Clean tree, recent commit, "natural stopping point", session has been
@@ -412,6 +412,6 @@ See SKILL.md for full reference.
 - The sitrep portion is non-negotiable. **Always show Next steps** when work is non-trivial.
 - **Always show Session recap**, even on a fresh session — render `_Fresh session — no prior activity in this window._` if there's nothing yet. The "what was I doing here" failure mode is what the recap exists to fix; making it conditional defeats that.
 - The new-session line is a high-confidence signal, not a hedge. If you're not sure, omit it.
-- Use the `printf` commands above for the recommendation — ANSI yellow makes it impossible to miss. Don't substitute markdown bold; it doesn't pop.
+- Emit the new-session signal as the markdown `##` heading shown above — a visible assistant-text heading the terminal can't collapse. Don't use a Bash `printf` ANSI block; current CC builds fold Bash stdout out of view, which is the bug this replaced.
 - Be _brief_ everywhere. This is a glance, not a report.
 - Don't explain what a sitrep is or what /sup adds. Jump straight to the output.
