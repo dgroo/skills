@@ -1,6 +1,6 @@
 ---
 name: groot-project
-description: Bootstrap a project the Derek way — git, design/ subtree (incl. stories/ with readiness-by-directory: drafts/ ready/ done/), CLAUDE.md skeleton with a shared-memory conventions block, Makefile, terminal background color (via /terminal-setup), themed spinner verbs, optional GitHub remote and gbrain registration. Coexists with /project-setup and gstack; detects collisions and never clobbers. Re-runnable.
+description: Bootstrap a project the Derek way — git, design/ subtree (incl. stories/ with readiness-by-directory: drafts/ ready/ done/), CLAUDE.md skeleton with a shared-memory conventions block, Makefile, terminal background color (via /terminal-setup), themed spinner verbs, optional GitHub remote. Coexists with /project-setup and gstack; detects collisions and never clobbers. Re-runnable.
 argument-hint: [status|--auto|--public]
 ---
 
@@ -63,8 +63,7 @@ Each phase has one of three modes: **auto-default-Y** (skill announces and proce
 | 7B  | Port allocation                 | auto-default-Y              | Invoke `~/bin/pick-a-port --write` to claim a dev port in `[ports]`. Skip with `--no-port` if not a server project. |
 | 8   | Spinner verbs                   | always-asks                 | Themed `.claude/settings.json` spinner pool. Skip if already set.                                                   |
 | 9   | GitHub remote                   | always-asks                 | Ask y/skip; default `--private`.                                                                                    |
-| 10  | gbrain registration             | always-asks                 | Ask y/skip; if yes, invoke `/sync-gbrain`.                                                                          |
-| 11  | Final summary                   | —                           | Print done / skipped / next-steps table.                                                                            |
+| 10  | Final summary                   | —                           | Print done / skipped / next-steps table.                                                                            |
 
 ### Phase 1: Git init
 
@@ -629,7 +628,7 @@ If Y:
 
 Detect by grepping for `^\.claude/\*$` in `.gitignore`. If found and no `!.claude/settings.json` line exists, add it. If `.gitignore` has no `.claude/` rules at all, leave it — `.claude/settings.json` is already committable.
 
-**Commit hint.** The file write is staged but not committed by this phase — Phase 11 (Final summary) lists it under "Done" so the user can commit it explicitly with their preferred message style.
+**Commit hint.** The file write is staged but not committed by this phase — Phase 10 (Final summary) lists it under "Done" so the user can commit it explicitly with their preferred message style.
 
 In `--auto` mode this phase is **skipped** — themed verbs are a creative call that needs human input. The final summary calls it out: _"Re-run without `--auto` to add themed spinner verbs."_
 
@@ -645,11 +644,7 @@ Ask: _"Create a GitHub remote? (y/skip)"_. If y:
 
 If `gh` isn't installed, print: _"`gh` not found. Install via `brew install gh` and re-run /groot-project to add the remote."_ Don't fail the rest of the skill.
 
-### Phase 10: gbrain registration
-
-Ask: _"Sync this project with gbrain? (y/skip)"_. If y, invoke `/sync-gbrain`. If skip, just move on.
-
-### Phase 11: Final summary
+### Phase 10: Final summary
 
 Print a concise table:
 
@@ -680,7 +675,6 @@ Collision-detected:
 Skipped:
   - Spinner verbs (you said skip)
   - GitHub remote (you said skip)
-  - gbrain registration (you said skip)
 
 Next:
   - Run `uv init` to initialize the Python project
@@ -700,11 +694,10 @@ Collision-detected lines only appear if collisions were actually found. The poin
 - **Port allocation**: invoke `~/bin/pick-a-port --write` (no prompts, scans `~/code` + `lsof`, picks the lowest free port at or above 3000). Skip if invoked with `--no-port`.
 - **Spinner verbs**: SKIPPED. Creative call that needs human input on theme.
 - **GitHub remote**: SKIPPED. Creating an external resource without explicit consent is too consequential for `--auto`.
-- **gbrain**: SKIPPED. Same reason.
 - **Office-hours import**: still imports if a doc is found (low risk, just file content).
 - All `auto-default-Y` phases just happen.
 
-End-of-run summary calls out skipped external integrations: _"Re-run without `--auto` to handle spinner verbs, GitHub remote, and gbrain registration."_
+End-of-run summary calls out skipped external integrations: _"Re-run without `--auto` to handle spinner verbs and GitHub remote."_
 
 ## `status` mode
 
@@ -725,10 +718,9 @@ Project audit for myproject:
   [✓] .groot-project.toml ([terminal].background, [ports].dev=3004 recorded)
   [ ] Spinner verbs (.claude/settings.json has no spinnerVerbs block)
   [ ] GitHub remote
-  [ ] gbrain registered
   [✓] /office-hours doc imported
 
-7/12 in place. Want to address the missing/drifted items? (Y/n)
+7/11 in place. Want to address the missing/drifted items? (Y/n)
 ```
 
 If the user says Y, fall through into the regular interactive walkthrough, only running phases for missing/drifted items.
@@ -802,7 +794,6 @@ Many gstack skills also read `CLAUDE.md` for project context. The conventions bl
 
 - **`/office-hours`** writes to `~/.gstack/projects/<basename>/`. Phase 4 imports from there. No collision.
 - **`/todo` and `/bug-bash`** (gstack) read/write root-level `TODO.md`. If `/project-setup` created one, gstack works on it natively. If this project uses the design/-centric pattern instead, the conventions block tells gstack skills that there's no `TODO.md` to read — they should fall back to `design/stories/` or ask.
-- **`/sync-gbrain`** is invoked optionally in Phase 10; it manages its own state in `CLAUDE.md` under a `## GBrain Search Guidance` heading. Don't touch that section.
 - **`/setup-deploy`** writes deploy config under its own heading in `CLAUDE.md`. Don't touch.
 - **`/plan-*` gstack skills** write plan files to ad-hoc paths. They don't conflict with `design/plans/` — but they also don't integrate. If the user wants gstack plan output to land in `design/plans/`, that's a manual move (out of scope for this skill).
 
@@ -851,8 +842,7 @@ Phases (in order):
   7. Terminal background            (delegates to /terminal-setup)
   8. Spinner verbs                  (always asks; auto-skips)
   9. GitHub remote                  (always asks)
-  10. gbrain registration           (always asks)
-  11. Final summary
+  10. Final summary
 
 Aggressive restructuring (top-level docs/, sibling specs/, etc.) requires
 the user to say so explicitly ("be aggressive", "restructure", "reorganize").
@@ -868,6 +858,5 @@ See SKILL.md for full reference.
 - All canonical templates (stories/, STORY_TEMPLATE, helping-hands, notes/, plans/, design/README) live in this SKILL.md itself — no external dependencies, portable across machines.
 - terminal-setup: `~/.claude/skills/terminal-setup/terminal-setup.py`
 - `gh` CLI for GitHub remote: https://cli.github.com/
-- `/sync-gbrain` skill (gstack)
 - `/project-setup` skill (Joe Walnes upstream): retrofits 10 conventions to existing projects (independent of this skill)
 - `/office-hours` skill (gstack): produces a design doc at `~/.gstack/projects/<basename>/*.md` that this skill can import
