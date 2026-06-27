@@ -59,6 +59,7 @@ Each phase has one of three modes: **auto-default-Y** (skill announces and proce
 | 5   | Language detection + .gitignore | always-asks                 | Ask Python / TypeScript / Rust / Go / Other / None.                                                                 |
 | 6   | Makefile                        | auto-default-Y / drift-flag | Create if missing; flag drift if present but missing standard targets.                                              |
 | 6B  | Pre-commit hook                 | auto-default-Y              | Generate `hooks/pre-commit` (formats staged Markdown via prettier); compose, never clobber an existing hook.        |
+| 6C  | Commit-footer hook              | auto-default-Y              | Generate `hooks/prepare-commit-msg` (appends Claude co-author + session footer); compose, never clobber.           |
 | 7   | Terminal background             | always-interactive          | Invoke `/terminal-setup` (delegates fully).                                                                         |
 | 7B  | Port allocation                 | auto-default-Y              | Invoke `~/bin/pick-a-port --write` to claim a dev port in `[ports]`. Skip with `--no-port` if not a server project. |
 | 8   | Spinner verbs                   | always-asks                 | Themed `.claude/settings.json` spinner pool. Skip if already set.                                                   |
@@ -480,11 +481,14 @@ dist:  ## Package for distribution
 clean:  ## Clean generated assets
 	# <language-specific>
 
-hooks-install:  ## Install git pre-commit hook (formats staged Markdown)
+hooks-install:  ## Install git hooks from hooks/ into .git/hooks (per-clone step)
 	@mkdir -p .git/hooks
-	@cp hooks/pre-commit .git/hooks/pre-commit
-	@chmod +x .git/hooks/pre-commit
-	@echo "installed .git/hooks/pre-commit — formats staged Markdown on commit"
+	@for h in hooks/*; do \
+		[ -f "$$h" ] || continue; \
+		cp "$$h" ".git/hooks/$$(basename "$$h")"; \
+		chmod +x ".git/hooks/$$(basename "$$h")"; \
+		echo "installed .git/hooks/$$(basename "$$h")"; \
+	done
 
 help:  ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##.*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -536,6 +540,28 @@ echo "✓ pre-commit checks passed"
 ```
 
 (Assumes kebab-case filenames with no spaces — the design-doc convention. `bunx --bun prettier` needs no install step; first run downloads prettier into bun's cache.) In `--auto` mode this phase runs unchanged (no prompts). In `status` mode, flag a missing `hooks/pre-commit` as drift.
+
+### Phase 6C: Commit-footer hook (Claude attribution)
+
+Generate a `hooks/prepare-commit-msg` script that auto-appends the Claude co-author + session-link footer on Claude-driven commits, so the provenance trailer is never forgotten on a clone where it wasn't typed by hand. The logic lives in `~/bin/claude-commit-footer` (dotfiles); this hook is a thin caller, so the footer format stays defined in one place across the fleet. It is gated on `$CLAUDECODE` (a human's manual commits are never falsely attributed) and idempotent (a hand-written full footer — with the model version — is respected, not duplicated; the auto-path omits the model version, which isn't reliably derivable, but recovers the exact session URL from the transcript).
+
+Mode: **auto-default-Y**, via the same `make hooks-install` mechanism as Phase 6B (the tracked `hooks/` file is the source of truth; installing into `.git/hooks/` is the per-clone action the user runs). Depends on `~/bin/claude-commit-footer` being on `PATH`; the `command -v` guard makes it a silent no-op if dotfiles isn't present, so it is safe to ship in any project.
+
+**Composition, never clobber.** If `hooks/prepare-commit-msg` already exists, do **not** overwrite it — offer to add the one-line caller near the top instead.
+
+**`hooks/prepare-commit-msg` template:**
+
+```sh
+#!/bin/sh
+# <project> prepare-commit-msg hook — installed by `make hooks-install`.
+# Auto-appends the Claude co-author + session footer on Claude-driven commits.
+# Shared logic: ~/bin/claude-commit-footer (dotfiles). No-op for human commits
+# (gated on $CLAUDECODE), idempotent. Skip with `git commit --no-verify`.
+command -v claude-commit-footer >/dev/null 2>&1 && claude-commit-footer "$@"
+exit 0
+```
+
+In `--auto` mode this phase runs unchanged. In `status` mode, flag a missing `hooks/prepare-commit-msg` as drift.
 
 ### Phase 7: Terminal background
 
@@ -839,6 +865,7 @@ Phases (in order):
   5. Language detection + .gitignore  (always asks)
   6. Makefile                       (auto if missing; drift-flag if drifted)
   6B. Pre-commit hook               (auto: hooks/pre-commit formats staged Markdown)
+  6C. Commit-footer hook            (auto: hooks/prepare-commit-msg appends Claude footer)
   7. Terminal background            (delegates to /terminal-setup)
   8. Spinner verbs                  (always asks; auto-skips)
   9. GitHub remote                  (always asks)
