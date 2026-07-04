@@ -529,8 +529,9 @@ md=$(git diff --cached --name-only --diff-filter=ACM -- '*.md' '*.markdown')
 if [ -n "$md" ]; then
   if command -v bunx >/dev/null 2>&1; then
     echo "→ pre-commit: prettier --prose-wrap never (staged Markdown)"
-    printf '%s\n' "$md" | xargs bunx --bun prettier --prose-wrap never --write
-    printf '%s\n' "$md" | xargs git add
+    # NUL-delimited: filenames may contain spaces
+    git diff --cached --name-only -z --diff-filter=ACM -- '*.md' '*.markdown' | xargs -0 bunx --bun prettier --prose-wrap never --write
+    git diff --cached --name-only -z --diff-filter=ACM -- '*.md' '*.markdown' | xargs -0 git add
   else
     echo "⚠ pre-commit: bunx not found — skipping Markdown formatting (brew install oven-sh/bun/bun)"
   fi
