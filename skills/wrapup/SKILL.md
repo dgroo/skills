@@ -141,11 +141,31 @@ Emit one of the three verdicts as a **visible markdown headline in your assistan
 ## ↺ STAY HERE — this session has <specific signals> in cache for <intent>; bouncing discards real context. Recommend continuing.
 ```
 
-Render it as an actual `##` heading in your response (the emoji carries the colour-free signal — ✅ / ⏸ / ↺ — per the color-blind-safe rule), **not** inside a code fence. For READY and STAY, that's the whole emission — no extra prose after it. For WAIT, list the items below the heading with explicit next steps the user can act on.
+Render it as an actual `##` heading in your response (the emoji carries the colour-free signal — ✅ / ⏸ / ↺ — per the color-blind-safe rule), **not** inside a code fence. For READY and STAY, that's the whole emission — no extra prose after it, **except** the conditional Phase 6 handoff prompt (cross-machine / complex-bootstrap only), which is the one artifact permitted to follow the verdict. For WAIT, list the items below the heading with explicit next steps the user can act on.
 
 > **Why markdown, not ANSI `printf`.** This verdict used to be a bright-yellow ANSI block emitted via `printf`. That broke: current Claude Code builds collapse successful Bash stdout behind a folded "Ran 1 shell command", so the load-bearing verdict became invisible — produced but hidden. Assistant-text markdown can't be collapsed like a tool result, so it's robustly visible across CC versions. Don't reintroduce the `printf` form. (Fixed 2026-06-25; same fix applied to `/sup`.)
 
 **The verdict heading is a final-state signal, never a preview.** The user reads it and bounces. Treat it as load-bearing UI: it appears once, at the very end, only after all wrap-prep writes have landed, the Phase 4 recap has rendered, and any commit-OK has been granted and executed. Do NOT render a verdict (or anything shaped like one) before that point. If you find yourself wanting to surface "once X is done, the verdict will be ✅" — stop. Do X. Then emit the verdict. The heading's job is to be unambiguous; conditional/preview/hypothetical verdicts are the bug this rule prevents.
+
+### Phase 6: Cross-session handoff prompt (conditional)
+
+Fires **only** when the handoff crosses an explicit boundary that `design/NEXT.md` + a fresh `/sup` won't smoothly bridge on their own:
+
+- **Different machine** — the intent hint or conversation names another host ("migrating to Roci", "I'll pick this up on Serenity").
+- **Non-obvious session bootstrap** — resuming needs mechanical steps a fresh `/sup` won't surface: a dependency install (lockfile changed this session), a specific checkout / worktree, a cross-repo "stay out of X" constraint, or a service left running on a particular host.
+
+When neither fires — the common same-machine, next-session case — **emit nothing**. `design/NEXT.md` + `/sup` already carry the handoff; a bootstrap prompt there is noise, and this skill's default is to stay quiet.
+
+When it fires, emit a **fenced, paste-ready prompt** the user can hand straight to the new session. It's a thin _session-bootstrap_ wrapper, **not** a second copy of the state:
+
+- Name the host + checkout to start in.
+- List the mechanical bootstrap: `git pull`, `bun install` / equivalent **iff** deps changed this session, a health check (`make smoke` / project equivalent).
+- **Point at `design/NEXT.md` (and `/sup`)** for the actual resume state — don't restate it. The durable half already lives there; duplicating it just invites drift.
+- Carry only the cross-cutting constraints `/sup` won't surface on its own: stay in repo X, don't touch repo Y, a service is running on host Z.
+
+Keep it **ephemeral — print it, don't write a file.** `design/NEXT.md` is the durable handoff; a filed prompt would drift against it. Offer to save only if the user asks.
+
+**This is the one emission permitted after the verdict.** The prompt is the actionable artifact the cross-machine verdict points at, so it follows the verdict heading (Action-at-bottom) — the single exception to Phase 5's "verdict is the last thing" rule, and only for this conditional prompt. Have the verdict line reference it ("…pick up on <host> with the prompt below").
 
 ## Output expectations
 
@@ -168,6 +188,7 @@ If you're tempted to skip the journal-decisions check because "the diff captures
 - **Auto-commit and push complete work.** Invoking `/wrapup` is the explicit authorization to land the session's committable changes — commit and push them directly via `/cpush`, no per-write or per-commit OK. This overrides the global "never commit unless explicitly asked" default _for this skill only_, because the invocation is the ask. **Still ask per-instance for the carve-outs:** destructive git ops (force-push, `git reset`, rebase, `rm` of tracked files) per the global Safety rule, and dirty trees you can't confidently classify as complete (mid-experiment WIP is sometimes intentional — surface it, don't commit it).
 - **DIARY entries / story files / `design/NEXT.md` / queue notes: just write them.** Routine wrap-prep writes are mechanical journaling, not judgment-heavy decisions. The user edits afterward if framing's off. Propose-then-OK adds friction without judgment value at this stage. (For persona-voice journaling like `diary_propose_entry` — propose-then-curate still applies; that's a different surface where the propose step is the point.)
 - **STAY is high-confidence only.** If you're not sure whether the cache actually helps the named intent, lean READY and let the user push back. Don't manufacture a STAY out of "well, you've been working here."
+- **Cross-session handoff prompt is conditional and ephemeral.** Only on an explicit machine boundary or non-obvious bootstrap (Phase 6); print it, never file it; point it at `design/NEXT.md` rather than restating the state. Same-machine next-session handoffs emit nothing — the default is silence.
 - **One sentence per inventory item.** This is a glance, not a report.
 
 ## Help
@@ -196,6 +217,12 @@ Verdicts:
   ✅ READY          Clean handoff state. Bounce + /sup will work.
   ⏸ WAIT            N items need attention first. List + prep proposals follow.
   ↺ STAY            Intent hint is hot in this session's cache. Recommend staying.
+
+Handoff prompt (conditional):
+  On a cross-machine or non-obvious-bootstrap handoff, also prints a
+  paste-ready bootstrap prompt for the next session — ephemeral (never
+  filed), points at design/NEXT.md rather than restating it. Same-machine
+  next-session handoffs print nothing.
 
 Verbs:
   help              Show this message.
