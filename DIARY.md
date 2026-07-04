@@ -4,6 +4,16 @@ Latest entries first. Record significant decisions, architecture changes, and no
 
 ---
 
+## 2026-07-04 — A cross-machine handoff prompt, a rename, and diagnosing my own output
+
+Three tooling changes fell out of a project session that kept bumping the seams of the setup itself.
+
+First, `/wrapup` grew a conditional **Phase 6: cross-session handoff prompt**. The trigger was migrating a live session from one machine to another and noticing that `design/NEXT.md` + `/sup` carry the *state* but not the *bootstrap* — which host, `git pull`, `bun install` because deps changed, "stay out of that sibling repo, another session owns it." Those are session-bootstrap facts, not project state, so they don't belong in NEXT.md. Phase 6 emits a paste-ready prompt for exactly that, but only on a machine boundary or non-obvious bootstrap; same-machine handoffs stay silent. Two design constraints mattered: it *points at* NEXT.md rather than restating it (a second durable copy would drift), and it's the one artifact permitted after the verdict (the actionable thing the cross-machine verdict refers to) — a deliberate exception to Phase 5's "verdict is the last thing" rule rather than a contradiction of it.
+
+Second, `claude-md-add` → `/md-add`. The `claude-` prefix collided with `claude-api` / `claude-code-guide` on tab-completion (`/clau<tab>` never reaches it), so a skill Derek wanted was a pain to invoke; `/md<tab>` is now unique. Updated frontmatter, README, MAINTAINERS, and sibling-skill cross-refs; left historical references as-is.
+
+Third — and the reason the other two happened — Derek asked me to look at a screenshot of my own output as if a human were scanning it. The diagnosis: the failure mode is *undifferentiated* formatting, not too little of it. Bold inflation (roughly eight bold spans in one frame, so the ★ action drowns), a recap footer that wraps into slabs instead of glancing, code-color on non-code labels. The fix is subtraction, not more highlighting — which dissolves the apparent compact-vs-clear tension (they move together, not against). It landed as two response-handling rules in the global config, not a skill: chat output is ephemeral and streamed, so there's no artifact for a `/humanize-output` skill to point at — a per-response default is the right shape, and the always-loaded config is where defaults live.
+
 ## 2026-05-24 — `/walkthrough` rework around iteration-toward-design spine
 
 Collapsed `/walkthrough` from six verbs (bare/new/integrate/check/clean-comments/follow-ups) down to five (bare/new/review/revise/apply), centered on a clear iteration loop: draft → review → branch (write more analysis / re-imagine the walkthrough / apply to design) → loop → archive. Retired `/integrate-comments` entirely (never used outside walkthrough) and deleted `trajectory` mode (4-artifact build didn't fit the new spine). Dropped registers as a formal axis; default voice is now a one-paragraph guideline ("grounded — named protagonist as anchor only") with the failure-mode prose about cast/texture drift preserved as a Common Mistakes bullet.
