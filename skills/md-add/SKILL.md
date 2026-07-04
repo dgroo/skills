@@ -1,10 +1,10 @@
 ---
-name: claude-md-add
-description: Use when adding a single entry to a CLAUDE.md file, typically via /claude-md-add <text>, or when the user says "add this to claude.md", "remember this in claude.md", or "put this in my claude.md". Routes the entry to the right home — global CLAUDE.md, a project CLAUDE.md, or a path-scoped ~/.claude/rules/*.md for file-type/domain-specific rules so the always-loaded file doesn't bloat — then acts as a copy editor on the draft before writing: flags vague triggers, redundancy with existing entries, and voice mismatches; preserves the user's voice rather than rewriting.
+name: md-add
+description: Use when adding a single entry to a CLAUDE.md file, typically via /md-add <text>, or when the user says "add this to claude.md", "remember this in claude.md", or "put this in my claude.md". Routes the entry to the right home — global CLAUDE.md, a project CLAUDE.md, or a path-scoped ~/.claude/rules/*.md for file-type/domain-specific rules so the always-loaded file doesn't bloat — then acts as a copy editor on the draft before writing: flags vague triggers, redundancy with existing entries, and voice mismatches; preserves the user's voice rather than rewriting.
 argument-hint: <text to add>
 ---
 
-# /claude-md-add
+# /md-add
 
 Add a single new rule, preference, or note to a CLAUDE.md file with a copy-editor pass before writing. Sharpens vague triggers, flags redundancy, picks the right section — but does not rewrite the user's voice.
 
@@ -13,12 +13,12 @@ Companion to (not replacement for):
 - `/claude-md-improver` — full audit across all CLAUDE.md files. For periodic cleanup, not single additions.
 - `/revise-claude-md` — synthesize learnings from current session. For end-of-session rollups.
 
-Use `/claude-md-add` when the user has _one explicit thing_ they want recorded, in their own words.
+Use `/md-add` when the user has _one explicit thing_ they want recorded, in their own words.
 
 ## How to Invoke
 
 ```
-/claude-md-add <text>
+/md-add <text>
 ```
 
 If invoked with no argument, ask: "What do you want to add, and (if ambiguous) which CLAUDE.md — global or project?"
@@ -126,12 +126,12 @@ On accept, insert the entry at the chosen point with Edit (don't restructure sur
 
 ## Help
 
-When invoked as `/claude-md-add help`, print the following block verbatim:
+When invoked as `/md-add help`, print the following block verbatim:
 
 ```
-claude-md-add — Add a single rule to a CLAUDE.md file with a copy-editor pass.
+md-add — Add a single rule to a CLAUDE.md file with a copy-editor pass.
 
-Usage: /claude-md-add <text>
+Usage: /md-add <text>
 
 Routes the entry to the right home, then acts as copy editor on the draft —
 sharpens vague triggers, flags redundancy, picks the section, preserves the

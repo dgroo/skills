@@ -111,7 +111,7 @@ Ask only what you need:
 1. **Final name and description.** The frontmatter `description:` is what makes the skill discoverable — needs to be specific enough that future-you matches it on the right trigger. Draft one, get approval.
 2. **Argument shape.** `<arg>`, `[optional arg]`, subcommands (`/idea review`)? Used for `argument-hint:`.
 3. **Tool restrictions.** Read-only? Then `allowed-tools` should restrict accordingly (see `/sitrep`, `/sup` for examples). Most skills don't need this.
-4. **Voice.** Joe-style (tight, numbered phases, code-fence examples — see `/todo`, `/scorecard`) or Derek-style (more editorial, decision tables, longer rationale — see `/claude-md-add`, `/groot-project`). Default: Joe-style unless the skill is genuinely opinion-heavy.
+4. **Voice.** Joe-style (tight, numbered phases, code-fence examples — see `/todo`, `/scorecard`) or Derek-style (more editorial, decision tables, longer rationale — see `/md-add`, `/groot-project`). Default: Joe-style unless the skill is genuinely opinion-heavy.
 5. **Companion skills.** Any existing skill the new one should explicitly cross-reference (from Phase 2b's "Adjacent" verdicts)?
 6. **Anything skill-specific.** File locations, data shape, subcommand semantics, etc.
 
@@ -190,7 +190,7 @@ The skill's `## Help` section contains this block verbatim, indented as a code f
 - **Lead with the evaluation, not the creation.** The point of this skill is the gate. If you skip straight to writing SKILL.md because the proposal "obviously" stands, you've replaced `/skill-add` with raw skill-writing — and that's fine, but say so.
 - **One skill in, one skill out.** Don't propose adjacent skills the user didn't ask for. Note them in the recommendation if they're relevant, but don't bundle.
 - **Local-only by default.** This repo is a fork; upstream-bound skills are rare and need to clear a different bar (Joe's style, generic enough, etc.). The pre-commit hook (`scripts/check-upstream-edits.sh`) blocks accidental edits to upstream files — let it do its job, don't fight it.
-- **Match the surrounding style.** Joe's skills (`/todo`, `/project-setup`) are tight and pragmatic; Derek's local skills (`/claude-md-add`, `/groot-project`) are heavier on rationale. Pick one consciously per Phase 4 — don't mix.
+- **Match the surrounding style.** Joe's skills (`/todo`, `/project-setup`) are tight and pragmatic; Derek's local skills (`/md-add`, `/groot-project`) are heavier on rationale. Pick one consciously per Phase 4 — don't mix.
 - **The trigger phrase is the most important field.** A skill no one reaches for is dead weight. Make sure the trigger matches how the user actually talks about the work.
 - **Help is universal.** Every skill gets a `help` verb (see [Help verb convention](#help-verb-convention)). Don't surface this as an interview question — scaffold it automatically. Skills without help are flagged by `/skills-review` and need retrofit.
 

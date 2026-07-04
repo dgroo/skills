@@ -838,7 +838,7 @@ Many gstack skills also read `CLAUDE.md` for project context. The conventions bl
 - Doesn't manage worktrees — separate concern.
 - Doesn't push to GitHub aggressively or set up CI/CD — out of scope; use `/setup-deploy` and friends for that.
 - Doesn't restructure files unless the user explicitly invokes aggressive/restructure mode.
-- Doesn't maintain or update CLAUDE.md content beyond the initial skeleton — use `/claude-md-add` for ongoing additions.
+- Doesn't maintain or update CLAUDE.md content beyond the initial skeleton — use `/md-add` for ongoing additions.
 
 ## Help
 

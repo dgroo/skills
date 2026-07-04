@@ -12,7 +12,7 @@ The hard part is not detecting AI tells; a regex can do that. The hard part is n
 
 Companion to (not replacement for):
 
-- `/claude-md-add` — same iron discipline (_copy editor, not rewriter_; every clause traces to the original; show the diff before writing), applied to single CLAUDE.md entries. This skill borrows that contract wholesale.
+- `/md-add` — same iron discipline (_copy editor, not rewriter_; every clause traces to the original; show the diff before writing), applied to single CLAUDE.md entries. This skill borrows that contract wholesale.
 - `/humanize-code` — the sibling for source code (functional-identity guarantee, branch-isolated). Different verification model; different risk class.
 - `/design-review` — AI-slop detection for _rendered_ visual/UI output, not prose.
 
@@ -140,7 +140,7 @@ The instinct is to treat the em-dash as the canonical AI tell and strip it on si
 - **Treating word-choice swaps as mechanical.** "Robust" → "solid" can carry a different claim. Semantic bucket, every time it's arguable.
 - **Stripping single tokens because they're on the list.** The list finds candidates. The voice profile and the constellation decide. A lone em-dash in an em-dash user is not a hit.
 - **Silent register changes.** If the cleaned version is colder, terser, or more formal than the original, that's a voice change — surface it, don't ship it quietly.
-- **Adding prose.** Same as `/claude-md-add`: every clause in the proposed version traces to a clause in the original. De-slopping removes; it does not author.
+- **Adding prose.** Same as `/md-add`: every clause in the proposed version traces to a clause in the original. De-slopping removes; it does not author.
 - **Overwriting unversioned text without a backup.** The safety gate is not optional.
 
 ---
@@ -175,7 +175,7 @@ Safety:
 Detection layers live in references/ai-tells.md (loaded on demand).
 
 Companion skills:
-  /claude-md-add    Copy-editor pass for single CLAUDE.md entries.
+  /md-add    Copy-editor pass for single CLAUDE.md entries.
   /humanize-code    The sibling for source code (functional-identity, branch-isolated).
   /design-review    AI-slop detection for rendered visual/UI output.
 
@@ -184,6 +184,6 @@ See SKILL.md for full reference.
 
 ## Related
 
-- **`/claude-md-add`** — the discipline precedent: copy editor, not rewriter; trace test; show-the-diff.
+- **`/md-add`** — the discipline precedent: copy editor, not rewriter; trace test; show-the-diff.
 - **`/humanize-code`** — sibling skill for code; strongly prefers a clean dedicated branch + atomic commit so the diff is trivially reviewable and revertable.
 - **Prior art:** `references/ai-tells.md` adapts the banned-word/phrase/pattern lists from [jalaalrd/anti-ai-slop-writing](https://github.com/jalaalrd/anti-ai-slop-writing), adding the voice-calibration and meaning-preservation contracts it lacks.

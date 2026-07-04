@@ -66,7 +66,7 @@ A two-second sanity gate:
 
 | Check | If yes, suggest instead |
 |-------|------------------------|
-| **Is this really a rule, not a shortcut?** ("always X before Y") | `/claude-md-add` |
+| **Is this really a rule, not a shortcut?** ("always X before Y") | `/md-add` |
 | **Is this just a shell alias in disguise?** (`/build` → `make build`) | A shell alias in `~/.shrc` |
 | **Will future-you actually type the trigger?** Abstract verbs (`/do`, `/run`) get forgotten | Concrete verbs (`/cpush`, `/amend`) |
 
@@ -87,7 +87,7 @@ Present findings in one block:
 **Command vs skill:** command (user-triggered only) — confirmed
 **Value:** <earns its keep / borderline (reason) / thin (cheaper alternative is X)>
 
-**Recommendation:** <proceed / rename to Y / use /skill-add instead / use /claude-md-add instead / skip>
+**Recommendation:** <proceed / rename to Y / use /skill-add instead / use /md-add instead / skip>
 ```
 
 Wait for: **proceed / modify / abandon.**
@@ -156,4 +156,4 @@ See SKILL.md for full reference.
 ## Related
 
 - **`/skill-add`** — for proposing a *skill* (proactive, context-loaded). Used when the answer to "would you want Claude to invoke this on its own?" is yes.
-- **`/claude-md-add`** — for a one-off *rule*, not a shortcut. Used when the user wants behavior, not a trigger.
+- **`/md-add`** — for a one-off *rule*, not a shortcut. Used when the user wants behavior, not a trigger.
