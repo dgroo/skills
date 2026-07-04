@@ -221,12 +221,15 @@ One `/sup`-specific note on the harvest: the Session recap you produced above is
 
 After `backlog-scan`, also check two additional surfaces and fold their results into the candidate pool:
 
-- **Global spark inbox (count only).** Run `spark-drain status` (project inferred
-  from the git repo name; a fast directory scan, no LLM). If `project_count > 0`, add
-  exactly ONE non-blocking line — "N spark(s) waiting for this project — `/next` to
-  review/file" — and stop. Do **not** list them or offer to file in `/sup`; that's
-  `/next`'s job. Silent when `project_count` is 0. If `spark-drain` is absent or
-  errors, skip silently.
+- **Global spark inbox (auto-file).** Run `spark-drain file` (project inferred from
+  the git repo name; deterministic, milliseconds, commits only the sparkfile). If it
+  filed anything, add exactly ONE non-blocking line — "Filed N spark(s) →
+  design/IDEAS.md" — echoing the gists only if ≤3. No offer, no decision: filing into
+  a sparkfile is always safe (append-only; `/idea iterate` is the review point).
+  Silent when nothing matched. If `spark-drain` is absent or errors, skip silently.
+  (Revised 2026-07-04: the old count-only rule guarded `/sup`'s speed, but the cost
+  was the *offer interaction*, not the filing — auto-file is cheaper than asking.
+  In grove, the SessionStart hook has usually already drained; the run is a no-op.)
 - **Project sparkfile backlog.** If `design/IDEAS.md` exists and has entries (lines
   starting `- ` below the `---` header), add a low-priority line — "N unreviewed
   spark(s) in design/IDEAS.md — `/idea review`?". Silent if absent or empty.
@@ -374,8 +377,8 @@ Sequence:
                          REVISIT, open PRs, stale branches — plus a harvest of
                          outstanding loose ends from this conversation (forward-
                          only, deduped vs backlog), so the Pick sees what /next
-                         does. Also runs spark-drain status for a one-line count
-                         of pending project sparks (absent/erroring tool silently
+                         does. Also auto-files pending project sparks via
+                         spark-drain file (absent/erroring tool silently
                          skipped) and checks design/IDEAS.md for unreviewed filed
                          sparks as a count.
      • <intent>   →    Intent routing. Classify proceed-here /
