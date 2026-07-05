@@ -124,7 +124,7 @@ Ask only what you need:
 3. **Update `README.md`.** Add a row to the Skills table, alphabetical order. (Project convention — see this repo's `CLAUDE.md`.)
 4. **Run `make install`.** Symlinks the skill into `~/.claude/skills/`.
 5. **Show the result.** Path to the new SKILL.md, the README row added, and the install output line.
-6. **Don't commit.** Stage nothing automatically. Tell the user what to commit and let them.
+6. **Commit and push local-only skills proactively** (per the global commit-proactively rule — a new local skill is additive and harmless; convention updated 2026-07-05 after the don't-commit gate cost a cross-machine look at `/ponder`). Atomic commit: the skill dir + README row. **Upstream-bound skills are the exception** — leave them uncommitted for the PR flow.
 
 If the skill needs companion files (a script, a template), create them alongside `SKILL.md` in the same directory.
 
@@ -214,7 +214,7 @@ Phases:
   3. Decide         Present findings; user picks proceed / modify / abandon.
   4. Interview      Short, focused — only what isn't already clear.
   5. Create         Write SKILL.md (with mandatory `help` verb), update README,
-                    run make install. Don't commit.
+                    run make install. Commit+push (local-only).
 
 Conventions:
   Help verb         Every new skill ships with a `/<name> help` routing entry +
