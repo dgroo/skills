@@ -127,6 +127,14 @@ Format:
 
 **Source: conversation scrollback** (what the assistant actually did this session), augmented by commits if they happened. Not `git log` alone — commits miss decisions reached, drafts started, and discussions that didn't ship, which are exactly the things you don't remember. If working context has been compressed/auto-summarized and earlier work isn't visible, emit one bullet `_Earlier work in this session not in working context._` rather than fabricating.
 
+**Then mark the session-activity board wrapped** (skip in advise-only `?` mode, and in `?!` mode unless the verdict is ✅ READY): run
+
+```
+cc-session-board --wrap "<2–3 sentence recap>"
+```
+
+with a prose condensation of the recap bullets (complete sentences, non-technical register — this line is what the dashboard's session-activity board shows for the finished session, its best-ever summary). The command (a `~/bin` helper; present only on hosts whose dotfiles carry it) resolves the calling session by walking up to the owning `claude` pid; if it's absent or errors, note it in one line and move on — never block the wrap. Runs unsandboxed (it needs `ps`).
+
 If Phase 1's cadence checks (steps 6–7: independent-review and backlog-staleness) produced any nudge line(s), surface each on its own line **between the recap and the verdict block** — non-blocking context, never part of the ✅/⏸/↺ judgment. One line each, verbatim from the helper; don't expand (they're "maybe, sometime" reminders Derek may skip). Both are silent unless due, so most wraps show neither; on the rare wrap where both fire, print both lines.
 
 The recap sits **above** the verdict; the verdict still gets to be the final emission per Phase 5's load-bearing-UI rule.
