@@ -1,6 +1,6 @@
 ---
 name: wrapup
-description: Actively assess whether this session is safe to end. Inventories in-flight state, executes routine wrap-prep writes (DIARY entries, story files, design/NEXT.md session handoff, queue notes) directly, auto-commits and pushes complete work (surfacing only ambiguous or destructive cases), then gives a definitive READY / WAIT / STAY verdict. With an intent hint, also judges whether THIS session is the right place for that next chunk and pushes back if it is.
+description: Actively assess whether this session is safe to end. Inventories in-flight state, executes routine wrap-prep writes (DIARY entries, story files, design/NEXT.md session handoff, queue notes) directly, auto-commits and pushes complete work (surfacing only ambiguous or destructive cases), then gives a definitive READY / WAIT / STAY verdict. Judges whether THIS session is the right place to keep working — pushing back with a visible STAY when bouncing would discard real in-flight context — and sharpens that call against an intent hint when one is given.
 argument-hint: "[?|!|?!] [<optional intent for next work>]"
 ---
 
@@ -26,7 +26,7 @@ Each skill implements only the modifiers that differ from its default. `/wrapup`
 | ------------ | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/wrapup ?`  | **Advise only.**     | Inventory + Phase 4 recap + verdict. **Makes no changes** — no auto-`/cpush`, no DIARY / story / `NEXT.md` / queue writes. "Where do we stand?" Overlaps `/sup`'s readiness read by design; it's the lightest touch.                                                                                                                                                                                                              |
 | `/wrapup ?!` | **Gated wrap.**      | Assess readiness _first_. If the verdict is ✅ READY, do the full wrap (Phase 1.5 + Phase 3) and confirm. If ⏸ WAIT / ↺ STAY, surface the verdict + what's blocking and **hold off on prep** — let the user decide whether to proceed anyway. Won't pour effort into wrap-prep when the honest answer is "keep going." The "I came back after an hour — wrap if we're good, else tell me" form.                              |
-| `/wrapup`    | **Default wrap.**    | Assume you're wrapping: do the routine prep + commits regardless (Phase 1.5 + 3 — they're mechanical, low-judgment), _then_ verdict. Ask only on the carve-outs.                                                                                                                                                                                                                                                             |
+| `/wrapup`    | **Default wrap.**    | Assume you're wrapping: do the routine prep + commits (Phase 1.5 + 3 — mechanical, low-judgment), _then_ verdict. Ask only on the carve-outs. Phase 2's high-bar STAY check still runs; on the rare STAY it preempts the Phase 3 handoff writes (you're not leaving), though Phase 1.5's commit+push of complete work has already landed.                                                                                       |
 | `/wrapup !`  | **Autonomous wrap.** | Like default, but raise the interrupt threshold to the max: resolve everything you can yourself, minimize ⏸ WAIT, make the call on borderline-ambiguous dirt instead of surfacing it. **Only** pause for the genuinely irreversible carve-outs — destructive git ops (force-push, `git reset`, rebase, `rm` of tracked files) still require per-instance confirm per the global Safety rule; `!` does **not** override that. |
 
 `?!` and `!?` are equivalent. A modifier composes with an intent hint: `/wrapup ! picking up slice 3` = autonomous wrap, judged against that intent. The distinction that matters: `?!` checks the verdict _before_ doing prep (optimizes for "should you even be leaving?"); the default does prep _then_ reports (optimizes for "you're leaving — let me get you there").
@@ -37,7 +37,7 @@ Each skill implements only the modifiers that differ from its default. `/wrapup`
 | ------------ | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | ✅ **READY** | Clean tree, decisions journaled, tasks resolved or written down. Or intent hint isn't a fit for this session's cache. | Confirm safe-to-bounce. End.                                                                          |
 | ⏸ **WAIT**   | Something in-flight would be lost or hard to pick up cold, and resolving it needs a call only you can make.           | List items + proposed prep, surface the ambiguous/destructive call, execute once resolved, re-assess. |
-| ↺ **STAY**   | Intent hint matches what this session has hot in cache. Bouncing would discard real context value.                    | Push back: explain what's in cache that helps, suggest staying. User decides.                         |
+| ↺ **STAY**   | Real context value here for the natural next step — a given intent hint, or (on a bare wrap) the in-flight thread itself. Bouncing discards it and forces a cold re-derive. **High-bar and rare** — not "you've been working here." | Push back: explain what's in cache that helps, suggest staying. User decides.                         |
 
 ## Sequence
 
@@ -54,6 +54,8 @@ Gather in parallel — same shape as `/sup`'s sitrep mirror, with sharper edges 
    - In-flight reasoning ("I was about to…", "next step is…") that isn't pinned anywhere durable.
    - Half-done refactors mentioned but not finished.
 6. **Independent-review cadence** — run `last-codex-review --nudge` (a read-only dotfiles helper; `~/.codex` rollouts keyed by repo cwd, no state). It is silent unless it's been >21 days since an independent (non-Claude) Codex look at this repo _and_ non-doc code has changed since — in which case it prints a one-line `↳ Independent review: …` nudge toward a `/codex review` sweep. This is a periodic, codebase-wide reminder (Derek won't remember on his own), **not** a per-session gate. Capture its output for Phase 4; if the command is absent (older host / dotfiles not pulled) just skip — never block on it.
+7. **Backlog-staleness cadence** — run `backlog-staleness --nudge` (same shape as step 6: a read-only dotfiles helper, git-derived, no state). Silent unless the project has open `ready/`/`drafts/` stories _and_ `design/stories/` hasn't been touched in git for >30 days — in which case it prints a one-line `↳ Backlog untended: …` nudge toward a `/pm` stewardship pass. Absolute-staleness, self-clearing (running `/pm` resets it), **not** a per-session gate. Capture for Phase 4; absent command → skip, never block.
+8. **Fresh-eyes cadence** — run `last-beginners-mind --nudge` (same shape again: read-only dotfiles helper, reads beginners-mind's own `last-run.json`, no new state). Silent unless the project has **onboarded** to `/beginners-mind` (a state file exists) _and_ its last audit is >60 days old (or was scaffolded but never run) — then it prints a one-line `↳ Fresh-eyes …` nudge toward a `/beginners-mind` pass. Only speaks for projects already using beginners-mind (zero false positives elsewhere). Capture for Phase 4; absent command → skip, never block.
 
 Don't read whole files — this is a scan, not an audit. Heuristic: would a fresh CC session running `/sup` on this repo have everything it needs?
 
@@ -71,18 +73,22 @@ Skip Phase 1.5 entirely when:
 
 Rationale: across observed sessions, `/cpush` then `/wrapup` ran as a two-step ceremony at session end, and `/wrapup` was reliably approving the commit + push anyway. Collapsing the offer into an automatic sweep removes the rubber-stamp step; the diary entries written in Phase 3 can then reference the just-landed SHAs cleanly. The only things still gated are the irreversible ones.
 
-### Phase 2: Judge cache-relevance (only if intent hint given)
+### Phase 2: Judge cache-relevance — should you even be leaving?
 
-If invoked as `/wrapup <intent>` (e.g., "/wrapup picking up next-set-bugs"), evaluate whether THIS session is well-positioned for that work _before_ doing wrap-up prep.
+**Always run this check**, intent hint or not. Its whole job is to catch the case where wrapping is the wrong move and say so _visibly_ — before you bounce and lose hot context that finishing-now would spend cheaply.
 
-Three signals say STAY:
+- **Intent hint given** (`/wrapup picking up next-set-bugs`) — evaluate whether THIS session is well-positioned for _that named work_ before doing wrap-up prep.
+- **No intent hint** (bare `/wrapup`) — the "next work" is implicit: the thread this session is already on. Ask whether there's genuinely-hot in-flight work where finishing _now_ is materially cheaper than bouncing and re-deriving it cold. This is the honest "don't leave yet — you should keep going here" call. It must clear a **high bar** (see the STAY rule): the standing expectation is that a bare `/wrapup` wraps, so STAY here is the rare exception, not a routine outcome. When it does fire, it's loud on purpose — a `## ↺ STAY HERE` headline, not a buried aside.
+
+Three signals say STAY (read "the intent" as the named intent, or the in-flight thread on a bare wrap):
 
 1. **Files just touched relate to the intent.** Recent edits to `idm/journals.py` and the intent says "fix next_set bugs" — the warm cache is exactly the right cache.
 2. **Decisions just made inform the intent.** This session settled tradeoffs that the next chunk would otherwise have to re-derive cold.
 3. **Implementation context is hot.** You just shipped slice N of a multi-slice story and the intent is slice N+1 of the same story — fresh-session restart would re-read the same files anyway.
 
-Signals that say BOUNCE (proceed to Phase 3):
+Signals that say BOUNCE (proceed to Phase 3 — this is the common case, especially on a bare wrap):
 
+- **Bare wrap and nothing's genuinely mid-thought** — the session's work is done/committable and there's no hot thread whose cold restart would cost real re-derivation. This is the default; when in doubt on a bare wrap, BOUNCE.
 - Intent lives in a different repo, different working directory, or different code surface than this session touched.
 - This session is at high context pressure (the `<context-pressure>` reminder fired, or you've been re-reading files).
 - Subject is genuinely orthogonal — different story, different layer of the stack, different user goal.
@@ -122,7 +128,15 @@ Format:
 
 **Source: conversation scrollback** (what the assistant actually did this session), augmented by commits if they happened. Not `git log` alone — commits miss decisions reached, drafts started, and discussions that didn't ship, which are exactly the things you don't remember. If working context has been compressed/auto-summarized and earlier work isn't visible, emit one bullet `_Earlier work in this session not in working context._` rather than fabricating.
 
-If Phase 1's independent-review check (step 6) produced a nudge line, surface it on its own line **between the recap and the verdict block** — it's non-blocking context, never part of the ✅/⏸/↺ judgment. One line, verbatim from the helper; don't expand on it (it's a "maybe, sometime" reminder Derek may skip).
+**Then mark the session-activity board wrapped** (skip in advise-only `?` mode, and in `?!` mode unless the verdict is ✅ READY): run
+
+```
+cc-session-board --wrap "<2–3 sentence recap>"
+```
+
+with a prose condensation of the recap bullets (complete sentences, non-technical register — this line is what the dashboard's session-activity board shows for the finished session, its best-ever summary). The command (a `~/bin` helper; present only on hosts whose dotfiles carry it) resolves the calling session by walking up to the owning `claude` pid; if it's absent or errors, note it in one line and move on — never block the wrap. Runs unsandboxed (it needs `ps`).
+
+If Phase 1's cadence checks (steps 6–8: independent-review, backlog-staleness, fresh-eyes) produced any nudge line(s), surface each on its own line **between the recap and the verdict block** — non-blocking context, never part of the ✅/⏸/↺ judgment. One line each, verbatim from the helper; don't expand (they're "maybe, sometime" reminders Derek may skip). All three are silent unless due, so most wraps show none; print whichever fired (in step order) on the rare wrap where more than one does.
 
 The recap sits **above** the verdict; the verdict still gets to be the final emission per Phase 5's load-bearing-UI rule.
 
@@ -138,7 +152,7 @@ Emit one of the three verdicts as a **visible markdown headline in your assistan
 ```
 (Then list the items.)
 ```markdown
-## ↺ STAY HERE — this session has <specific signals> in cache for <intent>; bouncing discards real context. Recommend continuing.
+## ↺ STAY HERE — this session has <specific signals> in cache for <intent, or "the current thread">; bouncing discards real context. Recommend continuing.
 ```
 
 Render it as an actual `##` heading in your response (the emoji carries the colour-free signal — ✅ / ⏸ / ↺ — per the color-blind-safe rule), **not** inside a code fence. For READY and STAY, that's the whole emission — no extra prose after it, **except** the conditional Phase 6 handoff prompt (cross-machine / complex-bootstrap only), which is the one artifact permitted to follow the verdict. For WAIT, list the items below the heading with explicit next steps the user can act on.
@@ -187,7 +201,7 @@ If you're tempted to skip the journal-decisions check because "the diff captures
 - **Verdict is final state, not preview.** The ✅ / ⏸ / ↺ heading is the user's bounce signal — they read it, they leave. Never render a verdict heading (or anything that resembles one) as a hypothetical, conditional, or "once X is done" preview. Emit only after all prep is complete. See Phase 5 for the longer rationale.
 - **Auto-commit and push complete work.** Invoking `/wrapup` is the explicit authorization to land the session's committable changes — commit and push them directly via `/cpush`, no per-write or per-commit OK. This overrides the global "never commit unless explicitly asked" default _for this skill only_, because the invocation is the ask. **Still ask per-instance for the carve-outs:** destructive git ops (force-push, `git reset`, rebase, `rm` of tracked files) per the global Safety rule, and dirty trees you can't confidently classify as complete (mid-experiment WIP is sometimes intentional — surface it, don't commit it).
 - **DIARY entries / story files / `design/NEXT.md` / queue notes: just write them.** Routine wrap-prep writes are mechanical journaling, not judgment-heavy decisions. The user edits afterward if framing's off. Propose-then-OK adds friction without judgment value at this stage. (For persona-voice journaling like `diary_propose_entry` — propose-then-curate still applies; that's a different surface where the propose step is the point.)
-- **STAY is high-confidence only.** If you're not sure whether the cache actually helps the named intent, lean READY and let the user push back. Don't manufacture a STAY out of "well, you've been working here."
+- **STAY is high-confidence only — higher-bar still on a bare wrap.** If you're not sure the cache actually helps the next step (named intent _or_ the in-flight thread), lean READY and let the user push back. Never manufacture a STAY out of "well, you've been working here" — that's the exact failure mode. On a bare `/wrapup` (no intent), only raise STAY when finishing _now_ is materially cheaper than a cold restart _and_ the work is genuinely mid-thought; the standing default is that a bare wrap wraps. When STAY does fire, it's the loud `## ↺ STAY HERE` headline — the visible "you should stick around" call, never a silent slide into READY.
 - **Cross-session handoff prompt is conditional and ephemeral.** Only on an explicit machine boundary or non-obvious bootstrap (Phase 6); print it, never file it; point it at `design/NEXT.md` rather than restating the state. Same-machine next-session handoffs emit nothing — the default is silence.
 - **One sentence per inventory item.** This is a glance, not a report.
 
@@ -203,8 +217,10 @@ Usage: /wrapup [?|!|?!] [<optional intent for next work>]
 Arguments:
   (none)            Default wrap: do routine prep + commits, then verdict.
                     Ask only on carve-outs (destructive ops, ambiguous dirt).
+                    Still raises a loud STAY if there's a strong reason to
+                    keep going in this session (high-bar, rare).
   <intent>          Same + judge whether THIS session is the right place
-                    for that intent. May emit STAY instead.
+                    for that intent. Sharpens the STAY call against it.
 
 Modifiers (decisiveness dial — leading, before any intent):
   ?                 Advise only — inventory + verdict, makes NO changes.
@@ -216,7 +232,8 @@ Modifiers (decisiveness dial — leading, before any intent):
 Verdicts:
   ✅ READY          Clean handoff state. Bounce + /sup will work.
   ⏸ WAIT            N items need attention first. List + prep proposals follow.
-  ↺ STAY            Intent hint is hot in this session's cache. Recommend staying.
+  ↺ STAY            Real in-flight context here (named intent or current
+                    thread). Recommend staying. High-bar, rare.
 
 Handoff prompt (conditional):
   On a cross-machine or non-obvious-bootstrap handoff, also prints a
