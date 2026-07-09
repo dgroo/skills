@@ -62,6 +62,21 @@ Still broken (pre-existing): <fail→fail rows>
 - For each newly-broken spec, read its failure in `run-after-update.log` and give the actual reason (stale selector, changed API, etc.) — upstream churn in the order/sell/settlement code is the usual culprit.
 - Stop the poller when done (or note it's left running). Leave the two summary files in place for reference.
 
+### 6. Workaround check
+An upstream sync is exactly when the product may have fixed something the demo currently works around — so the workaround becomes dead weight (or actively wrong). Run the checker (no sandbox needed — it only reads files in the org clones):
+
+```
+node scripts/vfdemo-check-workarounds.mjs
+```
+
+It probes each active demoBot workaround in `scripts/vfdemo-workarounds.json` (e.g. the tile-volume paint keyed to the FE's hardcoded `$0 vol`, the comments stub) and flags any whose underlying product gap looks fixed upstream — exit 1 if there's anything to revisit. Fold its output into the report:
+
+```
+Workarounds: <N active, M flagged to revisit — or "all still needed">
+```
+
+For each ⚠ flagged item, confirm whether the real code path now works, and if so remove the workaround (and its registry entry) as its own commit. This is the mechanism that stops us shipping a demo that fakes something the product now does for real — the `fee-zero` entry is the archetype (upstream shipped it; we deleted the plan to hack it).
+
 ## Notes
 - Commit any demo fixes made to un-break things as their own `test(demo)`/`fix(autobot)` commits on `demo-local` (never pushed).
 - If the rebase pulls handler-signature changes into the settlement path (`orderServiceV2.ts`, the queue handlers the poller imports), the poller may need updating — the `fill-and-sell:fill` row going red is the signal.
