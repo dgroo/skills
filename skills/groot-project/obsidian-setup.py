@@ -134,6 +134,14 @@ EXCLUDED_FILTERS = [
     "static/",
 ]
 
+# New notes land in the same folder as the current note (not the vault root),
+# and pasted attachments go into an `_attachments/` subfolder next to that note.
+# The leading underscore sorts the folder to the top of each directory and flags
+# it as subordinate/meta rather than content. Obsidian's defaults (vault root for
+# both) scatter new notes and dump every screenshot at the vault root.
+NEW_FILE_LOCATION = "current"
+ATTACHMENT_FOLDER_PATH = "./_attachments"
+
 SNIPPET_NAME = "project-color"
 
 # Lines appended to .gitignore: commit the declared config, ignore the
@@ -304,6 +312,8 @@ def write_config(vault: Path, accent: str, dry_run: bool) -> None:
         if f not in filters:
             filters.append(f)
     app["userIgnoreFilters"] = filters
+    app["newFileLocation"] = NEW_FILE_LOCATION
+    app["attachmentFolderPath"] = ATTACHMENT_FOLDER_PATH
     write_json(vault / "app.json", app, dry_run)
 
     community = load_json(vault / "community-plugins.json")
