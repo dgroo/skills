@@ -53,7 +53,7 @@ Five verbs. Bare invocation smart-routes.
 `/walkthrough` (bare) decides what to do by inspecting the expected walkthrough dir (see [Auto-discovery](#auto-discovery)):
 
 - No dir or no walkthroughs → draft (run scoping pass)
-- Walkthrough exists with unseen `@user:` markers anywhere in the dir (`walkthrough.md` or any `review-N.md`) → `review`
+- Walkthrough exists with unseen `<user>:` review markers (legacy `@user:` too) anywhere in the dir (`walkthrough.md` or any `review-N.md`) → `review`
 - Walkthrough exists, no unseen markers → ask: `revise` / `apply` / draft new?
 
 If the auto-discovery finds multiple candidate dirs, ask which one — don't guess.
@@ -162,13 +162,13 @@ If the user asked for it, generate a second file with the same arc but a differe
 
 **Authorship detection signals** (any one is sufficient):
 - Frontmatter declares author/source
-- Marker style: `@user:` review markers → CC-authored target of review; `[[design-actionable]]` / `((aside))` markers → human-authored intent doc
+- Marker style: `<user>:` review markers (legacy `@user:` too) → CC-authored target of review; `[[design-actionable]]` / `((aside))` markers → human-authored intent doc
 - Filename convention if present
 - Fallback: ask
 
 ### Single CC-authored: standard analysis
 
-Read `walkthrough.md` and all `review-N.md` files. Identify each `@user:` comment and form a position on it: agree / disagree / needs-discussion / spec-gap. Surface the analysis in conversation as a numbered list, then present the three branches as options.
+Read `walkthrough.md` and all `review-N.md` files. Identify each review-marker comment — `<!-- <user>: … -->`, or legacy `<!-- @user: … -->` (the colon is what marks it) — and form a position on it: agree / disagree / needs-discussion / spec-gap. Surface the analysis in conversation as a numbered list, then present the three branches as options.
 
 ### Single human-authored: 3-way gap-analysis
 
@@ -200,7 +200,7 @@ After surfacing, present the three branches.
 
 After surfacing analysis, present the three branches as options (or invoke a branch verb directly):
 
-1. **Write review file.** Persist the analysis as `review-<N+1>.md` (N = current count of review files in the dir). Before writing, marker-ack any `@user:` markers on prior files (`walkthrough.md`, `review-1.md..N.md`) — `@user:` → `@user+seen:` in place. The new review file is now a comment-able artifact in its own right; adding `@user:` markers to it and re-running `review` continues the loop.
+1. **Write review file.** Persist the analysis as `review-<N+1>.md` (N = current count of review files in the dir). Before writing, marker-ack any review markers on prior files (`walkthrough.md`, `review-1.md..N.md`) — insert `+seen` before the colon (`<user>:` → `<user>+seen:`, keeping any legacy `@`) in place. The new review file is now a comment-able artifact in its own right; adding `<user>:` markers to it and re-running `review` continues the loop.
 2. **Revise.** See [Revise](#revise).
 3. **Apply.** See [Apply](#apply).
 
@@ -210,9 +210,9 @@ After surfacing analysis, present the three branches as options (or invoke a bra
 
 Procedure:
 
-1. Read `walkthrough.md` (with any `@user:` markers).
-2. Rewrite those markers to `@user+seen:` in place. Preserves provenance — the prior file shows what was considered.
-3. Read all `review-N.md` files; marker-ack their `@user:` too.
+1. Read `walkthrough.md` (with any `<user>:` / legacy `@user:` review markers).
+2. Rewrite those markers by inserting `+seen` before the colon (`<user>:` → `<user>+seen:`, keeping any legacy `@`) in place. Preserves provenance — the prior file shows what was considered.
+3. Read all `review-N.md` files; marker-ack their review markers too.
 4. Move the current `walkthrough.md` to `walkthrough-v<N+1>.md` (next available number). Review files stay in place.
 5. Write a fresh `walkthrough.md`, re-imagining the story informed by: prior walkthrough content, all comments (now seen-marked) across walkthrough.md and review-N.md, current design surface.
 6. Surface a brief summary in conversation of what shifted vs. the prior version (1-3 bullets, not a diff).
@@ -250,7 +250,7 @@ walkthrough — Tutorial-quadrant narrative docs from a user's perspective.
 Usage: /walkthrough [verb] [path]
 
 Verbs:
-  (none)            Smart-route: review if walkthrough has unseen @user:
+  (none)            Smart-route: review if walkthrough has unseen <user>:
                     markers; ask revise/apply/new if no markers; else draft.
   new               Force-fresh draft regardless of existing state.
   review [path]     Analyze current state. Auto-detects single-CC /
@@ -274,8 +274,8 @@ it" / "make it a story" to permit cast and texture.
 Markers:
   [[...]]           Human-authored design-actionable note (review input).
   ((...))           Human-authored aside / clarification (non-actionable).
-  <!-- @user: -->   Unseen review marker on CC-drafted walkthrough.
-  <!-- @user+seen: --> Marker acknowledged during revise / write-review.
+  <!-- user: -->    Unseen review marker on CC-drafted walkthrough (colon marks it; legacy @user: also recognized).
+  <!-- user+seen: --> Marker acknowledged during revise / write-review.
 
 Artifact layout (per walkthrough dir):
   design/walkthroughs/<YYYY-MM-DD>-<slug>/
@@ -333,10 +333,10 @@ On second invocation in the same project: if scoping conversations are repeating
 | `[planned]` | `planned` | Item is on the near-term roadmap but not yet shipped. |
 | `[extrap]` | `infinity` | Speculation past spec; reader should not treat as commitment. |
 
-**Review-comment markers** (processed by `revise` and `write review file`):
+**Review-comment markers** (processed by `revise` and `write review file`). The **colon** marks a review comment; a leading `@` is optional (legacy) — `<!-- derek: … -->` and `<!-- @derek: … -->` are equivalent. A colon-*less* `<!-- @<username> … -->` is a "look at this" ping, **not** a review marker — leave it untouched.
 
-- `<!-- @<username>: <comment> -->` — unseen; will be acked during the next revise / write-review pass
-- `<!-- @<username>+seen: <comment> -->` — acknowledged; preserved on the file for provenance
+- `<!-- <username>: <comment> -->` — unseen; will be acked during the next revise / write-review pass (legacy `<!-- @<username>: … -->` also recognized)
+- `<!-- <username>+seen: <comment> -->` — acknowledged; preserved on the file for provenance (`+seen` inserted before the colon; a legacy `@` prefix is kept as-is)
 
 **Embedded human-narrative markers** (processed by `review` on a human-authored walkthrough):
 
