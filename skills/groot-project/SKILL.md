@@ -481,13 +481,14 @@ dist:  ## Package for distribution
 clean:  ## Clean generated assets
 	# <language-specific>
 
-hooks-install:  ## Install git hooks from hooks/ into .git/hooks (per-clone step)
-	@mkdir -p .git/hooks
-	@for h in hooks/*; do \
+hooks-install:  ## Install git hooks from hooks/ into this clone (per-clone step)
+	@hooks_dir="$$(git rev-parse --git-path hooks)"; \
+	mkdir -p "$$hooks_dir"; \
+	for h in hooks/*; do \
 		[ -f "$$h" ] || continue; \
-		cp "$$h" ".git/hooks/$$(basename "$$h")"; \
-		chmod +x ".git/hooks/$$(basename "$$h")"; \
-		echo "installed .git/hooks/$$(basename "$$h")"; \
+		cp "$$h" "$$hooks_dir/$$(basename "$$h")"; \
+		chmod +x "$$hooks_dir/$$(basename "$$h")"; \
+		echo "installed $$hooks_dir/$$(basename "$$h")"; \
 	done
 
 help:  ## Show available targets
@@ -512,6 +513,10 @@ If a Makefile exists, check for the standard targets (`init`, `build`, `run`, `l
 Generate a `hooks/pre-commit` script that auto-formats staged Markdown with `prettier --prose-wrap never` and re-stages it, so prose is never hard-wrapped at a fixed column (single newlines render as mid-sentence `<br>` in Obsidian and most external viewers — the viewer should own wrap width). This pairs with the global rule in `~/.claude/CLAUDE.md` ("Never hard-wrap Markdown prose"): the CLAUDE.md rule governs Claude's output, this hook catches human- and other-tool-authored wrapping too.
 
 Mode: **auto-default-Y**. Create `hooks/pre-commit` if absent; add the `hooks-install` target to the Makefile (Phase 6 already does this for new Makefiles — for an existing Makefile, offer to append it). Print a hint to run `make hooks-install` (the skill does not install into `.git/hooks/` itself — that's a per-clone action the user runs).
+
+**A committed `hooks/` file does nothing until it's installed — verify, don't assume.** `.git/` isn't tracked, so `hooks/pre-commit` can sit in a repo for weeks while `.git/hooks/` stays empty and the hook has never once run. That failure is invisible: an uninstalled hook and a hook with nothing to do look identical. When adopting this phase in an _existing_ project, check `ls "$(git rev-parse --git-path hooks)"` rather than trusting the presence of `hooks/` — and if it's empty, say so plainly, because the project has been silently unprotected the whole time. (Found exactly this in vffins on 2026-07-15: hook committed 07-05, never installed, ten days of unformatted commits.)
+
+**Why `git rev-parse --git-path hooks` and not a literal `.git/hooks`.** In a worktree, `.git` is a _file_ (a pointer), so `mkdir -p .git/hooks` dies with "Not a directory" — and this skill's own auto-split gate routinely lands work in worktrees, so the literal form breaks in the exact case the fleet hits most. The rev-parse form is also more correct in substance: hooks live in the repo's common dir, so it resolves to the one shared `.git/hooks` and installs once for every worktree. Don't "simplify" it back to the literal.
 
 **Composition, never clobber.** If `hooks/pre-commit` already exists (e.g., a project that already runs lint+test on commit), do **not** overwrite it. Instead offer to insert the Markdown-format block near the top of the existing hook, before its other checks. If `.git/hooks/pre-commit` exists but `hooks/pre-commit` doesn't, surface that and ask before touching it.
 
