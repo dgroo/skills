@@ -1,0 +1,86 @@
+{
+  "selectionHighlighter": {
+    "highlightWordAroundCursor": true,
+    "highlightSelectedText": true,
+    "maxMatches": 100,
+    "minSelectionLength": 3,
+    "highlightDelay": 200,
+    "ignoredWords": "about, after, all, also, and, any, as, at, back, be, because, before, but, by, can, come, could, day, do, down, each, even, find, first, for, from, get, give, go, good, great, have, he, I, if, in, into, it, just, know, like, long, look, make, man, many, may, more, most, much, must, new, no, not, now, of, on, one, only, or, other, out, over, own, people, say, see, she, should, so, some, state, such, take, than, that, the, then, there, these, they, think, this, through, time, to, up, use, way, we, well, what, when, where, which, who, will, with, work, would, year, you",
+    "selectionColor": "default",
+    "selectionDecoration": "default",
+    "css": "text-decoration: underline dotted var(--text-accent)"
+  },
+  "staticHighlighter": {
+    "showInReadingMode": false,
+    "debugMode": false,
+    "queries": {
+      "review-from-me": {
+        "class": "review-from-me",
+        "staticColor": "#9637D5C2",
+        "staticDecoration": "color",
+        "staticCss": {
+          "fontWeight": "400",
+          "color": "#9637D5C2"
+        },
+        "colorIconSnippet": "font-weight: 400; color: #9637D5C2",
+        "regex": true,
+        "query": "<!--\\s*@?derek:.*?-->",
+        "mark": [
+          "match"
+        ],
+        "highlighterEnabled": true,
+        "tag": "d-cc-comments",
+        "tagEnabled": true
+      },
+      "review-to-me": {
+        "class": "review-to-me",
+        "staticColor": "#FC0000C7",
+        "staticDecoration": "bold",
+        "staticCss": {
+          "fontWeight": "600",
+          "color": "#FC0000C7"
+        },
+        "colorIconSnippet": "font-weight: 600; color: #FC0000C7",
+        "regex": true,
+        "query": "<!--\\s*@?derek\\([^)]*\\):.*?-->",
+        "mark": [
+          "match"
+        ],
+        "highlighterEnabled": true,
+        "tag": "d-cc-comments",
+        "tagEnabled": true
+      },
+      "review-resolved": {
+        "class": "review-resolved",
+        "staticColor": "#00000061",
+        "staticDecoration": "color",
+        "staticCss": {
+          "fontWeight": "400",
+          "color": "#00000061"
+        },
+        "colorIconSnippet": "font-weight: 400; color: #00000061",
+        "regex": true,
+        "query": "<!--\\s*@?derek✓.*?-->",
+        "mark": [
+          "match"
+        ],
+        "highlighterEnabled": true,
+        "tag": "d-cc-comments",
+        "tagEnabled": true
+      }
+    },
+    "queryOrder": [
+      "review-resolved",
+      "review-to-me",
+      "review-from-me"
+    ],
+    "tagOrder": [],
+    "expandedTags": [
+      "d-cc-comments"
+    ],
+    "toggleable": [
+      "#unsorted"
+    ],
+    "onOffSwitch": true
+  }
+}

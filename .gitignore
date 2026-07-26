@@ -8,3 +8,9 @@ Thumbs.db
 .env.local
 __pycache__/
 *.pyc
+
+# obsidian-baseline-plugins: track plugin rules for cross-vault sync
+.obsidian/plugins/*
+!.obsidian/plugins/another-dynamic-highlights/
+.obsidian/plugins/another-dynamic-highlights/*
+!.obsidian/plugins/another-dynamic-highlights/data.json
