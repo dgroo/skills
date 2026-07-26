@@ -530,6 +530,12 @@ Mode: **auto-default-Y**. Create `hooks/pre-commit` if absent; add the `hooks-in
 # Skip on demand with `git commit --no-verify` — but prefer fixing the cause.
 set -e
 
+# Automated commits (launchd watchers, Claude Code) run with a minimal PATH that
+# omits bun's install dirs, so `command -v bunx` fails there even when bun IS
+# installed — and Markdown then goes unformatted differently on each host. Prepend
+# the common bun/brew locations so the hook resolves bunx like an interactive shell.
+PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 md=$(git diff --cached --name-only --diff-filter=ACM -- '*.md' '*.markdown')
 if [ -n "$md" ]; then
   if command -v bunx >/dev/null 2>&1; then
@@ -538,7 +544,7 @@ if [ -n "$md" ]; then
     git diff --cached --name-only -z --diff-filter=ACM -- '*.md' '*.markdown' | xargs -0 bunx --bun prettier --prose-wrap never --write
     git diff --cached --name-only -z --diff-filter=ACM -- '*.md' '*.markdown' | xargs -0 git add
   else
-    echo "⚠ pre-commit: bunx not found — skipping Markdown formatting (brew install oven-sh/bun/bun)"
+    echo "⚠ pre-commit: bunx not found — skipping Markdown formatting (install bun: https://bun.sh)"
   fi
 fi
 
