@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Per-project initializer for the Roci↔Serenity Relay.
+"""Per-project initializer for the Cross-Host Relay.
 
 Creates the mailbox files committed to a project repo so that two (or more)
 hosts running Claude Code can use the relay's scripts to hand work back and
@@ -59,7 +59,9 @@ def discover_project_root(start: Path) -> Path:
     try:
         toplevel = run_git(["rev-parse", "--show-toplevel"], cwd=start)
     except SetupError as exc:
-        raise SetupError(f"not inside a git working tree (from {start}): {exc}") from exc
+        raise SetupError(
+            f"not inside a git working tree (from {start}): {exc}"
+        ) from exc
     return Path(toplevel)
 
 
@@ -118,7 +120,7 @@ def render_state_md(initial_active: str, hosts: list[str], at: str) -> str:
 def render_config_toml(hosts: list[str], branch: str) -> str:
     hosts_str = ", ".join(f'"{h}"' for h in hosts)
     return (
-        "# design/relay/config.toml — Roci↔Serenity Relay per-project config.\n"
+        "# design/relay/config.toml — Cross-Host Relay per-project config.\n"
         "# Edited by /relay-setup; rarely touched after.\n"
         "\n"
         f"hosts = [{hosts_str}]\n"
@@ -143,7 +145,9 @@ def update_gitignore(root: Path) -> bool:
     if GITIGNORE_MARKER_START in existing:
         return False
     needs_leading_newline = existing and not existing.endswith("\n")
-    addition = ("\n" if needs_leading_newline else "") + "\n".join(GITIGNORE_LINES) + "\n"
+    addition = (
+        ("\n" if needs_leading_newline else "") + "\n".join(GITIGNORE_LINES) + "\n"
+    )
     if not existing:
         gitignore.write_text(addition.lstrip("\n"))
     else:
@@ -171,7 +175,7 @@ def check_relay_scripts_installed() -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Initialize a project for the Roci↔Serenity Relay.",
+        description="Initialize a project for the Cross-Host Relay.",
     )
     parser.add_argument(
         "--hosts",
@@ -298,12 +302,14 @@ def main() -> int:
             f"one of {hosts}, commit + push to start the first cycle."
         )
     else:
-        print("  2. Commit + push the bootstrap (this also sets the first active host):")
         print(
-            f'       git commit -m "Relay: initialize, {initial_active} starts"'
+            "  2. Commit + push the bootstrap (this also sets the first active host):"
         )
+        print(f'       git commit -m "Relay: initialize, {initial_active} starts"')
         print("       git push")
-        print(f"  3. On {initial_active}, run `relay-status` to confirm the ball is there.")
+        print(
+            f"  3. On {initial_active}, run `relay-status` to confirm the ball is there."
+        )
     return 0
 
 

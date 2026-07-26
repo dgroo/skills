@@ -1,12 +1,12 @@
 ---
 name: relay-setup
-description: Initialize a project for the Roci↔Serenity Relay — the cross-host Claude Code handoff protocol that lets two CCs on different machines pass work to each other via git commits, without a human relaying messages by hand. Creates `design/relay/STATE.md`, `design/relay/handoffs/`, `design/relay/config.toml`, and the `.gitignore` entries needed. Run once per project that participates in the relay. Idempotent (refuses to clobber if already initialized). Use when asked to "set up the relay", "initialize relay", "enable cross-host handoff", or `/relay-setup`.
+description: Initialize a project for the Cross-Host Relay — the cross-host Claude Code handoff protocol that lets two CCs on different machines pass work to each other via git commits, without a human relaying messages by hand. Creates `design/relay/STATE.md`, `design/relay/handoffs/`, `design/relay/config.toml`, and the `.gitignore` entries needed. Run once per project that participates in the relay. Idempotent (refuses to clobber if already initialized). Use when asked to "set up the relay", "initialize relay", "enable cross-host handoff", or `/relay-setup`.
 argument-hint: [--hosts host1,host2] [--branch BRANCH] [--initial-active HOST]
 ---
 
 # Relay setup — per-project initializer
 
-For a project that two (or more) hosts will collaborate on via the Roci↔Serenity Relay, generate the mailbox files committed to the project repo:
+For a project that two (or more) hosts will collaborate on via the Cross-Host Relay, generate the mailbox files committed to the project repo:
 
 - `design/relay/STATE.md` — single source of truth for who has the ball. Bootstrap content puts `active: human-required` so the human sets the first holder.
 - `design/relay/handoffs/.gitkeep` — empty dir for handoff docs to land in.
@@ -71,7 +71,7 @@ Once `/relay-setup` runs in the test bed (`remote-coding-setup`) and Derek pushe
 When invoked as `/relay-setup help`, print the following block verbatim:
 
 ```
-relay-setup — Per-project initializer for the Roci↔Serenity Relay
+relay-setup — Per-project initializer for the Cross-Host Relay
 (cross-host Claude Code handoff protocol).
 
 Usage: /relay-setup [flags]
