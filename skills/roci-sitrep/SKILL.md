@@ -1,12 +1,12 @@
 ---
 name: roci-sitrep
-description: Whole-host status snapshot for the always-on remote-coding host (Rocinante24 today). Composes git-fleet across ~/code, host vitals (uptime, load, disk, tailscale), container daemon state, brew services, relay state across projects, and open helping-hands. Use when asked "how's Roci?", "status report", "roci sitrep", "/roci-sitrep", or invoked from `/loop` for periodic monitoring. Distinct from /sup (current session/repo) — this is fleet-state across the host.
+description: Whole-host status snapshot for the always-on remote-coding host. Composes git-fleet across ~/code, host vitals (uptime, load, disk, tailscale), container daemon state, brew services, relay state across projects, and open helping-hands. Use when asked "how's Roci?", "status report", "roci sitrep", "/roci-sitrep", or invoked from `/loop` for periodic monitoring. Distinct from /sup (current session/repo) — this is fleet-state across the host.
 allowed-tools: Read, Glob, Grep, Bash
 ---
 
 # /roci-sitrep — Fleet-state report for the remote-coding host
 
-Produces a glanceable, one-page report covering the always-on host (Rocinante24 today; Studio later) end-to-end. Two intended invocations:
+Produces a glanceable, one-page report covering the always-on host end-to-end. Two intended invocations:
 
 1. **Interactive:** Derek (or any CC session) asks "how's Roci?" — get the report inline.
 2. **Continuous:** `/loop 30m /roci-sitrep --save` running in a long-lived tmux session on the host, writing dated findings to `~/.claude/monitor/findings/<ISO-timestamp>.md` for later review or anomaly-detection.
@@ -39,11 +39,13 @@ sw_vers -productVersion           # macOS version (one-time-ish sanity)
 tailscale status 2>/dev/null | grep -E "^(\S+)\s+$(scutil --get LocalHostName 2>/dev/null || hostname)" || echo "tailscale: not on tailnet"
 ```
 
-If running on a host other than Roci, also check that Roci itself is reachable:
+If running on a host other than Roci, also check that Roci itself is reachable. Resolve the always-on host's name rather than hardcoding it — it changes when the lineage moves to new metal:
 
 ```bash
-tailscale status 2>/dev/null | grep rocinante24
+tailscale status 2>/dev/null | grep -i '^.*rocinante'
 ```
+
+Match the *ship* name (`rocinante`), not a full `<ship><year>` hostname — the year changes whenever the lineage moves to new metal, and a hardcoded `rocinante24` silently reports "unreachable" forever after.
 
 ### 3. Container layer (Phase 6 health)
 
@@ -87,7 +89,7 @@ Surface a one-liner if `git-fleet --ahead` would have any rows. This is the most
 ## Roci sitrep — 2026-05-21 16:30 CDT
 
 Host: uptime 2d 11h, load 2.4 / 2.2 / 2.5. Disk free: / 312G, ~ 412G. macOS 26.5.
-Network: Tailscale ✓ rocinante24 active.
+Network: Tailscale ✓ rocinante26 active.
 Container: daemon ✓ running (0.12.3). 0 containers up, 0 stopped.
 
 Repos (4 under ~/code):
@@ -123,7 +125,7 @@ With a YAML frontmatter:
 ```yaml
 ---
 generated_at: 2026-05-21T21:30:00Z
-host: rocinante24
+host: rocinante26
 trigger: loop # "interactive" | "loop" | "manual"
 anomalies: 1 # 0 = clean run; >0 if anything was flagged
 ---
@@ -181,7 +183,7 @@ When invoked as `/roci-sitrep help`, print the following block verbatim:
 
 ```
 roci-sitrep — Whole-host status snapshot for the always-on remote-coding
-host (Rocinante24 today). Fleet-state across the host, not per-session.
+host. Fleet-state across the host, not per-session.
 
 Usage: /roci-sitrep [flags]
 

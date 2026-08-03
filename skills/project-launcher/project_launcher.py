@@ -4,7 +4,7 @@
 
 The .app opens a new terminal window (preferred app via $PROJLAUNCH_TERMINAL,
 ~/.config/projlaunch/terminal, or iTerm default), cd's into the project,
-calls `roci` to attach to a tmux session on Rocinante24, and after that
+calls `roci` to attach to a tmux session on the always-on host, and after that
 session ends drops into a fresh interactive shell.
 
 Run inside the project root. Re-running is idempotent.
@@ -126,7 +126,7 @@ def write_launch_script(project_dir: Path) -> Path:
 
     The script cd's locally (triggering `/terminal-setup`'s OSC 11 chpwd
     hook to set the window background) and then calls `roci`, which
-    `tailscale ssh`s to Rocinante24 and attaches/creates the tmux session.
+    `tailscale ssh`s to the always-on host and attaches/creates the tmux session.
     After roci returns, we exec a fresh interactive shell so the window
     stays usable instead of slamming shut.
     """
@@ -252,7 +252,7 @@ def main() -> int:
     print(f"  - Spotlight / Launchpad: search for '{app_name}'")
     print(f"  - Dock: drag {app_path.name} from Finder")
     print("Smoke test: open it from a cold state. New terminal window should appear,")
-    print("cd into the project, attach to the tmux session on rocinante24, and the")
+    print("cd into the project, attach to the tmux session on the remote host, and the")
     print(
         "project's background color should be applied (if .groot-project.toml has one)."
     )

@@ -18,7 +18,6 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-DEFAULT_HOSTS = ["rocinante24", "serenity26"]
 DEFAULT_POLL_INTERVAL_SECONDS = 60
 DEFAULT_WAIT_TIMEOUT = "30m"
 
@@ -177,10 +176,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Initialize a project for the Cross-Host Relay.",
     )
+    # Deliberately no default. This repo is public, so it must not carry a
+    # personal fleet roster — and a baked-in default silently outlives the
+    # machines it names (it still said "serenity26" months after that host
+    # retired). The caller states the roster; /relay-setup asks for it.
     parser.add_argument(
         "--hosts",
-        default=",".join(DEFAULT_HOSTS),
-        help=f"Comma-separated participating hosts (default: {','.join(DEFAULT_HOSTS)}).",
+        required=True,
+        help="Comma-separated participating hosts, e.g. --hosts hostA,hostB.",
     )
     parser.add_argument(
         "--branch",

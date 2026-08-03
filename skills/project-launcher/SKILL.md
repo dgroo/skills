@@ -1,22 +1,22 @@
 ---
 name: project-launcher
-description: Generate a per-project GUI launcher (.app + inner shell script) that opens a new terminal window, cd's into the project, and attaches to a tmux session on Rocinante24 over Tailscale. Lives in the project directory itself (gitignored). Run inside the project root. Reuses the `roci` shell function from dotfiles and `/terminal-setup`'s OSC 11 color mechanism — does not reimplement either. Use when asked to "create a launcher", "make a .app for this project", "project launcher", or `/project-launcher`.
+description: Generate a per-project GUI launcher (.app + inner shell script) that opens a new terminal window, cd's into the project, and attaches to a tmux session on the always-on host over Tailscale. Lives in the project directory itself (gitignored). Run inside the project root. Reuses the `roci` shell function from dotfiles and `/terminal-setup`'s OSC 11 color mechanism — does not reimplement either. Use when asked to "create a launcher", "make a .app for this project", "project launcher", or `/project-launcher`.
 argument-hint: [app-name]
 ---
 
 # Per-project GUI launcher
 
-For each project that you remotely tmux into on `rocinante24`, get a `.app` bundle in the project root (e.g. `~/code/<project>/<Name>.app`) that:
+For each project that you remotely tmux into on the always-on host, get a `.app` bundle in the project root (e.g. `~/code/<project>/<Name>.app`) that:
 
 - Launches from Spotlight, Launchpad, or the Dock.
 - Opens a new terminal window in the user's preferred terminal (defaults to iTerm2; detection via `$TERM_PROGRAM` and `~/.config/projlaunch/terminal` overrides).
 - `cd`s into the project locally (`/terminal-setup`'s OSC 11 chpwd hook fires and sets the window background from `.groot-project.toml` — but only briefly; see note below).
-- Calls `roci` (the `tailscale ssh ... tmux new-session -A` shorthand from `~/.shrc`) to attach/create the project's tmux session on Rocinante24.
+- Calls `roci` (the `tailscale ssh ... tmux new-session -A` shorthand from `~/.shrc`) to attach/create the project's tmux session on the always-on host.
 - After the SSH session ends, drops into a fresh interactive shell so the window stays usable.
 
 ## How this fits with neighbors
 
-- **`/terminal-setup`** handles per-project background color (`.groot-project.toml` + OSC 11). This skill does **not** touch color — the launcher's local `cd` fires the chpwd hook and emits the OSC 11 escape, but **once `roci` (SSH) takes over the terminal, the local window's background reverts and does not persist into the remote tmux session.** OSC 11 doesn't travel over SSH. Per-project visual identity for the remote tmux session lives in the tmux status bar on Rocinante24 (color/name), not in the local window chrome. Run `/terminal-setup` if you want a color signal for the local Serenity-side moments (a brief flash during launch, or any non-SSH shells in that project).
+- **`/terminal-setup`** handles per-project background color (`.groot-project.toml` + OSC 11). This skill does **not** touch color — the launcher's local `cd` fires the chpwd hook and emits the OSC 11 escape, but **once `roci` (SSH) takes over the terminal, the local window's background reverts and does not persist into the remote tmux session.** OSC 11 doesn't travel over SSH. Per-project visual identity for the remote tmux session lives in the tmux status bar on the always-on host (color/name), not in the local window chrome. Run `/terminal-setup` if you want a color signal for the local Serenity-side moments (a brief flash during launch, or any non-SSH shells in that project).
 - **`roci` / `remote_tmux`** in `~/.shrc` handles SSH + tmux. This skill does not reimplement either. The `.launch.sh` it generates calls `roci` with no args (defaults: session name = cwd basename, remote path = local cwd).
 - This skill **supersedes** the earlier `scripts/projlaunch` + `scripts/projlaunch-make-app` pair in the `remote-coding-setup` repo. That pair built `.app`s under `~/Applications/`; this skill builds them into the project directory, gitignored. Old scripts will be retired by the same commit that lands this skill.
 
@@ -75,7 +75,7 @@ When invoked as `/project-launcher help`, print the following block verbatim:
 ```
 project-launcher — Generate a per-project GUI .app launcher in the project
 directory (gitignored). Opens a terminal window, cd's into the project, calls
-`roci` to attach/create the project's tmux session on Rocinante24.
+`roci` to attach/create the project's tmux session on the always-on host.
 
 Usage: /project-launcher [app-name]
 
@@ -107,4 +107,4 @@ See SKILL.md for full reference.
 
 ## Background
 
-Original spec: `~/code/0.llm/remote-coding-setup/design/notes/archived/2026-05-19-serenity26-launcher-prompt.md`. Refactor spec: same dir, `2026-05-20-phase-5c-launcher-refactor.md`. (Both moved to `archived/` 2026-05-20 once consumed.) The launcher unblocks Phase 6 (Apple Container memory isolation) on Rocinante24.
+Original spec: `~/code/0.llm/remote-coding-setup/design/notes/archived/2026-05-19-serenity26-launcher-prompt.md`. Refactor spec: same dir, `2026-05-20-phase-5c-launcher-refactor.md`. (Both moved to `archived/` 2026-05-20 once consumed.) The launcher unblocks Phase 6 (Apple Container memory isolation) on the always-on host.

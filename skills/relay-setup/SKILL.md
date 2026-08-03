@@ -29,16 +29,15 @@ After the skill runs, Derek reviews + pushes, then either edits STATE.md to flip
 ## How to invoke
 
 ```
-/relay-setup
-/relay-setup --hosts rocinante24,serenity26
-/relay-setup --initial-active rocinante24
+/relay-setup --hosts hostA,hostB
+/relay-setup --hosts hostA,hostB --initial-active hostA
 ```
 
 Run from anywhere inside the target project (the script discovers the project root via `git rev-parse --show-toplevel`).
 
 Before invoking the worker script, **ask Derek**:
 
-1. Which hosts participate? Default: `rocinante24,serenity26`. (Detect his answer; he may add Studio or others.)
+1. Which hosts participate? **Required — there is no default**, on purpose: this repo is public and must not carry a personal fleet roster. Ask, or read the roster the project already declares (e.g. an existing `design/relay/config.toml`, or a `fleet.toml` in repos that have one).
 2. Which host should hold the ball first? Default: the current host (`hostname`). Optional — if omitted, STATE.md starts at `human-required` and Derek picks later.
 3. Which branch is the mailbox? Default: the current branch (usually `master` or `main`).
 
@@ -77,7 +76,7 @@ relay-setup — Per-project initializer for the Cross-Host Relay
 Usage: /relay-setup [flags]
 
 Flags:
-  --hosts <a,b>         Participating hosts. Default: rocinante24,serenity26.
+  --hosts <a,b>         Participating hosts. REQUIRED (no default).
   --branch <name>       Mailbox branch. Default: current branch.
   --initial-active <h>  Bake initial ball-holder into the bootstrap commit.
                         Default: STATE.md starts at "human-required".
