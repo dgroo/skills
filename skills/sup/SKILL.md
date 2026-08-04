@@ -19,6 +19,7 @@ The recap/briefing split tracks how recall decays: an in-flight `/sup` (after a 
 1. **Produce the full sitrep output** (see "Sitrep mirror" below). Never drop sections that sitrep would include — especially **Next steps**.
 2. **Surface sibling sessions and relay state** (see "Sibling sessions & relay" below). Always runs — independent of whether current work is parkable. If a hot sibling matches what the user just typed `/sup` to find, it outranks anything in the backlog scan.
    - **Cold-return probe.** As part of this step, run the `--cold` probe (gather step 9). It self-gates on a staleness threshold and is silent in the warm case; when it emits, render the **Cold-return briefing** (see report structure). This is the time-aware tier — see "Cold-return briefing" for the full rationale.
+   - **Service check.** Also run the expected-services probe (gather step 11, sandbox-disabled). Silent when the project declares no services; any DOWN service becomes Pick `0` — see "Expected services".
 3. **Branch on whether an intent was supplied:**
    - **Intent supplied** (`/sup <what I want to do>`) → **route it** (see "Intent routing" below) instead of scanning the backlog. The user already declared the work; the job is to place it so it doesn't collide — proceed here / join a live thread / provision an isolated worktree. Skip the backlog scan.
      - **Strip a leading `and`.** Derek habitually writes `/sup and <intent>` — the `and` is a grammatical lead-in meaning "do the don't-collide check *and* here's what I want to work on," not part of the intent. Drop a single leading `and` (and surrounding whitespace) before routing, so `/sup and roci --newc` routes the intent `roci --newc`. It's a politeness particle, not a separate mode — the collision check already runs in this branch regardless. (A bare `/sup` with no intent stays the situation-report; `and` only ever appears alongside a real intent.)
@@ -61,6 +62,7 @@ Gather context in parallel:
 8. `python3 ~/.claude/skills/sup/sibling-sessions.py` — surfaces other CC sessions in this project's cwd whose last turn was within the last 2 hours, each tagged `active` / `idle` / `predecessor` (liveness is the last real turn, not the file mtime), with a topic hint. Prints nothing when no siblings; just include verbatim. **Only `active` lines are possible live collisions.**
 9. If `design/relay/STATE.md` exists, run `relay-status` for a one-line relay state; silently skip if the file doesn't exist or `relay-status` isn't on PATH.
 10. Scan conversation history for what was last discussed
+11. `python3 ~/.claude/skills/sup/service-check.py` — expected-services probe, run from the repo root and **sandbox-disabled** (it probes processes/daemons/docker sockets, which all read as down from inside the sandbox — the never-diagnose-down rule). Prints nothing when the project declares no services; see "Expected services" for the mechanism and the Pick-`0` rendering.
 
 Report structure (omit empty sections, keep each to 1–3 lines max):
 
@@ -74,6 +76,8 @@ Report structure (omit empty sections, keep each to 1–3 lines max):
 **Sibling sessions:** Verbatim block from `sibling-sessions.py` when non-empty. Omit when the script prints nothing. If an **`active`** sibling's topic plausibly matches what the user just invoked `/sup` for, explicitly flag `→ Looks like that work is live in `<id>` — switch windows rather than restarting here.` A `predecessor`/`idle` line that matches is just your own prior work (post-`/clear` is the common case) — ambient context, not a live thread. See "Sibling sessions & relay" section.
 
 **Relay:** One-line summary of `relay-status` output when in a project with `design/relay/STATE.md`. Examples: `⚪ parked since 2026-05-21` or `🟢 active on rocinante24, last handoff 2026-05-21T02:51Z`. Omit when no relay scaffolding.
+
+**Services:** Expected-services probe output (gather step 11) when non-empty — the script's lines, `·`-joined onto one line when short. All up → ambient reassurance. Any ⛔ line → keep this section prominent and add Pick `0` (see "Expected services"). Omit when the script prints nothing.
 
 **Cold-return:** Render only when the `--cold` probe (gather step 9) emitted output — it self-gates on the resume-boundary gap, so silence = warm = omit. Two shapes (the script picks): (a) a one-line **away-flag** (`↻ You were away ~30h …`) when returning to a long-running window — surface it verbatim and let the **Session recap** below do the work; add nothing else. (b) a **reconstruction table** of the sessions you had going, when this is a fresh session — render it verbatim, then add the git-derived unfinished-work picture (stale/unmerged worktrees, stashes, dirty tree, recent diary entries). See "Cold-return briefing" for the full model.
 
@@ -137,6 +141,30 @@ Source: `relay-status` when `design/relay/STATE.md` exists. Relay is the cross-h
 - When `active: <host>`, render: `🟢 Relay active on <host>` plus the cycle summary from the body if short. Higher importance — if the active host **is not** the current host, the ball is elsewhere and starting unrelated work here may step on a pending handoff; surface that explicitly.
 
 This is the cross-host analogue of sibling sessions: same "don't start parallel work to something already in flight" goal, different transport.
+
+## Expected services
+
+The failure mode this section prevents: a project has long-lived servers that are _supposed_ to be running — a prod compose stack, a tunnel, the `dev` launcher's dev server — and a reboot or crashed daemon silently took them down. `/sup` reads as "all clear, here's your next story" while prod is dark. The service check makes "do we have servers that should be running, and are they?" a standing part of the report.
+
+Source: `python3 ~/.claude/skills/sup/service-check.py`, run from the repo root **sandbox-disabled** (it probes processes/daemons/docker sockets, which all read as down from inside the sandbox — the never-diagnose-down rule from `~/.claude/CLAUDE.md`). It reads the project's `.groot-project.toml`:
+
+- **`[[services]]` entries** declare long-lived services beyond the dev server. Each carries `name`, `check` (shell command, exit 0 = up), and `start` (the remediation command — surfaced as a hint, never executed by the probe):
+
+  ```toml
+  [[services]]
+  name  = "prod stack (compose)"
+  check = "docker ps -q --filter name=myapp-prod-app | grep -q ."
+  start = "make prod-up"
+  ```
+
+- **The `[dev]` table** — when present and `dev` is on PATH, the probe re-emits `dev status` for the project's dev server (dev-launcher servers are meant to outlive sessions, so "not running" is signal, not noise).
+
+Rendering and the Pick-`0` convention:
+
+- Script prints nothing → the project declares no services → omit entirely. Never guess at expected services from Makefiles or compose files; the declaration is the contract.
+- Any service DOWN → **prepend a `0.` entry to Picks** — restoring intended state outranks starting new work: `0. ⛔ prod stack + dev server are down — reply `0` to bring them up (`make prod-up` · `dev`).` A bare `0` executes the listed start commands and re-probes. When the Picks list is skipped (intent branch, non-parkable tree), render the same offer as a standalone line directly under the Services section — the check runs in every branch.
+- **`0` starts; it doesn't paper over.** If a service looks down for a suspicious reason (crashed moments ago, flapping, mid-deploy elsewhere), lead with that instead of a bare start offer. Diagnose the why in one line when it's cheap (e.g. `uptime` says the host rebooted → everything since is explained).
+- **Production-shaped services still honor the global consequential-service rule: the `0` offer IS the ask.** Never auto-start them without the user's `0`/`go` — even under `!` or `wt`. Purely local dev servers may start under `!` without the extra stop.
 
 ## Cold-return briefing
 
@@ -310,9 +338,10 @@ When invoked as `/sup help`, print the following block verbatim:
 
 ```
 sup — Personalized sitrep (Derek's flavor). Strict superset of /sitrep
-with six additions: Session recap; sibling-session + relay awareness;
+with seven additions: Session recap; sibling-session + relay awareness;
 backlog scan + pick recommendation; new-session check; intent routing;
-cold-return briefing. Answers "where are we, what's next?", "what was I
+cold-return briefing; expected-services check ("are the servers that
+should be running actually up?"). Answers "where are we, what's next?", "what was I
 doing in this terminal?", "is something already in flight elsewhere that
 I should join instead?", "I've been away for days — what did I have going
 and is anything unfinished?", and — given an intent — "where should this
@@ -370,6 +399,12 @@ Sequence:
                          had going (incl. worktree checkouts) + flags unfinished
                          work (stale/unmerged worktrees, stashes, dirty tree,
                          recent diary). The dropped-mid-flight-work guard.
+  2c. Service check      Runs service-check.py (sandbox-disabled): probes
+                         [[services]] checks + dev status declared in
+                         .groot-project.toml. Silent when none declared. Any
+                         DOWN service becomes Pick 0 — reply 0 to run the
+                         start commands (production-shaped services always
+                         wait for that 0, even under ! / wt).
   3. Branch on intent:
      • no intent  →    Backlog scan (parkable only). Runs the shared
                          ~/bin/backlog-scan (same machinery as /next): TODO.md,
