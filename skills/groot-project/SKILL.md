@@ -611,6 +611,10 @@ The two systems compose deliberately: the `coding` group syncs `hotkeys.json`, `
 
 After adopting a _new_ vault, the watcher's `WatchPaths` is a baked list that predates it, so the vault receives fleet config but never broadcasts its own. Re-bake with `obsidian-config-sync --install-watcher`; it's a launchd op, so ask first per the global Safety rule. `--list` shows participants, `--doctor` reports per-vault sync health, and a plain run is a dry-run preview.
 
+**Always dry-run the sync after adopting a new vault, and read the direction of every line.** `obsidian-config-sync` reconciles by _odd-one-out_: when exactly one vault differs from a clear majority, it assumes that vault holds the new edit and propagates it to all the others. That assumption is sound for a vault someone edited and wrong for a vault that was just bootstrapped — a new vault differs because it is _incomplete_, not because it was changed. So the freshly-created vault can win the tie-break and overwrite the established fleet. A `[propagate] core-plugins.json: would <new-vault> → <everyone else>` line is the tell; the fix is to make the new vault match consensus first (copy `core-plugins.json` in from any established vault), then re-run until only `[fill] … → <new-vault>` lines remain. Caught live in mafm on 2026-08-05, where a 9-entry new vault would have overwritten 13 vaults' 31-key maps, silently disabling graph, canvas, daily-notes, command-palette, bookmarks, file-recovery, sync, and bases fleet-wide.
+
+`obsidian-setup.py` seeds the object shape so a new vault is at least not the shape outlier, but **it does not seed the fleet's full plugin set** — a new vault is still a content outlier until reconciled. Closing that properly is a design decision that hasn't been made: either `obsidian-setup.py` seeds from an existing participant, or `obsidian-config-sync` treats a first-seen vault as receive-only until adopted. Until one of those lands, the dry-run read above is the safeguard.
+
 **Detect first (Obsidian is opt-in).** Check for `./.obsidian/`:
 
 - **Exists** → apply the baseline (idempotent merge — never clobbers user keys).
