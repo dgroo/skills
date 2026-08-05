@@ -49,6 +49,15 @@ cleanup-design is deliberately conservative ("don't be aggressive", "only obviou
 
 Disposition each staler: **demote** (`ready/` → `drafts/`), **rewrite** (premise shifted but work still wanted), or **close** (overtaken — move to `done/` with a note, or delete a never-started draft). Strong signal → act; ambiguous → surface in the present step.
 
+### 3B. Goals pass — re-confirm the block, surface emergent goals
+
+If the project's CLAUDE.md has a `## Project goals` block (guideposts-not-a-fence; design record: `remote-coding-setup` `design/stories/ready/project-goals-block.md`), `/pm` is its steward:
+
+- **Re-confirm.** Read the block against the corpus you just reviewed: is Done-looks-like still the destination? Any major that's actually shipped, any maybe that's been promoted or quietly abandoned? Strong signal → propose the edit; ambiguous → surface in the present step. On any confirmed pass (even a no-change one), bump the block's `Last reviewed:` date — that's the freshness signal `goals-block-check` and the cadence table run on.
+- **Emergent-goal clustering — the cross-session "is there another goal here?".** Scan `git log` (and diary entries) since the block's `Last reviewed` date and cluster the actual work against the stated goals. A consistent cluster that serves *no* stated goal is a proposal, phrased as a candidate: a new major, a new maybe, or — when the cluster is reactive noise Derek would rather stop — an explicit non-goal ("you've shipped four X-shaped changes since the last review; is there a goal here that looks like…?"). Same grounding discipline as §5: every proposal cites its commits; never invent a goal the history doesn't evidence. Additions to the block are always Derek's call — even under `!`.
+
+No block → skip silently, but if the corpus is substantial, note once in the present step that the project qualifies for one (the `/groot-project` Phase 3B interview or a direct ask).
+
 ### 4. Reprioritize — durably
 
 This is the core capability no other skill has. Judge relative priority **across the whole backlog** using the shared ranking model — read [`backlog-ranking.md`](../next/backlog-ranking.md) (installed at `~/.claude/skills/next/backlog-ranking.md`) §3: _unblocks-downstream → removes-risk → session-capacity → continuity → smaller-concrete-wins_. Same criteria `/next` and `/sup` rank by, so priorities don't drift between "what's next" and "what's important."
