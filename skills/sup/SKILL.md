@@ -63,6 +63,7 @@ Gather context in parallel:
 9. If `design/relay/STATE.md` exists, run `relay-status` for a one-line relay state; silently skip if the file doesn't exist or `relay-status` isn't on PATH.
 10. Scan conversation history for what was last discussed
 11. `python3 ~/.claude/skills/sup/service-check.py` — expected-services probe, run from the repo root and **sandbox-disabled** (it probes processes/daemons/docker sockets, which all read as down from inside the sandbox — the never-diagnose-down rule). Prints nothing when the project declares no services; see "Expected services" for the mechanism and the Pick-`0` rendering.
+12. `cadence-nudges` — the periodic-ceremonies table (read-only dotfiles wrapper over the silent-unless-due helper family: codex review, backlog staleness, beginners-mind, `## Project goals` block presence/freshness). Prints a `⏰ Cadence` header + one `↳` line per due ceremony, nothing when none due. Session start is where these actually get seen — `/wrapup` runs the same wrapper as the end-of-session backstop. Absent command (older host) → silently skip.
 
 Report structure (omit empty sections, keep each to 1–3 lines max):
 
@@ -96,6 +97,8 @@ Report structure (omit empty sections, keep each to 1–3 lines max):
 **Gaps:** Half-finished things — TODO/FIXME/HACK added this session, `console.log`/`debugger`/`print(`, `.only`/`.skip` in tests, commented-out assertions, docs not updated to match code. (Omit if none.)
 
 **Upstream:** N commit(s) ahead, paths touched. (Only when in skills repo AND `upstream-check.sh` returned output. Omit otherwise.)
+
+**Cadence:** Verbatim `cadence-nudges` block (gather step 12) when non-empty — due periodic ceremonies, non-blocking "maybe, sometime" reminders; never part of any verdict or pick. Omit when the wrapper printed nothing (the common case).
 
 **Next steps:** 1–3 concrete actions to resume work. **Always include this section** — it's the most useful single line in the whole report.
 
