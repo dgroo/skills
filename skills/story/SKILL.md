@@ -1,6 +1,6 @@
 ---
 name: story
-description: Capture a story-shaped work item mid-session with near-zero derail — file the user's text verbatim as a stub in `design/stories/drafts/<slug>.md`, marked "captured, not yet pondered", then return to whatever the session was doing. No exploration, no elaboration, no questions. The rung between /idea (one-line spark) and /ponder (does the design thinking now); later `/ponder <slug>` develops the stub. Triggers on "/story <text>", "file this as a story", "capture this as a story", "story for later".
+description: Capture a story-shaped work item mid-session with near-zero derail — file the user's text verbatim as a stub in `design/stories/drafts/<slug>.md`, marked "captured, not yet pondered", queue an in-session task to resurface it once the current block of work wraps (fresh-context elaboration beats cold pickup), then return to whatever the session was doing. No exploration, no elaboration, no questions at capture time. The rung between /idea (one-line spark) and /ponder (does the design thinking now). Triggers on "/story <text>", "file this as a story", "capture this as a story", "story for later".
 argument-hint: <text to capture> | help
 ---
 
@@ -60,7 +60,18 @@ priority: medium
 1. **Dup scan, filenames only.** `ls design/stories/*/` — if an existing story obviously covers this, append the capture to that story under a `## Captured addition (/story, unreviewed)` heading instead of creating a twin, and say which file. Don't read story bodies hunting for matches; the filename scan is the whole check.
 2. **Write the stub.** Verbatim body — don't rewrite, summarize, expand, or fix their grammar. Your only authored contributions are the title, slug, frontmatter, and marker block.
 3. **Commit.** If the design-sync watcher is running (`launchctl list 2>/dev/null | grep -q design-sync-watch`), just save — the watcher owns `design/` commits and lands it within seconds. Otherwise commit the stub yourself — stage the one file explicitly (`git add <path>`, commit with a pathspec) — and push.
-4. **Ack in one line and get out:** `Story stub filed → design/stories/drafts/<slug>.md` — then resume whatever the session was doing, without recapping the capture.
+4. **Queue the fresh follow-up.** Add an in-session task (TaskCreate/TodoWrite): *"When the current block of work completes: offer to flesh out `<slug>` while it's fresh."* The point: the story is on the user's mind *right now*, and for a human, elaboration works best close to the moment of thinking it. The stub file is the persistent truth; this task is just the orchestration view that makes it resurface at the natural boundary (per the global todo-list-is-a-view rule).
+5. **Ack in one line and get out:** `Story stub filed → design/stories/drafts/<slug>.md · will resurface when this block wraps` — then resume whatever the session was doing, without recapping the capture.
+
+---
+
+## The fresh follow-up
+
+When the current block of work completes, surface the stub and offer — don't auto-run — to flesh it out:
+
+- **Default offer: work it up together, interactively.** The user just typed the capture, so they're at the keyboard with hot context — ask them the questions `/ponder` would have to guess at (scope, examples, what "done" looks like), then grow the stub into a real story and, if it clears the bar, promote it to `ready/` with the answers recorded.
+- **Alternatives:** hand it to `/ponder <slug>` (autonomous, they're stepping away), or leave the stub for later — their call, one line each.
+- **Best-effort, honestly.** If the session ends before the boundary, the in-session task evaporates — the stub survives and the `/sup`/`/next` backlog scans are the fallback, but the freshness window is lost. Don't pretend otherwise; that's the accepted trade for zero-derail capture.
 
 ---
 
@@ -83,12 +94,15 @@ Usage: /story [<text> | help]
 
 Arguments:
   <text>            File the text verbatim as design/stories/drafts/<slug>.md
-                    with an author:user / not-yet-pondered stub header.
+                    with an author:user / not-yet-pondered stub header, and
+                    queue an in-session task to resurface it once the current
+                    block of work wraps (flesh out while fresh; maybe promote).
   (none)            Ask "What's the story?" and file the answer.
   help              Show this message.
 
 Tier: /idea (a sentence) -> /story (a paragraph) -> /ponder (think now).
-Later: /ponder <slug> develops the stub; never implement from drafts/.
+Follow-up: offered at the block boundary, interactive by default; /ponder
+<slug> is the autonomous alternative. Never implement from drafts/.
 
 See SKILL.md for full reference.
 ```
