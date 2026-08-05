@@ -4,7 +4,11 @@ Latest entries first. Record significant decisions, architecture changes, and no
 
 ---
 
-## 2026-07-04 — A cross-machine handoff prompt, a rename, and diagnosing my own output
+## 2026-08-05 — `/story`: the missing rung between `/idea` and `/ponder`
+
+Derek asked whether any mechanism existed for filing a paragraph of story-shaped intent mid-session — typed while the session is busy with something else — and the catalog scan said no: `/idea` is deliberately one-line-per-entry, `/todo` is the do-now tracker lane (and loses the "wants design thinking" signal), and `/ponder` does the thinking *now*, which is exactly the derail the situation forbids. The gap got its own skill rather than a widening of `/idea`, because the sparkfile's one-line format is load-bearing for its review/iterate flow; `/story` files the text **verbatim** as a `design/stories/drafts/<slug>.md` stub (`author: user`, a "captured, not yet pondered" marker naming `/ponder <slug>` as the developer) and gets out in one line. The `drafts/` placement does double duty — the stories convention already forbids implementing from `drafts/` without promotion, which is precisely the guardrail an unpondered stub needs.
+
+The second-round decision is the one worth pinning: Derek's key requirement turned out to be *freshness* — the story is on his mind at capture time, and human elaboration works best near the moment of thinking. So `/story` also queues an in-session task that resurfaces the stub when the current block of work wraps, offering interactive elaboration first (the user is demonstrably at the keyboard; ask them the questions `/ponder` would have to guess at) with autonomous `/ponder` and leave-it as the alternatives. Deliberately best-effort: the task list dies with the session, and the skill says so honestly — the stub survives and `/sup`/`/next` backlog scans are the fallback. Anything stronger (a REVISIT entry, a hook) was machinery the 90% case doesn't need; that trade is accepted, not overlooked.
 
 Three tooling changes fell out of a project session that kept bumping the seams of the setup itself.
 
