@@ -401,7 +401,7 @@ def render_palette(
         r, g, b = rgb_float_to_8bit(existing["rgb"])
         print(
             f"\nExisting profile {existing['name']!r}: "
-            f"{existing['color_label']} (#{r:02X}{g:02X}{b:02X}), APS={existing['pattern']}"
+            f"{existing['color_label']} (#{r:02X}{g:02X}{b:02X})"
         )
         print(
             "(re-run with --color N --force to change the color, or --hex #RRGGBB --force for a custom one)"
