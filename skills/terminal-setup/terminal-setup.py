@@ -1367,7 +1367,16 @@ def run(args: argparse.Namespace) -> int:
 
     # Write .groot-project.toml — this is the single source of truth. The
     # shell's chpwd hook reads it on `cd` and emits OSC 11 to apply the color.
-    terminal_data: dict = {"background": chosen_hex}
+    # Seed from the recorded section first: the writer takes full intended
+    # state, so a recolor that omitted `alias`/`name` would silently drop them.
+    try:
+        recorded_terminal = read_groot_project_terminal(toml_path) or {}
+    except GrootProjectTomlError:
+        recorded_terminal = {}
+    terminal_data: dict = {
+        k: v for k, v in recorded_terminal.items() if k in ("alias", "name")
+    }
+    terminal_data["background"] = chosen_hex
     if args.alias and not args.no_alias:
         terminal_data["alias"] = args.alias
     toml_status = write_groot_project_terminal(toml_path, terminal_data)
