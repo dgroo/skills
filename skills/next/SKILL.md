@@ -35,7 +35,7 @@ Plain `/next` is unchanged: present candidates, let the user choose.
 
 ## Sequence
 
-1. **Glance at current state.** Run `git status --short`. `/next` is forward-only, but if there's substantial uncommitted in-flight work, the honest first answer is "finish/commit that" — surface it as a one-line preamble (not a candidate). Don't deep-dive; this is a glance.
+1. **Glance at current state.** Run `git status --short`, plus `goals-block-check --nudge` (read-only dotfiles helper; silent unless the project's CLAUDE.md `## Project goals` block is missing or stale — if it prints, include the line as a one-line preamble alongside any uncommitted-work note; absent command → skip). `/next` is forward-only, but if there's substantial uncommitted in-flight work, the honest first answer is "finish/commit that" — surface it as a one-line preamble (not a candidate). Don't deep-dive; this is a glance.
 
 2. **Build the candidate pool and rank it — per [`backlog-ranking.md`](backlog-ranking.md).** Read `~/.claude/skills/next/backlog-ranking.md` (the candidate model shared with `/sup`) and follow it: run `backlog-scan` (§1), harvest this conversation's still-outstanding loose ends (§2), then rank the merged pool by the ranking criteria (§3) under the grounding rules (§4). Pick the 3–4 strongest, grouping tightly-related small items into one candidate when it's natural ("the three OSC-11 / terminal-color chores"). The model judgment lives in that doc; this skill owns only how the result is _presented_.
 

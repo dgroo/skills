@@ -160,5 +160,6 @@ See SKILL.md for full reference.
 ## Related
 
 - `/todo` — for concrete bugs and tasks with priorities. Different lane.
+- `/story` — for a capture that's already a paragraph of story-shaped intent: files it verbatim to `design/stories/drafts/` instead of squeezing it into a spark line.
 - `/office-hours` — for ideas that have grown past sparkfile-shape and want a design conversation. `/idea iterate` can hand off.
 - `design/stories/drafts/` (via `/groot-project`) — where elaborated sparks land if they graduate into spec work.

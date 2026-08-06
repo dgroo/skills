@@ -34,6 +34,7 @@ Gather state and print a summary before asking anything:
 - What language signals exist? Presence of `pyproject.toml`, `setup.py`, `package.json`, `Cargo.toml`, `go.mod`.
 - What standard files / directories are present? `README.md`, `Makefile`, `design/`, `design/DESIGN.md`, `design/helping-hands/`, `design/plans/`, `design/stories/`, `design/stories/drafts/`, `design/stories/ready/`, `design/stories/done/`, `design/stories/STORY_TEMPLATE.md`, `design/notes/`, `.gitignore`, `CLAUDE.md`, `DIARY.md`, `TODO.md`.
 - **Obsidian vault state** (drives Phase 7C): does `./.obsidian/` exist? If so, is it the federation baseline or bare — i.e. does `.obsidian/appearance.json` carry `cssTheme: "Minimal"` and does `.obsidian/app.json` have `userIgnoreFilters`? A `.obsidian/` that exists but lacks these is a Phase 7C **drift** item, not a skip. (This is easy to miss — a default `.obsidian/` written by opening Obsidian once looks present but is empty `{}`.)
+- Does `CLAUDE.md` (if present) contain a `## Project goals` section? Absence is a Phase 3B item — an interview offer on an interactive run, a Drift line under `--auto`/`status`.
 - **Misplaced files at `design/` root**: any markdown file directly in `design/` other than `README.md` and `DESIGN.md`. List them — Phase 2's migration step will offer to move them into the right subdir.
 - **Collision detection** (read but don't act yet — these inform later phases):
   - Joe-style artifacts: `TODO.md`, `DIARY.md`, `CHANGELOG.md` at the project root (indicates `/project-setup` has run or the user uses that convention).
@@ -55,6 +56,7 @@ Each phase has one of three modes: **auto-default-Y** (skill announces and proce
 | 1   | Git init                        | auto-default-Y              | `git init` if not a repo. Skip otherwise.                                                                           |
 | 2   | `design/` subtree               | auto-default-Y              | Create missing pieces of the canonical subtree.                                                                     |
 | 3   | Project docs skeleton           | auto-default-Y              | Generate `CLAUDE.md`, `DIARY.md`, and `TODO.md` if missing.                                                         |
+| 3B  | Project goals block             | always-asks                 | Fill or retrofit the CLAUDE.md `## Project goals` block — four-question interview, draft-first on existing projects. |
 | 4   | Office-hours import             | auto-default-Y              | If a design doc exists, layer its content into DESIGN.md and CLAUDE.md.                                             |
 | 5   | Language detection + .gitignore | always-asks                 | Ask Python / TypeScript / Rust / Go / Other / None.                                                                 |
 | 6   | Makefile                        | auto-default-Y / drift-flag | Create if missing; flag drift if present but missing standard targets.                                              |
@@ -342,6 +344,24 @@ See `design/DESIGN.md` for the full design and `design/README.md` for the trust 
 `design/helping-hands/README.md` documents tasks needing the user's hands.
 `DIARY.md` is the rolling narrative log of decisions and architectural changes.
 
+## Project goals
+
+*Guideposts, not a fence — work outside these is fine, but is a cue to ask. Last reviewed: <YYYY-MM-DD>.*
+
+**Done looks like:** <one or two sentences — what this does when the goals are achieved; filled by the Phase 3B interview>
+
+**Major features / uses:**
+
+- <1–5 entries>
+
+**Maybes (nice-to-have):**
+
+- <0–5 entries>
+
+**Non-goals:**
+
+- <0–5 entries; omit the heading if none declared yet>
+
 ## Build / run
 
 See `Makefile`. Standard targets: init, build, run, lint, test, dist, clean.
@@ -421,6 +441,19 @@ If `DIARY.md` already exists at project root, leave it untouched. Print: _"Exist
 ```
 
 If `TODO.md` already exists, leave it untouched (even if its format diverges — don't reformat). Print: _"Existing TODO.md — left untouched."_
+
+### Phase 3B: Project goals block
+
+Fills (or retrofits) the `## Project goals` section of `CLAUDE.md` — the small always-loaded block that answers the global "Keep the goal in view" rule's question, "what are this project's goals?". Design record: `remote-coding-setup` `design/stories/ready/project-goals-block.md`. Semantics: guideposts, not a fence — the block is a question-trigger for off-goal work, never a gate. Hard cap ~20 lines; elaboration belongs in `design/DESIGN.md`.
+
+**When it fires:** the skeleton was just generated with placeholder goals, OR pre-flight found an existing `CLAUDE.md` without a `## Project goals` section (offer, never auto-insert — mirroring the conventions-block retrofit). If the block exists, detection-skip (revisions are a conversational edit, not a phase).
+
+**Two creation modes — pick by project age:**
+
+- **New project (nothing to infer from): cold interview.** Ask the four questions one at a time, conversationally: (1) What would "Done" look like — what does this do when the goals are achieved? (2) 1–5 major features / uses? (3) 1–5 maybes — nice-to-haves? (4) Any non-goals — things that aren't priorities or are specifically avoided? If a recent `/office-hours` doc exists, pre-draft answers from it and confirm instead of asking cold.
+- **Existing project with real history: draft-first.** Draft the whole block from what's visible — README, `design/DESIGN.md`, the code, git history, the backlog — and present it for reaction; reacting to a concrete strawman beats generating from a blank page. Guard the known failure mode (code encodes the *past*, not the aspiration — a naive draft canonizes the status quo and anchors there): cite each entry's evidence in the review ("inferred from the dashboard module + README §2"); draft Done-looks-like and majors confidently but present **maybes and non-goals as questions with tentative candidates** (aspirations and anti-priorities leave little code trace); always close with _"what's missing that the code can't show?"_.
+
+**On write:** stamp `Last reviewed:` with today's date. **Size guard:** if `CLAUDE.md` is already large (rough tripwire ~150 lines), add one flag line suggesting the usual remedies (promote stable rules to global/`rules/`, push elaboration to `design/`) — never block; the ~20-line block is never itself the problem.
 
 ### Phase 4: Office-hours import
 
@@ -742,6 +775,7 @@ Collision-detected lines only appear if collisions were actually found. The poin
 - **Language**: detect from existing files (`pyproject.toml` → Python, `package.json` → TypeScript, `Cargo.toml` → Rust, `go.mod` → Go). If ambiguous or none, skip language-specific scaffolding (no `.gitignore` patterns, Makefile bodies left as `# TODO`).
 - **Terminal background**: invoke `/terminal-setup auto` (terminal-setup's auto mode picks the first unused color and uses project basename as the alias).
 - **Port allocation**: invoke `~/bin/pick-a-port --write` (no prompts, scans `~/code` + `lsof`, picks the lowest free port at or above 3000). Skip if invoked with `--no-port`.
+- **Project goals block (3B)**: SKIPPED — both the interview and the draft-first review need Derek. A missing block is surfaced under Drift in the end-of-run summary.
 - **Spinner verbs**: SKIPPED. Creative call that needs human input on theme.
 - **GitHub remote**: SKIPPED. Creating an external resource without explicit consent is too consequential for `--auto`.
 - **Office-hours import**: still imports if a doc is found (low risk, just file content).
@@ -760,6 +794,7 @@ Project audit for myproject:
   [✓] design/ subtree (DESIGN.md, helping-hands/, plans/, stories/, notes/)
   [⚠] design/ root has 2 unmigrated files (foo-plan.md, foo.md) — Phase 2 will offer to migrate
   [✓] CLAUDE.md
+  [⚠] CLAUDE.md has no ## Project goals block — Phase 3B will offer the interview
   [✓] DIARY.md
   [✓] TODO.md
   [⚠] Makefile (missing targets: dist, clean)

@@ -71,6 +71,7 @@ See SKILL.md for full reference.
 ## Related
 
 - **`/idea`** — one-line spark capture; a ponder is what a spark becomes when it earns an hour.
+- **`/story`** — verbatim mid-session capture of story-shaped intent into `drafts/`; a `/story` stub is `/ponder`'s natural input (`/ponder <slug>`).
 - **`/deep-research`** — web-sourced, cited research reports; a ponder recommends it when the question turns on outside facts.
 - **`superpowers:brainstorming`** — interactive requirements interview headed toward building in-session; a ponder is autonomous, artifact-producing, and explicitly may-never-build.
 - **`/cleanup-design`** — maintains the corpus ponders write into.
