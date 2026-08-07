@@ -231,8 +231,23 @@ def indent(text: str, n: int = 4) -> str:
 def merge_core_plugins(existing, wanted: list[str]):
     """Ensure `wanted` are enabled without disabling anything Obsidian set.
 
-    core-plugins.json is an array of enabled ids in current Obsidian; older
-    vaults used an object map. Preserve whichever shape is present.
+    core-plugins.json comes in two shapes: an object map of id -> bool, and a
+    bare array of enabled ids. Preserve whichever shape is already present —
+    Obsidian owns this file and rewrites it on every plugin toggle, so imposing
+    a shape on an existing vault would fight it.
+
+    For a NEW vault the caller seeds an object, not an array: every vault in
+    the fleet that Obsidian actively maintains carries the object map (31 keys,
+    byte-identical across all of them), so an array seed made new vaults the
+    lone shape outlier.
+
+    That matters because obsidian-config-sync reconciles by "odd-one-out": if
+    exactly one vault differs from a clear majority, it assumes that vault holds
+    the new edit and propagates it to every other vault. A freshly-bootstrapped
+    vault differs because it is incomplete, not because it was edited — so it
+    can win that tie-break and overwrite the fleet. Seeding the object shape
+    removes the shape half of that divergence; the content half (this list is
+    shorter than the fleet's) is NOT solved here — see the note in SKILL.md.
     """
     if isinstance(existing, dict):
         for pid in wanted:
@@ -324,7 +339,9 @@ def write_config(vault: Path, accent: str, dry_run: bool) -> None:
     write_json(vault / "community-plugins.json", community, dry_run)
 
     core = load_json(vault / "core-plugins.json")
-    core = merge_core_plugins(core if core else [], CORE_PLUGINS_ON)
+    # Seed {} (object map), not [] — see merge_core_plugins. An array seed makes
+    # a new vault the fleet's shape outlier and hands it the sync tie-break.
+    core = merge_core_plugins(core if core else {}, CORE_PLUGINS_ON)
     write_json(vault / "core-plugins.json", core, dry_run)
 
     snippet_path = vault / "snippets" / f"{SNIPPET_NAME}.css"
