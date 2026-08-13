@@ -80,6 +80,6 @@ lane --owns <name> <thing>
 ## Related
 
 - `/lane` — put this session into one of them.
-- `~/bin/lane` — the primitive: `lane`, `lane --cluster`, `lane <name> "<brief>"`.
+- `~/bin/lane` — the primitive: `lane` (chooser), `lane --list`, `lane --cluster`, `lane <name> "<brief>"`.
 - `/pm` — the periodic backlog-stewardship pass this belongs beside; a re-run fits naturally there.
 - `groot-claude-coord/design/session-teams/DESIGN.md` §1 — the naming rule and why lanes are domains.

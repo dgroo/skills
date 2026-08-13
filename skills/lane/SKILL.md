@@ -55,6 +55,6 @@ This is the correct limit, not a gap to work around: **one session, one lane, lo
 ## Related
 
 - `/lanes` — works out what a project's lanes *should be*, from the tree and the commit history. Run it first on a project with no lanes.
-- `~/bin/lane` — the primitive underneath (`lane`, `lane <name> "<brief>"`, `lane --cluster`). Use it from a terminal when there is no session yet.
+- `~/bin/lane` — the primitive underneath, and the way in when there is no session yet: bare `lane` at a terminal offers a chooser and starts a session in the lane you pick. `lane --list` to look without picking; `lane --json` is what this skill reads.
 - `/standup` — who is waiting on you across lanes.
 - `groot-claude-coord/design/session-teams/DESIGN.md` §1 — why identity is discovered rather than declared.
