@@ -1,6 +1,6 @@
 ---
 name: sup
-description: Personalized situation report — mirrors /sitrep's full output, actively scans for queued work and ranks the top candidates (#1 go-able, non-blocking — no AskUserQuestion), then issues a high-confidence new-session recommendation as a visible markdown heading when warranted. Also routes a stated intent to the right workspace (proceed here / join a live session / provision an isolated worktree) so parallel threads don't collide; the `wt` modifier forces the worktree placement (act-unless-overkill). Use when resuming a session, asking "where were we?", when the chunk of work feels finished, or when starting a new thread with "/sup <what I want to do>" (or "/sup wt <intent>" when you already know it wants isolation).
+description: Personalized situation report — mirrors /sitrep's full output, actively scans for queued work and ranks the top candidates, closing with the shared `Next` menu (`go` takes the lead pick, `1`/`2`/`3` the alternates, a `?` suffix asks for detail first), then issues a high-confidence new-session recommendation as a visible markdown heading when warranted. Also routes a stated intent to the right workspace (proceed here / join a live session / provision an isolated worktree) so parallel threads don't collide; the `wt` modifier forces the worktree placement (act-unless-overkill). Use when resuming a session, asking "where were we?", when the chunk of work feels finished, or when starting a new thread with "/sup <what I want to do>" (or "/sup wt <intent>" when you already know it wants isolation).
 allowed-tools: Read, Glob, Grep, Bash, Agent, TaskList
 ---
 
@@ -104,7 +104,7 @@ Report structure (omit empty sections, keep each to 1–3 lines max):
 
 **Backlog:** One-line inventory of queued work surfaced by the scan (see "Backlog scan & pick"). Only when current chunk is parkable.
 
-**Picks:** The top 2–3 ranked candidates, one line each, with **#1 rendered as the `Recommended next` block** (see Rules) so a bare `go` acts on it; #2–3 let you see the ranking and name another without running `/next`. Non-blocking — no AskUserQuestion (that's `/next`). Only when current chunk is parkable. In the intent-routing branch this collapses to a single block — the placement decision _is_ the Recommended next.
+**Picks:** The top 2–3 ranked candidates rendered as the closing **`Next` menu** (see Rules), always the last thing in the response — #1 is the lead a bare `go` acts on, #2–3 are the `( 1 )` / `( 2 )` options so you can take another without running `/next` or retyping its name. Only when current chunk is parkable. In the intent-routing branch this collapses to a lead alone — the placement decision _is_ the lead.
 ```
 
 Same rules as /sitrep: brief, one sentence per item, don't read file contents unless something in the diff looks suspicious, scan diffs for obvious unfinished markers.
@@ -238,7 +238,7 @@ For an intent landing in either, the placement opinion is **"you're the single w
 
 ### How to close
 
-End with the structured **Recommended next** block (see Rules) so a bare `go`/`yes` acts on the placement — provision-and-start for (3), start-in-place for (1), or "switch to `<window>`" for (2). With `!` (`/sup ! <intent>`), skip the confirmation and act, honoring the same guards.
+End with the **`Next` menu** (see Rules), the placement as its lead, so a bare `go`/`yes` acts on it — provision-and-start for (3), start-in-place for (1), or "switch to `<window>`" for (2). With `!` (`/sup ! <intent>`), skip the confirmation and act, honoring the same guards.
 
 ## Backlog scan & pick
 
@@ -248,7 +248,7 @@ Run **only when the current chunk is parkable** — clean tree, or one obvious c
 
 Read [`backlog-ranking.md`](../next/backlog-ranking.md) (installed at `~/.claude/skills/next/backlog-ranking.md` — the candidate model shared with `/next`, so the two can't drift) and follow it: run `backlog-scan` (§1), harvest this conversation's still-**outstanding** loose ends (§2), then rank the merged pool by the ranking criteria (§3) under the grounding rules (§4).
 
-One `/sup`-specific note on the harvest: the Session recap you produced above is the _descriptive_ "what happened" (finished work included); the §2 harvest is _forward-only_ and feeds the Pick — only the still-open subset. Render the result per "What to render" below — `/sup` shows a non-blocking Pick, **not** `/next`'s AskUserQuestion chooser.
+One `/sup`-specific note on the harvest: the Session recap you produced above is the _descriptive_ "what happened" (finished work included); the §2 harvest is _forward-only_ and feeds the Pick — only the still-open subset. Render the result per "What to render" below. `/sup` and `/next` share both the candidate model _and_ the `Next` menu they close with; what makes this `/sup` is the recap above it, not a different presentation.
 
 After `backlog-scan`, also check two additional surfaces and fold their results into the candidate pool:
 
@@ -267,10 +267,20 @@ After `backlog-scan`, also check two additional surfaces and fold their results 
 
 ### What to render
 
-Add these lines to the sitrep report, right after Next steps:
+Add these lines to the sitrep report, right after Next steps. **Placement caveat:** Backlog and Human-review sit there, but the Picks **menu is always the last thing in the response** — below Human-review and below the new-session heading if one fires. That's the global rule (`~/.claude/CLAUDE.md`, "Recap footer": `Next` is last, behind a `---`), and it reads correctly even under a used-up-session heading: the heading says start somewhere fresh, the menu says what to start.
 
 - **Backlog:** Compact inventory. Example: `NEXT.md handoff (3), TODO.md (5 open), stories/ready (3), helping-hands (2), no open PRs, 1 stale branch (refactor-auth).` Skip surfaces with zero items. When `backlog-scan` reports a `NEXT.md handoff` surface, list it **first** — it's the session handoff. When NEXT.md holds multiple `## Thread:` sections, render the count as `NEXT.md: N threads in flight` instead of an item count. **Exclude the `HUMAN-REVIEW (open)` count from this line** — it's not pickable work.
-- **Picks:** The top 2–3 candidates as a compact ranked list, drawn from the merged pool (backlog + conversation loose ends) — ranked per [`backlog-ranking.md`](../next/backlog-ranking.md) §3 (the same criteria `/next` uses), each one line with its leverage/dependency reason. **The `NEXT.md` handoff leads, in its listed order** (§3 rule 0) — it's the prior session's pick-up-here plan surviving the `/clear`, so its first do-next item is the `Recommended next` (not a re-derived pick); mark it `(NEXT.md handoff)`, and read `NEXT.md` itself if `backlog-scan` showed it as `present`. **When NEXT.md holds multiple `## Thread:` sections** (several sessions wrapped in flight — the wrap-everything-and-migrate case), lead the Picks with the thread list per rule 0: `N threads were in flight:` then one line per thread (`slug · focus · wrapped <date> · branch if named`), and make the `Recommended next` the first item of the rule-0-selected thread — flagging when that thread's branch means the work lives in a worktree, not here. **Mark conversation-derived candidates** (e.g. `(this session)`) so the source is legible — they didn't come from a file the user can re-read. Render **#1 as the `Recommended next` block** (see Rules) so a bare `go` acts on it; #2–3 are listed so you can see the ranking and name another without having to run `/next` afterward. **Non-blocking** — do _not_ open an AskUserQuestion here (that interactive chooser is `/next`'s job; `/sup` stays a glance). Example: `1. stories/ready/payment-retry.md — unblocks 2 downstream items (Recommended next — reply go) · 2. helping-hands/rotate-keys.md — gates the deploy story · 3. TODO: prune done-log — small, self-contained.`
+- **Picks:** The top 2–3 candidates as a compact ranked list, drawn from the merged pool (backlog + conversation loose ends) — ranked per [`backlog-ranking.md`](../next/backlog-ranking.md) §3 (the same criteria `/next` uses), each one line with its leverage/dependency reason. **The `NEXT.md` handoff leads, in its listed order** (§3 rule 0) — it's the prior session's pick-up-here plan surviving the `/clear`, so its first do-next item is the menu's lead (not a re-derived pick); mark it `(NEXT.md handoff)`, and read `NEXT.md` itself if `backlog-scan` showed it as `present`. **When NEXT.md holds multiple `## Thread:` sections** (several sessions wrapped in flight — the wrap-everything-and-migrate case), lead the Picks with the thread list per rule 0: `N threads were in flight:` then one line per thread (`slug · focus · wrapped <date> · branch if named`), and make the lead the first item of the rule-0-selected thread — flagging when that thread's branch means the work lives in a worktree, not here. **Mark conversation-derived candidates** (e.g. `(this session)`) so the source is legible — they didn't come from a file the user can re-read. Render them as the closing **`Next` menu** (see Rules): #1 is the lead a bare `go` acts on, #2–3 are the numbered options, so you can take another without running `/next` or retyping its name. Drop the old `1.`/`2.`/`3.` numbering — the tokens are the numbering now, and the lead is `go`, not `1`. Example:
+
+  ```
+  ---
+
+  **Next** — start `stories/ready/payment-retry.md`; it unblocks 2 downstream items.  ( go )
+
+  Other open threads:
+  - `helping-hands/rotate-keys.md` — gates the deploy story, and needs your 1Password session to run at all ( 1 )
+  - TODO: prune the done-log — small, self-contained ( 2 )
+  ```
 - **Human-review:** Only when `backlog-scan`'s `HUMAN-REVIEW (open)` count is >0 _and_ something survives the confidence filter (see Rules). Render as a **gentle gate**, never do-now pressure and never as the Pick — e.g. `👀 N item(s) waiting for your eyes (non-blocking) — want the list, or skip?`. Omit entirely when 0 or when nothing survives.
 
 If nothing's queued anywhere, render: `**Backlog:** Nothing obvious queued — what would you like to work on?` and skip the Picks list.
@@ -423,13 +433,15 @@ Sequence:
                          join-existing / provision-worktree (owning repo,
                          federated-aware; dotfiles + ~/.claude are
                          single-writer-in-place). Skips backlog.
-  4. Picks / placement   Top 2-3 ranked candidates (non-blocking list, no
-                         AskUserQuestion — that's /next); #1 is a Recommended-
-                         next block a bare `go` executes. Ranked by: unblocks-
-                         downstream → removes-risk → session-capacity →
-                         continuity → smaller-concrete-wins. Defers to a
-                         topic-matching hot sibling. Intent branch collapses
-                         to a single placement block.
+  4. Picks / placement   Top 2-3 ranked candidates as the closing `Next`
+                         menu (same format /next and every response use):
+                         `go` takes the lead, 1/2/3 the alternates, a `?`
+                         suffix asks for detail first, `0` is a DOWN
+                         service and outranks all of them. Ranked by:
+                         unblocks-downstream → removes-risk → session-
+                         capacity → continuity → smaller-concrete-wins.
+                         Defers to a topic-matching hot sibling. Intent
+                         branch collapses to the lead alone.
   5. New-session check   Default silence. Fires only when continuing THIS
                          conversation would be measurably worse than starting
                          fresh. Authoritative signal: the real number in
@@ -449,7 +461,8 @@ See SKILL.md for full reference.
 
 ## Rules
 
-- **Close with a one-word-actionable recommendation.** Whether the recommendation is the backlog **Pick** (no-intent flow) or an **Intent routing** placement, render it as a structured **Recommended next** line a bare `go` / `yes` executes without re-typing — e.g. `**Recommended next:** start `stories/ready/payment-retry.md` — reply \`go\` to begin, or name another.` or `**Recommended next:** provision a worktree in `dgroo/skills` for this — reply \`go\`, or \`here\` to work in place.` This collapses the old two-turn ceremony (`/sup` → "ok, pick up what's next") into one: a bare affirmative is equivalent to having run `/sup !` on that recommendation, and honors the same don't-collide guards. (Cold-resume legibility: the recommendation should be executable, not just prose.)
+- **Close with the `Next` menu.** Whether the recommendation is the backlog **Pick** (no-intent flow) or an **Intent routing** placement, it renders as the lead of the menu specced in `~/.claude/CLAUDE.md` under "Recap footer" — canonical there, shared with `/next` and with every ordinary response, so don't restate the format here or fork it. A bare `go` executes the lead without re-typing; `1`/`2`/`3` take an alternate; a `?` suffix asks for detail before committing. This collapses the old two-turn ceremony (`/sup` → "ok, pick up what's next") into one: a bare affirmative is equivalent to having run `/sup !` on that recommendation, and honors the same don't-collide guards. (Cold-resume legibility: the recommendation should be executable, not just prose.)
+- **`0` outranks `go`.** A DOWN expected service is Pick `0` and keeps its own token — it sits above the lead in the menu because it's a "nothing else matters until this is up" item, not a candidate competing on leverage. Placement routing `here` (work in place instead of a worktree) is likewise a named token, not a number. Named tokens are for standing answers with fixed meaning; numbers are for this turn's alternates.
 - The sitrep portion is non-negotiable. **Always show Next steps** when work is non-trivial.
 - **Always show Session recap**, even on a fresh session — render `_Fresh session — no prior activity in this window._` if there's nothing yet. The "what was I doing here" failure mode is what the recap exists to fix; making it conditional defeats that.
 - The new-session line is a high-confidence signal, not a hedge. If you're not sure, omit it.

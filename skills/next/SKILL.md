@@ -1,14 +1,18 @@
 ---
 name: next
-description: Forward-only "what should I pick up?" — scans the project's queued-work surfaces (TODO, ready/draft stories, helping-hands, REVISIT, open PRs, stale branches) plus the current conversation for outstanding loose ends, and presents a few dependency- and leverage-ranked candidates via AskUserQuestion. Pick one or specify your own. Use when asking "what's next?", "what should I work on?", "what should I pick up?", or "/next". Companion to /sup — /next is forward-only with no situation recap and offers the options as an interactive AskUserQuestion chooser; /sup is situation-report-first and surfaces the same ranking as a non-blocking list (no prompt).
-allowed-tools: Read, Glob, Grep, Bash, AskUserQuestion
+description: Forward-only "what should I pick up?" — scans the project's queued-work surfaces (TODO, ready/draft stories, helping-hands, REVISIT, open PRs, stale branches) plus the current conversation for outstanding loose ends, and presents a few dependency- and leverage-ranked candidates as a `Next` menu answered with one token (`go` for the lead, `1`/`2`/`3` for the others, a `?` suffix to hear more first). Use when asking "what's next?", "what should I work on?", "what should I pick up?", or "/next". Companion to /sup — /next is forward-only with no situation recap and ranks deeper; /sup leads with the situation report and surfaces the same ranking as the tail of it.
+allowed-tools: Read, Glob, Grep, Bash
 ---
 
 # Next — what should I pick up?
 
 `/next` answers one question: **"I'm free — what's the best next chunk of work?"** It scans where queued work lives — the file-based backlog surfaces **and** the current conversation for loose ends — reasons about _sequencing_ (what unblocks what, what makes other work easier), and hands you a few ranked candidates to choose from.
 
-**Companion to `/sup`, not a clone.** `/sup` is situation-report-first — it recaps this window, then emits _one_ pick only when the current chunk is parkable. `/next` skips the recap entirely and goes straight to _multiple_ forward-looking options with dependency reasoning up front. Reach for `/sup` on a cold resume ("what was I doing here?"); reach for `/next` when you already know you're done and want to choose what's next.
+**Companion to `/sup`, not a clone.** `/sup` is situation-report-first — it recaps this window, then emits its picks only when the current chunk is parkable. `/next` skips the recap entirely and goes straight to forward-looking options with dependency reasoning up front. Reach for `/sup` on a cold resume ("what was I doing here?"); reach for `/next` when you already know you're done and want to choose what's next. The two now _render_ identically (both close with the `Next` menu below); what differs is the recap and how deep the ranking goes.
+
+**Output format is the global `Next` menu, not a widget.** Since 2026-08-13 the recap footer in `~/.claude/CLAUDE.md` mandates that every response close with a `Next` menu — a lead option answered `go`, alternates answered `1`/`2`/`3`, and a `?` suffix on any token meaning "explain that one first, don't start it." `/next`'s result **is** that menu; it is not a separate presentation. That spec is canonical in CLAUDE.md — read it there and don't restate it here, so the two can't drift.
+
+This replaced an `AskUserQuestion` chooser. Two reasons, both standing rules rather than taste: Derek's CLAUDE.md reserves the widget for _several independent decisions at once_ or a side-by-side preview, and `/next` is one decision; and the widget can't express "tell me more about option 2 before I commit," which is the reply he was retyping by hand. The `?` suffix is the same decisiveness dial as the `?`/`!` invocation modifiers below — `?` assesses, bare acts — just applied to an option instead of the whole skill.
 
 **On the conversation: `/next` still skips the _recap_, but it does harvest _loose ends_.** This is the line between the two skills, worth holding precisely. `/sup`'s Session recap is _descriptive_ — "here's what this session did," finished work included. `/next`'s conversation pass is _forward-only_ — it extracts only the still-**outstanding** threads (things the assistant said it'd do, items it surfaced but didn't act on, carry-forwards, deferred sub-tasks) and feeds them into the candidate pool alongside the backlog. So a conversation item that already got _filed_ (to TODO/REVISIT/a story) is the backlog's job, not a separate conversation candidate — dedup against what the scan already found.
 
@@ -18,15 +22,15 @@ The file surfaces come from one scanner (`~/bin/backlog-scan`), shared with `/su
 
 | Invocation   | Does                                                                                                                     |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `/next`      | Scan, rank, present candidates, let the user pick.                                                                       |
-| `/next !`    | Scan, rank, **auto-pick the top candidate (bugs first) and start it** — no AskUserQuestion. See [Modifier](#modifier--). |
+| `/next`      | Scan, rank, present the candidates as a `Next` menu, let the user pick.                                                  |
+| `/next !`    | Scan, rank, **auto-pick the top candidate (bugs first) and start it** — no menu to answer. See [Modifier](#modifier--). |
 | `/next help` | Print usage (see [Help](#help)).                                                                                         |
 
 ## Modifier — `!` (just start the top pick)
 
-`/next` participates in the decisiveness-dial convention shared with `/wrapup` and `/sup`: **`?` = assess, minimize mutation · `!` = act decisively, minimize interruption.** `/next`'s default _already_ asks before acting (it presents candidates via AskUserQuestion), so plain `?` would be a no-op — it isn't implemented here. Only `!` adds behavior:
+`/next` participates in the decisiveness-dial convention shared with `/wrapup` and `/sup`: **`?` = assess, minimize mutation · `!` = act decisively, minimize interruption.** `/next`'s default _already_ asks before acting (it presents a menu and waits), so plain `?` would be a no-op at the invocation level — it isn't implemented here. It _is_ live per-option as the `?` token suffix (`2?`), which is the same dial one rung finer. Only `!` adds behavior:
 
-- **`/next !`** — run the same scan + harvest + ranking (steps 1–2), then **skip the AskUserQuestion and just start the single top candidate**, with **bugs first**: if the scan surfaced open bugs / broken-main / risk items, they outrank features regardless of the normal tiebreaker order (this is the global "fix bugs before new work" rule made explicit). Announce the pick and the one-line why, then begin.
+- **`/next !`** — run the same scan + harvest + ranking (steps 1–2), then **skip the menu and just start the single top candidate**, with **bugs first**: if the scan surfaced open bugs / broken-main / risk items, they outrank features regardless of the normal tiebreaker order (this is the global "fix bugs before new work" rule made explicit). Announce the pick and the one-line why, then begin.
 - **The in-flight guard still wins (step 1).** If `git status --short` shows substantial uncommitted in-flight work, the honest answer is still "finish/commit that first" — surface it and do _not_ auto-start a new pick on top of it. `!` is decisive, not reckless.
 - **The context check still runs (step 4), before starting.** If remaining context is genuinely low _and_ the top pick is substantial, surface the fresh-session / `/compact` suggestion instead of auto-starting in an impaired session — same as plain `/next`, just resolved before work begins rather than after the pick.
 - **Nothing queued → say so, don't invent.** If the scan is empty, `!` doesn't manufacture a pick; it reports the empty backlog like plain `/next`.
@@ -39,7 +43,7 @@ Plain `/next` is unchanged: present candidates, let the user choose.
 
 2. **Build the candidate pool and rank it — per [`backlog-ranking.md`](backlog-ranking.md).** Read `~/.claude/skills/next/backlog-ranking.md` (the candidate model shared with `/sup`) and follow it: run `backlog-scan` (§1), harvest this conversation's still-outstanding loose ends (§2), then rank the merged pool by the ranking criteria (§3) under the grounding rules (§4). Pick the 3–4 strongest, grouping tightly-related small items into one candidate when it's natural ("the three OSC-11 / terminal-color chores"). The model judgment lives in that doc; this skill owns only how the result is _presented_.
 
-3. **Present via AskUserQuestion.** One question, 3–4 options. Each option's label is a short pick name; its description carries the _why_ — the dependency/leverage reasoning and a rough size. **`NEXT.md` handoff items lead the options in their listed order** (per [`backlog-ranking.md`](backlog-ranking.md) §3 rule 0) — label them "_(NEXT.md handoff)_" so it's clear they're the prior session's pick-up-here plan, not a re-derived ranking; the first option should be the handoff's first do-next item when a `NEXT.md` exists (read the file itself if `backlog-scan` showed it as `present`). **Mark conversation-derived candidates** so the source is legible (e.g. "_(this session)_") — they didn't come from a file the user can go re-read. The user picks one, or chooses "Other" to specify their own. (AskUserQuestion always offers Other — don't add it manually.) **HUMAN-REVIEW aside:** per the grounding rules these are never options; if `backlog-scan` reported open ones, run the confidence filter (`design/HUMAN-REVIEW.md` rule 2 — drop any you can confidently assert are resolved) and, if any survive, add a one-line aside _after_ the candidates: `👀 N item(s) also waiting for your eyes (non-blocking) — say "review" to walk them.` Never auto-pick one with `/next !`. The auto-cleanup _write_ (rule 1) happens only on explicit confirmation.
+3. **Present as the `Next` menu.** The top-ranked candidate is the lead (`( go )`); the rest are the option bullets (`( 1 )`, `( 2 )`, `( 3 )`). Each line names the pick and carries the _why_ — the dependency/leverage reasoning and a rough size. That's this skill's form of the menu's "state what the session needs from me" rule: these options are pickable work rather than blocked threads, so what you owe on each line is why it's worth picking and what it costs, not a question. Any option answered with a `?` suffix means describe it properly before starting. No "Other" affordance is needed — the reply box takes anything. **`NEXT.md` handoff items lead the options in their listed order** (per [`backlog-ranking.md`](backlog-ranking.md) §3 rule 0) — label them "_(NEXT.md handoff)_" so it's clear they're the prior session's pick-up-here plan, not a re-derived ranking; the lead should be the handoff's first do-next item when a `NEXT.md` exists (read the file itself if `backlog-scan` showed it as `present`). **Mark conversation-derived candidates** so the source is legible (e.g. "_(this session)_") — they didn't come from a file the user can go re-read. **HUMAN-REVIEW aside:** per the grounding rules these are never options; if `backlog-scan` reported open ones, run the confidence filter (`design/HUMAN-REVIEW.md` rule 2 — drop any you can confidently assert are resolved) and, if any survive, add a one-line aside _after_ the candidates: `👀 N item(s) also waiting for your eyes (non-blocking) — say "review" to walk them.` Never auto-pick one with `/next !`. The auto-cleanup _write_ (rule 1) happens only on explicit confirmation.
 
 4. **Context-window check (conservative, pick-scaled).** After the user picks, read the live context figure and decide whether to raise a fresh-session / clear / compact suggestion. See [context check](#context-window-check). Most of the time, emit nothing. This step comes last so it can scale to the chosen pick, and so the suggestion lands at the bottom where the eye goes.
 
@@ -82,13 +86,15 @@ ranks candidates by dependency + leverage, presents them to pick from.
 Usage: /next [! | help]
 
 Verbs:
-  (none)            Scan, rank, and present next-work candidates via
-                    AskUserQuestion. Pick one or specify your own.
-  !                 Skip the question — auto-pick the top candidate
+  (none)            Scan, rank, and present next-work candidates as the
+                    global `Next` menu: `go` takes the lead pick, 1/2/3
+                    take the alternates, a `?` suffix (`2?`) describes
+                    one before starting it. Or just say what you want.
+  !                 Skip the menu — auto-pick the top candidate
                     (bugs first) and start it. Defers to the in-flight
                     guard and the low-context check before starting.
-                    Plain ? is a no-op here (/next already asks), so
-                    it isn't implemented.
+                    Plain ? is a no-op at this level (/next already
+                    asks); it lives per-option as the `?` suffix.
   help              Show this message.
 
 What it scans:
@@ -120,7 +126,7 @@ What it scans:
     assistant said it'd do, surfaced-but-not-acted-on items, parked
     sub-tasks. Forward-only (not /sup's recap); deduped against the
     backlog + what's already committed; not-mine items go to an aside.
-    Conversation candidates are marked "(this session)" in the chooser.
+    Conversation candidates are marked "(this session)" in the menu.
 
 Ranking (tiebreakers in order):
   unblocks-downstream → makes-other-work-easier → removes-risk →
@@ -130,15 +136,15 @@ Also: after you pick, a conservative context-window check may suggest a
 fresh session / clear / compact — only when remaining context is genuinely
 low AND the pick is substantial. Reads ~/.claude/state/context-remaining.
 
-Companion to /sup (situation-report-first; same ranking as a
-non-blocking list, no prompt). /next is forward-only, no recap, and
-presents the options as an interactive AskUserQuestion chooser.
+Companion to /sup (situation-report-first; same ranking, same menu,
+after the recap). /next is forward-only, no recap, ranks deeper.
 
 See SKILL.md for full reference.
 ```
 
 ## Related
 
-- **`/sup`** — situation-report-first; recaps this window then emits one pick. Cold-resume tool. Shares the `backlog-scan` machinery with `/next`.
+- **`/sup`** — situation-report-first; recaps this window then closes with the same `Next` menu. Cold-resume tool. Shares the `backlog-scan` machinery and the menu format with `/next`; only the recap and the ranking depth differ.
+- **The `Next` menu itself** — specced in `~/.claude/CLAUDE.md` under "Recap footer". Canonical there; `/next`, `/sup`, and every ordinary response all render it. Change the format there, not here.
 - **`/sitrep`** — the unembellished base report `/sup` wraps.
 - **`/todo`**, **`/revisit`**, **`/helping-hands`** — the skills that _file into_ the surfaces `/next` reads. `/next` is the read-and-choose side of those.

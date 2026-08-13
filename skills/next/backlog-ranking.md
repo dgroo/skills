@@ -1,6 +1,6 @@
 # Candidate model — scan, harvest, rank
 
-The shared "where queued work lives, and how to choose among it" core for **`/next`** and **`/sup`**. Both skills Read this file and apply it, then render the result in their own way (`/next` as an interactive AskUserQuestion chooser; `/sup` as a non-blocking Pick inside its report). Keeping it in one place is deliberate: the two skills had drifted (different ranking criteria, harvest added to one before the other) when this lived as duplicated prose. **Edit the candidate model here, once.** Skill-specific behavior (presentation, modifiers, guards, `/sup`'s HUMAN-REVIEW confidence-filter, `/sup`'s defer-to-sibling) stays in each `SKILL.md`.
+The shared "where queued work lives, and how to choose among it" core for **`/next`** and **`/sup`**. Both skills Read this file and apply it, then render the result as the same closing `Next` menu (specced in `~/.claude/CLAUDE.md` under "Recap footer") — `/next` bare, `/sup` at the tail of its situation report. Keeping it in one place is deliberate: the two skills had drifted (different ranking criteria, harvest added to one before the other) when this lived as duplicated prose. **Edit the candidate model here, once.** Skill-specific behavior (presentation, modifiers, guards, `/sup`'s HUMAN-REVIEW confidence-filter, `/sup`'s defer-to-sibling) stays in each `SKILL.md`.
 
 ## 1. Scan the file surfaces
 
