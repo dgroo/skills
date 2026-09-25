@@ -31,7 +31,7 @@ Skip if: the project has no `design/` corpus (nothing to steward), or you want a
 
 ### 1. Orient
 
-Discover the design layout (same as `/cleanup-design`'s Orient): `design/stories/{ready,drafts,done}/`, `design/helping-hands/`, `design/notes/`, canonical `design/DESIGN.md` / `README.md` / `NEXT.md`, root `TODO.md` / `REVISIT.md`, `CLAUDE.md` for conventions. If the layout is nonstandard or unclear, ask rather than guess.
+Discover the design layout (same as `/cleanup-design`'s Orient): `design/stories/{ready,drafts,done}/`, `design/helping-hands/`, `design/notes/`, canonical `design/DESIGN.md` / `README.md` / `NEXT.md`, root `TODO.md` / `REVISIT.md`, `CLAUDE.md` for conventions. If the layout is nonstandard or unclear, ask rather than guess. Also run `cadence-nudges` (read-only dotfiles wrapper, silent unless due; absent command → skip) and carry any lines it prints into the §6 present block as non-blocking context — a missing-README nudge is the common one, and `/readme` is its fix.
 
 ### 2. Hygiene — delegate to /cleanup-design
 
