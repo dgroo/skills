@@ -1,7 +1,7 @@
 ---
 name: wrapup
 description: Actively assess whether this session is safe to end. Inventories in-flight state, executes routine wrap-prep writes (DIARY entries, story files, design/NEXT.md session handoff, queue notes) directly, auto-commits and pushes complete work (surfacing only ambiguous or destructive cases), then gives a definitive READY / WAIT / STAY verdict. Judges whether THIS session is the right place to keep working — pushing back with a visible STAY when bouncing would discard real in-flight context — and sharpens that call against an intent hint when one is given.
-argument-hint: "[?|!|?!] [<optional intent for next work>]"
+argument-hint: "[?|!|?!|checkpoint] [<optional intent for next work>]"
 ---
 
 # Wrapup — explicit session-end readiness gate
@@ -30,6 +30,15 @@ Each skill implements only the modifiers that differ from its default. `/wrapup`
 | `/wrapup !`  | **Autonomous wrap.** | Like default, but raise the interrupt threshold to the max: resolve everything you can yourself, minimize ⏸ WAIT, make the call on borderline-ambiguous dirt instead of surfacing it. **Only** pause for the genuinely irreversible carve-outs — destructive git ops (force-push, `git reset`, rebase, `rm` of tracked files) still require per-instance confirm per the global Safety rule; `!` does **not** override that. |
 
 `?!` and `!?` are equivalent. A modifier composes with an intent hint: `/wrapup ! picking up slice 3` = autonomous wrap, judged against that intent. The distinction that matters: `?!` checks the verdict _before_ doing prep (optimizes for "should you even be leaving?"); the default does prep _then_ reports (optimizes for "you're leaving — let me get you there").
+
+### `/wrapup checkpoint` — capture without leaving
+
+The context-pressure form: `context-low-check.py`'s `<context-pressure>` reminder tells the session to run it at the next natural pause. Auto-compaction is lossy, and the handoff intent is exactly what a compaction summary drops — so write it down while it's still in context, then **keep working**. Low context is not itself a breakpoint.
+
+- **Do:** Phase 3's `design/NEXT.md` writes (this thread's section + the baton, if there is a specific next move); a DIARY entry only if a decision already clears the bar; **commit locally** with explicit paths (`git commit -- <paths>`).
+- **Don't:** push (the real wrap pushes — Derek, 2026-09-27); run Phase 2's STAY analysis; emit a Phase 4 recap, `cc-session-board --wrap`, or a Phase 5 verdict; commit anything that isn't clearly complete (mid-task dirt stays dirty).
+- **Emit:** one line — `Checkpoint: NEXT.md <thread> refreshed[, baton set], <N> local commit(s) — continuing.`
+- The session's eventual real `/wrapup` owns the section and baton from here: it rewrites or deletes them, so a checkpoint never leaves a baton for work this same session went on to finish.
 
 ## Three verdicts
 
@@ -106,6 +115,16 @@ Standard preps:
     - **Delete your section** when the thread is done with nothing left to hand off — finished threads leave NEXT.md (their history lives in `DIARY.md`); NEXT.md stays "where to pick up _now_", never a growing log. The common single-thread case therefore degenerates to the old overwrite behavior.
     - **Wrapping in a worktree:** write the section into the **main checkout's** `design/NEXT.md` (first entry in `git worktree list`) and name the branch in the header — the design-sync watcher owns that surface and auto-commits it. A handoff written only on a feature branch is invisible to a fresh `/sup` on the default branch; this rule is the fix.
     - **Legacy shape:** a NEXT.md with no `## Thread:` sections is one implicit thread — fold its content into a titled section when you first write yours.
+    - **Bump `wrapped` on every touch** — including appending a note — to today's date (`· wrapped <YYYY-MM-DD HH:MM>` is fine). A section whose `wrapped` date is older than 14 days reads as **parked** to every consumer (listed, never the lead), so a stale date on a live thread demotes it.
+    - **The baton — at most one, only for a specific next move.** When this session is handing over _one concrete action_ ("restart the watcher on Titan and confirm X", "run slice 3's migration then the smoke test") — not a list, not "continue the thread" — write it as the **first section** of NEXT.md, replacing any existing baton:
+
+      ```markdown
+      ## Baton · <YYYY-MM-DD HH:MM> · thread <slug>[ · branch <branch>]
+
+      <the action, one or two sentences, self-contained>
+      ```
+
+      The baton is what `boot-ritual.py` quotes inline at the next session's start and what `/sup`//`next` make the `go` lead, above every thread. The thread board is "what's in flight"; the baton is "do this first". No specific move → no baton (delete a stale one you wrote earlier this session). **Consumed on pickup:** the session that acts on a baton deletes the block as it starts the work.
 
     This is the **producer half** of the handoff: `/sup` and `/next` read `design/NEXT.md` and lead with its threads (via `backlog-scan`'s `NEXT.md handoff` surface + [`backlog-ranking.md`](../next/backlog-ranking.md) §3 rule 0), so what you write here is what the next session picks up — surviving the `/clear` that discards the tl;dr and scrollback. Writing it is the whole point of `/wrapup` deferring work. Use `design/NEXT.md` (canonical path) even if the project currently has a root `NEXT.md` — and flag the legacy location for cleanup if so.
   - **Larger or design-open work** → `design/stories/drafts/`; **loose backlog with no next-session ordering** → `## Open` in `TODO.md`; **dev-inbox projects** → a dev-inbox entry. Default to the lightest surface that won't get forgotten.
@@ -246,6 +265,9 @@ Handoff prompt (conditional):
   next-session handoffs print nothing.
 
 Verbs:
+  checkpoint        Capture without leaving (context-pressure form): refresh
+                    NEXT.md section + baton, commit locally, no push, no
+                    verdict — then keep working.
   help              Show this message.
 
 Companion to /sup (descriptive sitrep). See SKILL.md for full reference.
