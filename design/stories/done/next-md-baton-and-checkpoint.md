@@ -1,6 +1,6 @@
 # NEXT.md baton + context-pressure checkpoint
 
-*Authored by Claude Opus 5.5 with Derek · Last updated 2026-09-27.*
+*Authored by Claude Opus 5.5 with Derek · Last updated 2026-09-28.*
 
 ## Problem
 
@@ -46,6 +46,6 @@ Second question from the same conversation: when `<context-pressure>` fires, sho
 - `groot-claude-coord`: `design/design-corpus/DESIGN.md` — NEXT.md shape (baton, threads, parked threshold).
 - Not changed: `peer-pulse` (reads a legacy `**Current focus:**` line; unaffected), `/pm` and `/cleanup-design` (treat NEXT.md as prose; baton is compatible).
 
-## Shipped (2026-09-27)
+## Shipped (2026-09-27 → 09-28)
 
-All three parts landed the same session: skills `cdff1c8`; dot-claude `93b6ff1`, `2d0383a` (boot-ritual baton + parked), `c27d897` (context-pressure → checkpoint, CLAUDE.md threshold corrected 50%→25%); dotfiles `backlog-scan` baton surface + parked threads (+ first-paragraph fix `c89b497`); design-corpus §3 NEXT.md shape. Acceptance: a baton written after NEXT.md's preamble is quoted inline by the start hook and emitted first by `backlog-scan`. Unverified live: the first real `/wrapup` that writes a baton, and the first `<context-pressure>` that triggers a checkpoint.
+All three parts landed the same session: skills `cdff1c8`, `67bce99` (checkpoint leaves `design/` to the watcher); dot-claude `93b6ff1`, `2d0383a` (boot-ritual baton + parked), `c27d897` (context-pressure → checkpoint, CLAUDE.md threshold corrected 50%→25%); dotfiles `backlog-scan` baton surface + parked threads (+ first-paragraph fix `c89b497`); design-corpus §3 NEXT.md shape. Acceptance: a baton written after NEXT.md's preamble is quoted inline by the start hook and emitted first by `backlog-scan`. Unverified live: the first real `/wrapup` that writes a baton, and the first `<context-pressure>` that triggers a checkpoint.
