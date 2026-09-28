@@ -135,6 +135,12 @@ Standard preps:
 
 After the Phase 3 writes are done, land them too: batch the resulting changes into atomic commit(s) and push via `/cpush` directly — no separate OK. The only things that still pause for you are the carve-outs (destructive ops, ambiguous dirty trees).
 
+### Phase 3.5: Collaboration lookback (file-only)
+
+Run `/meta-feedback file` — the session lookback on the collaboration itself (prompting, CLAUDE.md / rules / memory, skills). Runs on every bouncing wrap, whether or not Phase 1 found in-flight state; skip it on ↺ STAY (the session isn't ending), under `checkpoint`, under `?`, and under `?!` unless the verdict is ✅ READY.
+
+**Never evaluate at wrap time.** Derek often wraps in a hurry (another task, an urgent fix, a restart), so this phase asks nothing and applies nothing: it writes a review report plus one pointer line (HUMAN-REVIEW.md, else the capture queue) for `/meta-feedback review` later. Zero findings — the common case — writes nothing and emits nothing. Otherwise carry its one line (`Filed N meta-feedback proposal(s) → <link>`) into the Phase 4 recap, and land its writes with the rest of Phase 3's. Its anti-churn rules live in that skill; don't loosen them here.
+
 ### Phase 4: Session recap
 
 Render a short bulleted summary of what this session accomplished, immediately above the verdict block. **Always emit** — even on trivial sessions. This is for the reader who walks back to this terminal cold ("wait, what the hell was I doing in this window two days ago?"); the verdict alone doesn't answer that, and scrollback above the verdict won't either if the session was long.
@@ -257,6 +263,11 @@ Verdicts:
   ⏸ WAIT            N items need attention first. List + prep proposals follow.
   ↺ STAY            Real in-flight context here (named intent or current
                     thread). Recommend staying. High-bar, rare.
+
+Collaboration lookback:
+  Runs /meta-feedback file on bouncing wraps: files up to 3 proposed
+  prompting / CLAUDE.md / skill changes as a review report for later
+  (/meta-feedback review). Never asks at wrap time; silent when clean.
 
 Handoff prompt (conditional):
   On a cross-machine or non-obvious-bootstrap handoff, also prints a
