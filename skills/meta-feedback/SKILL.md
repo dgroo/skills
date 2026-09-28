@@ -1,6 +1,6 @@
 ---
 name: meta-feedback
-description: End-of-session lookback on the collaboration itself, not the code. Finds the moments in this session where Derek's ask and the outcome diverged (a correction, a reversal, a redo, a false "verified") and turns each into a concrete proposed change — sharper prompting, a CLAUDE.md / rules / memory edit, or a skill add/edit/remove — scoped global or project-specific. Anti-churn by design: "clean, nothing to fold back" is the expected common result. Modes: bare `/meta-feedback` (propose now, interactive), `file` (write a review report without asking — what /wrapup calls), `review` (walk pending reports later). Triggers on "/meta-feedback", "meta feedback", "what should we fold back from this session", "how could I have steered that better". Not for reviewing code.
+description: End-of-session lookback on the collaboration itself, not the code. Finds the moments in this session where Derek's ask and the outcome diverged (a correction, a reversal, a redo, a false "verified", a procedure done by hand that wants to be a skill) and turns each into a concrete proposed change — sharper prompting, a CLAUDE.md / rules / memory edit, or a skill add/edit/remove — scoped global or project-specific. Signal over volume: "clean, nothing to fold back" is a normal result, but useful changes aren't dropped for tidiness. Modes: bare `/meta-feedback` (propose now, interactive), `file` (write a central review report without asking — what /wrapup calls; surfaces major findings), `review` (walk pending reports to do / hand off / decline, then delete resolved ones). Triggers on "/meta-feedback", "meta feedback", "what should we fold back from this session", "how could I have steered that better". Not for reviewing code.
 argument-hint: "[file | review | help]"
 ---
 
@@ -19,23 +19,24 @@ Adapted from a friend's `/meta-feedback` skill (itself a colleague's end-of-sess
 | Invocation | Does |
 | --- | --- |
 | `/meta-feedback` | Run the lookback now; present proposals; apply the ones Derek picks. |
-| `/meta-feedback file` | Run the lookback; write the report + one pointer line; ask nothing. **What `/wrapup` calls** — a hurried wrap never has to evaluate anything. Zero findings → writes nothing. |
-| `/meta-feedback review` | Walk pending reports (`open` proposals) one at a time: accept / decline / skip. |
+| `/meta-feedback file` | Run the lookback; write a central report; ask nothing. **What `/wrapup` calls** — a hurried wrap never has to evaluate anything, but major findings get a one-line flag. Zero findings → writes nothing. |
+| `/meta-feedback review` | Walk pending reports one proposal at a time: do / hand off / decline / skip. Deletes each report once nothing in it is open. `/sup` suggests this whenever reports are pending. |
 | `/meta-feedback help` | Print usage (see Help section). |
 
-## Anti-churn rules (hard, not advisory)
+## Signal rules
 
-A proposal made for the sake of proposing is as bad as a missed one: it bloats always-loaded files and trains Derek to skim the report. These rules bind every mode.
+The goal is signal in both directions. Padding the report with proposals made for the sake of proposing bloats always-loaded files and trains Derek to skim; dropping a materially useful change because a rule was applied too rigidly is just as much a failure. These are judgment rules with a default, not filters — when a rule's default would throw away something plainly useful, keep the item and say which rule it bent.
 
-1. **Clean is the expected result.** Most sessions have nothing worth folding back. Say `Clean — nothing to fold back.` and stop. An empty report is the skill working, not failing. Never pad to fill the three questions.
-2. **Divergences only, never the topic.** A finding needs a _moment_: Derek restated, corrected, or reversed; Claude asked something the context already answered, did unasked work, stopped short, or claimed "verified" when it wasn't. A session _about_ CLAUDE.md or skills does not thereby produce CLAUDE.md or skill findings.
-3. **Every finding names its cost** — a redo, a wrong claim, a wasted round trip, lost work. No cost → not a finding.
-4. **Cap: three proposals per session**, ranked by cost. Overflow is dropped, not listed as "also considered."
-5. **Existing guidance that didn't fire is a finding against Claude, not a new rule.** Before proposing any rule, grep global `~/.claude/CLAUDE.md`, `~/.claude/rules/*.md`, the project `CLAUDE.md`, the project memory index (`~/.claude/projects/<encoded-cwd>/memory/MEMORY.md`), and `~/.claude/skills/*/SKILL.md`. If it exists, the fix targets the _trigger_ (why it didn't fire — buried, vague, wrong section, outweighed), never a duplicate.
-6. **Promotion ladder.** First sighting of a correction → a memory entry, or nothing if it was a one-off. CLAUDE.md or a rules file only when (a) it already exists as memory and still failed to fire, (b) prior reports show it recurred, or (c) the miss cost a wrong answer or real money. The always-loaded global file also has to pass `/md-add`'s noise test.
-7. **Prefer edit and remove over add.** Every _add_ proposal states what it replaces or why nothing existing covers it. A rule that demonstrably misfired this session is a removal or rewrite candidate.
-8. **Declined stays declined.** Grep prior reports (`find ~/code -path '*/design/meta-feedback/*.md' -not -path '*/worktrees/*'`) for the same finding. Re-proposing a `declined` item requires a _new_ moment and must cite the prior decline.
-9. **Prompting feedback clears the same bar.** Only when an ambiguous ask cost a turn, phrased as the sentence Derek could have typed. Symmetric honesty: report Derek's ambiguities and Claude's misses alike; no praise padding.
+1. **Clean is a normal result.** Many sessions have nothing worth folding back. Say `Clean — nothing to fold back.` and stop. Never pad to fill the three questions.
+2. **Grounded in the session, not the topic.** A finding needs a _moment_: Derek restated, corrected, or reversed; Claude asked something the context already answered, did unasked work, stopped short, or claimed "verified" when it wasn't; or a multi-step procedure got done by hand in a way that plainly wants to be a skill or script. A session _about_ CLAUDE.md or skills does not by that fact produce CLAUDE.md or skill findings.
+3. **Name the cost** — a redo, a wrong claim, a wasted round trip, lost work, or a near-miss that would have cost one of those. Can't name any cost → not a finding.
+4. **Three headline proposals**, ranked by cost. Anything else that clears rules 2–3 goes in the report as a one-line `Also` entry — kept, not dropped — so it's there if Derek wants it.
+5. **Check what already exists.** Before proposing a rule, grep global `~/.claude/CLAUDE.md`, `~/.claude/rules/*.md`, the project `CLAUDE.md`, the project memory index (`~/.claude/projects/<encoded-cwd>/memory/MEMORY.md`), `~/.claude/skills/*/SKILL.md`, and the ledger. If the guidance exists and didn't fire, that's a finding against Claude, and the fix usually targets the _trigger_ (buried, vague, wrong section, outweighed) rather than a duplicate.
+6. **Pick the lightest home that will actually fire.** A correction specific to one situation defaults to memory. A plainly general how-we-work rule can go straight to CLAUDE.md or a rules file on first sighting when it's material; recurrence (ledger or memory) or a real cost strengthens the case. The always-loaded global file still has to pass `/md-add`'s noise test.
+7. **Try to fold before you add.** Note whether an existing entry could absorb the change (sharpened, not duplicated). If one can, propose that edit. If none can, add — a useful new rule beats a tidy file. A rule that demonstrably misfired is a rewrite or removal candidate.
+8. **Declined items need new evidence.** If the ledger shows the same finding declined, re-propose only with a new moment, citing the prior decline.
+9. **Prompting feedback: same bar.** Only when an ambiguous ask cost something, phrased as the sentence Derek could have typed. Report Derek's ambiguities and Claude's misses alike; no praise padding.
+10. **Flag what's major.** A finding is _major_ when it cost a wrong answer, lost or nearly lost work, a destructive action, or a broken trust boundary — or when it's likely to bite again in the very next session. `file` mode returns it for `/wrapup` to surface (see Procedure).
 
 ## Scope: global or project-specific
 
@@ -57,20 +58,31 @@ Classify each finding with one test: **would this have mattered in a session on 
 1. **Walk the session from the top.** List each divergence (rule 2). If the context opens from a compaction summary, say so — earlier moments may be lost; don't reconstruct them from inference.
 2. **Classify each:** ambiguous ask (Q1), missing or misfiring standing guidance (Q2), or a procedure that should be a skill (Q3). One divergence can land in two.
 3. **Existence + ledger check** (rules 5 and 8).
-4. **Scope each** (table above) and **apply the ladder** (rule 6).
-5. **Cut to the cap** (rule 4). If nothing survives: `Clean — nothing to fold back.` Done.
+4. **Scope each** (table above) and **pick its home** (rule 6).
+5. **Rank** (rule 4) and **flag major** (rule 10). If nothing survives: `Clean — nothing to fold back.` Done.
 6. **By mode:**
-   - **bare** — present the report (format below) inline, ending with the numbered list. Apply only what Derek picks: CLAUDE.md and rules via `/md-add`, a new skill via `/skill-add`, an edit to an existing skill by editing its source in `dgroo/skills`, memory by writing the file directly. Memory is the one thing you may write unasked, and only when the fact is verified and uncontroversial — say so.
-   - **file** — write the report file and one pointer line (below). Ask nothing, apply nothing, emit one line: `Filed N meta-feedback proposal(s) → <grootos-link URL>`.
-   - **review** — find reports with `open` proposals (the `find` above, then grep `· open`), oldest first. Per proposal: show it, take accept / decline (with a short reason) / skip. Accept → apply as in bare mode. Update the status token in place.
+   - **bare** — present the report (format below) inline, ending with the numbered list. Dispose of what Derek picks (see Disposition); anything he leaves open gets filed as a report, as in `file` mode, so it isn't lost with the scrollback. Memory is the one thing you may write unasked, and only when the fact is verified and uncontroversial — say so.
+   - **file** — write the report (below). Ask nothing, apply nothing. Emit one line: `Filed N meta-feedback proposal(s) → <grootos-link URL>`. For each **major** finding, also emit `⚠ Meta-feedback: <one line> — worth a look before you go (filed either way).` `/wrapup` carries these into its output; it still doesn't block the wrap.
+   - **review** — list open reports in the reports dir, oldest first. Walk each proposal (headline and `Also`) with Disposition. Be aggressive about finishing: the goal of a review pass is an empty directory.
 
-## Where `file` mode writes
+## Disposition
 
-- **Report:** `design/meta-feedback/<YYYY-MM-DD>-<slug>.md` in the project the session ran in (slug = the session's topic, kebab-case, 2–4 words). `design/` is live-synced across hosts in Derek's repos, so it's reachable anywhere; where the design-sync watcher owns `design/` commits, let it — don't hand-craft a `docs(design)` commit. A project with no `design/` → write it under the remote-coding capture repo's `design/meta-feedback/` instead (the repo named in global CLAUDE.md's "Cross-project capture" rule), with the source project in the filename.
-- **Pointer (exactly one line per report, not per finding):**
-  - The project has `design/HUMAN-REVIEW.md` → add under `## Open`: `- <date> · <N> meta-feedback proposal(s): <short gist> · <path> · dogfood: /meta-feedback review`.
-  - Otherwise → the cross-project capture queue shard (path and format from global CLAUDE.md's "Cross-project capture" rule): `<date> [<project>] <N> meta-feedback proposal(s): <short gist> → <report path>`, committed per that rule.
-- Keep report content to _process_. Don't copy project data, credentials, or customer content into a report — especially when it lands in a different repo than the session's.
+Every proposal leaves `review` (or bare mode) in one of four ways:
+
+- **Do it** — CLAUDE.md and rules via `/md-add`; a new skill via `/skill-add`; an edit to an existing skill by editing its source in `dgroo/skills`; memory by writing the file directly; anything else by just doing it in the owning repo.
+- **Hand it off** — too big to do in the moment → file it as a story (`design/stories/drafts/`) or `TODO.md` entry in the _owning_ repo (`dgroo/skills`, `dot-claude`, the remote-coding repo, the project itself), citing the report's evidence. The story now owns it.
+- **Decline** — with a short reason.
+- **Skip** — leave it open for another pass.
+
+Every non-skip outcome appends one line to the ledger: `<date> · <project> · <one-line finding> · accepted <sha> | handed off → <path> | declined: <reason>`. When a report has no open items left, **delete the report file** — the ledger and git history keep the record, and a resolved report left in place is noise that hides the open ones. (This deletion is the explicit purpose of `review`; it doesn't need a separate confirmation.)
+
+## Where reports live
+
+All reports go to **one central place** so a project Derek stops working on can't strand them: `design/meta-feedback/` in the remote-coding capture repo (the repo named in global CLAUDE.md's "Cross-project capture" rule). It's live-synced across hosts, and `/sup` checks it from any project.
+
+- **Report:** `design/meta-feedback/<YYYY-MM-DD>-<project>-<slug>.md` (slug = the session topic, kebab-case, 2–4 words). The design-sync watcher owns commits under `design/` there — don't hand-craft a `docs(design)` commit.
+- **Ledger:** `design/meta-feedback/LEDGER.md` — one line per disposed proposal, newest first. The recurrence and declined checks (rules 5, 6, 8) grep it; cross-project recurrence is the promote-to-global signal.
+- Keep report content to _process_. Don't copy project data, credentials, or customer content into a report — it lands in a different repo than the session's.
 
 ## Report format
 
@@ -89,6 +101,10 @@ The report follows the global document-ordering rule: what Derek has to decide c
    ```
    Cost: <what the divergence cost, one line>.
 
+## Also
+
+- <one-line finding> · <global|project> · <target> · open
+
 ## Prompting
 
 - <moment, compressed>: next time, try "<the sentence Derek could have typed>".
@@ -100,7 +116,7 @@ The report follows the global document-ordering rule: what Derek has to decide c
 _Source session: <project> · <host> · <session id if known>._
 ```
 
-Status tokens are fixed so prior reports form a greppable ledger: `· open`, `· accepted <sha>`, `· declined: <reason>`. Omit `## Prompting` when empty. In bare mode, render the same shape inline (no provenance stamp) and close with the numbered list so Derek can reply with numbers.
+Mark a major finding with a leading `⚠`. Each proposal carries `· open` until disposed (then it moves to the ledger). Omit `## Also` and `## Prompting` when empty. In bare mode, render the same shape inline (no provenance stamp) and close with the numbered list so Derek can reply with numbers.
 
 ## Help
 
@@ -115,22 +131,25 @@ common result.
 Usage: /meta-feedback [verb]
 
 Verbs:
-  (none)            Run the lookback now; present up to 3 proposals; apply
-                    the ones you pick (via /md-add, /skill-add, direct edit).
-  file              Run the lookback; write design/meta-feedback/<date>-<slug>.md
-                    + one pointer line (HUMAN-REVIEW.md, else the capture
-                    queue). Asks nothing. What /wrapup calls. Zero findings
-                    -> writes nothing.
-  review            Walk pending reports' open proposals: accept / decline /
-                    skip. Declines are remembered and not re-proposed.
+  (none)            Run the lookback now; present up to 3 headline proposals
+                    (+ one-line extras); do the ones you pick (via /md-add,
+                    /skill-add, direct edit).
+  file              Run the lookback; write a report to the capture repo's
+                    design/meta-feedback/. Asks nothing; flags major findings
+                    in one line. What /wrapup calls. Zero findings -> nothing.
+  review            Walk open proposals: do / hand off (story or TODO in the
+                    owning repo) / decline / skip. Logs each to LEDGER.md and
+                    deletes a report once it's fully resolved.
   help              Show this message.
 
-Anti-churn: divergences only (never the session's topic), each with a named
-cost; cap 3; existing-but-unfired guidance fixes the trigger, never adds a
-duplicate; memory first, CLAUDE.md only on recurrence or real cost.
+Signal rules: grounded in session moments (not the topic), each with a named
+cost; 3 headline proposals, extras kept as one-liners; existing-but-unfired
+guidance usually fixes the trigger; fold into an existing entry when one can
+absorb it, otherwise add. Bend a rule rather than drop something useful.
 
 Scope: each finding is global or project-specific ("would this have mattered
-in a different repo?"); recurrence across projects promotes to global.
+in a different repo?"); recurrence across projects (via the ledger) promotes
+to global. Reports are central so an abandoned project can't strand them.
 
 See SKILL.md for full reference.
 ```

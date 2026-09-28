@@ -139,7 +139,7 @@ After the Phase 3 writes are done, land them too: batch the resulting changes in
 
 Run `/meta-feedback file` — the session lookback on the collaboration itself (prompting, CLAUDE.md / rules / memory, skills). Runs on every bouncing wrap, whether or not Phase 1 found in-flight state; skip it on ↺ STAY (the session isn't ending), under `checkpoint`, under `?`, and under `?!` unless the verdict is ✅ READY.
 
-**Never evaluate at wrap time.** Derek often wraps in a hurry (another task, an urgent fix, a restart), so this phase asks nothing and applies nothing: it writes a review report plus one pointer line (HUMAN-REVIEW.md, else the capture queue) for `/meta-feedback review` later. Zero findings — the common case — writes nothing and emits nothing. Otherwise carry its one line (`Filed N meta-feedback proposal(s) → <link>`) into the Phase 4 recap, and land its writes with the rest of Phase 3's. Its anti-churn rules live in that skill; don't loosen them here.
+**Don't make Derek evaluate at wrap time.** He often wraps in a hurry (another task, an urgent fix, a restart), so this phase asks nothing and applies nothing: it writes a central review report that `/sup` will offer to walk later (`/meta-feedback review`). Zero findings writes nothing and emits nothing. Otherwise carry its `Filed N meta-feedback proposal(s) → <link>` line into the Phase 4 recap. **Major findings are the exception to quiet:** render each `⚠ Meta-feedback: …` line it returns directly above the verdict, so a wrong answer or near-miss is seen even on a hurried wrap. It's still not a ⏸ WAIT item — it's filed either way, and the wrap proceeds. Its signal rules live in that skill; don't restate them here.
 
 ### Phase 4: Session recap
 

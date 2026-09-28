@@ -63,7 +63,8 @@ Gather context in parallel:
 9. If `design/relay/STATE.md` exists, run `relay-status` for a one-line relay state; silently skip if the file doesn't exist or `relay-status` isn't on PATH.
 10. Scan conversation history for what was last discussed
 11. `python3 ~/.claude/skills/sup/service-check.py` — expected-services probe, run from the repo root and **sandbox-disabled** (it probes processes/daemons/docker sockets, which all read as down from inside the sandbox — the never-diagnose-down rule). Prints nothing when the project declares no services; see "Expected services" for the mechanism and the Pick-`0` rendering.
-12. `cadence-nudges` — the periodic-ceremonies table (read-only dotfiles wrapper over the silent-unless-due helper family: codex review, backlog staleness, beginners-mind, `## Project goals` block presence/freshness, README presence). Prints a `⏰ Cadence` header + one `↳` line per due ceremony, nothing when none due. Session start is where these actually get seen — `/wrapup` runs the same wrapper as the end-of-session backstop. Absent command (older host) → silently skip.
+12. **Pending meta-feedback** — list report files (everything but `LEDGER.md`) in `design/meta-feedback/` of the remote-coding capture repo (the repo named in global CLAUDE.md's "Cross-project capture" rule). Reports are central on purpose, so this finds them from any project — including ones from projects Derek has since stopped working on. Count headline proposals still `· open`, note the oldest report's age and any `⚠` (major) item. No files → silent.
+13. `cadence-nudges` — the periodic-ceremonies table (read-only dotfiles wrapper over the silent-unless-due helper family: codex review, backlog staleness, beginners-mind, `## Project goals` block presence/freshness, README presence). Prints a `⏰ Cadence` header + one `↳` line per due ceremony, nothing when none due. Session start is where these actually get seen — `/wrapup` runs the same wrapper as the end-of-session backstop. Absent command (older host) → silently skip.
 
 Report structure (omit empty sections, keep each to 1–3 lines max):
 
@@ -98,7 +99,9 @@ Report structure (omit empty sections, keep each to 1–3 lines max):
 
 **Upstream:** N commit(s) ahead, paths touched. (Only when in skills repo AND `upstream-check.sh` returned output. Omit otherwise.)
 
-**Cadence:** Verbatim `cadence-nudges` block (gather step 12) when non-empty — due periodic ceremonies, non-blocking "maybe, sometime" reminders; never part of any verdict or pick. Omit when the wrapper printed nothing (the common case).
+**Meta-feedback:** Render whenever gather step 12 found reports, in **both** branches (intent or not): `🔁 N meta-feedback report(s) pending (M proposals, oldest Xd[, ⚠ K major]) — /meta-feedback review?`. Don't expand the proposals here. In the no-intent branch they're also a Pick candidate (see "Backlog scan & pick"). Omit when none.
+
+**Cadence:** Verbatim `cadence-nudges` block (gather step 13) when non-empty — due periodic ceremonies, non-blocking "maybe, sometime" reminders; never part of any verdict or pick. Omit when the wrapper printed nothing (the common case).
 
 **Next steps:** 1–3 concrete actions to resume work. **Always include this section** — it's the most useful single line in the whole report.
 
@@ -261,6 +264,7 @@ After `backlog-scan`, also check two additional surfaces and fold their results 
   (Revised 2026-07-04: the old count-only rule guarded `/sup`'s speed, but the cost
   was the *offer interaction*, not the filing — auto-file is cheaper than asking.
   In grove, the SessionStart hook has usually already drained; the run is a no-op.)
+- **Pending meta-feedback.** Gather step 12's reports join the candidate pool as one item, `/meta-feedback review` (mark it `(meta-feedback)`). Be aggressive — a report left sitting is how findings get lost: it ranks as a small, concrete task, and **outranks ordinary backlog** (still below a `NEXT.md` baton/handoff and a DOWN service) when any report is older than 7 days or carries a `⚠` major item.
 - **Project sparkfile backlog.** If `design/IDEAS.md` exists and has entries (lines
   starting `- ` below the `---` header), add a low-priority line — "N unreviewed
   spark(s) in design/IDEAS.md — `/idea review`?". Silent if absent or empty.
@@ -418,6 +422,10 @@ Sequence:
                          DOWN service becomes Pick 0 — reply 0 to run the
                          start commands (production-shaped services always
                          wait for that 0, even under ! / wt).
+  2d. Meta-feedback      Checks the central design/meta-feedback/ reports
+                         (capture repo) from any project; pending ones get a
+                         one-line nudge to /meta-feedback review, and outrank
+                         ordinary backlog when >7d old or flagged major.
   3. Branch on intent:
      • no intent  →    Backlog scan (parkable only). Runs the shared
                          ~/bin/backlog-scan (same machinery as /next): TODO.md,
