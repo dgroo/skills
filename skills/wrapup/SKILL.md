@@ -35,7 +35,7 @@ Each skill implements only the modifiers that differ from its default. `/wrapup`
 
 The context-pressure form: `context-low-check.py`'s `<context-pressure>` reminder tells the session to run it at the next natural pause. Auto-compaction is lossy, and the handoff intent is exactly what a compaction summary drops — so write it down while it's still in context, then **keep working**. Low context is not itself a breakpoint.
 
-- **Do:** Phase 3's `design/NEXT.md` writes (this thread's section + the baton, if there is a specific next move); a DIARY entry only if a decision already clears the bar; **commit locally** with explicit paths (`git commit -- <paths>`).
+- **Do:** Phase 3's `design/NEXT.md` writes (this thread's section + the baton, if there is a specific next move); a DIARY entry only if a decision already clears the bar; **commit locally** with explicit paths (`git commit -- <paths>`). In a design-synced repo leave `design/` (NEXT.md included) to the watcher — it commits and delivers it, which is the protection you want; the local commit covers complete non-design work only.
 - **Don't:** push (the real wrap pushes — Derek, 2026-09-27); run Phase 2's STAY analysis; emit a Phase 4 recap, `cc-session-board --wrap`, or a Phase 5 verdict; commit anything that isn't clearly complete (mid-task dirt stays dirty).
 - **Emit:** one line — `Checkpoint: NEXT.md <thread> refreshed[, baton set], <N> local commit(s) — continuing.`
 - The session's eventual real `/wrapup` owns the section and baton from here: it rewrites or deletes them, so a checkpoint never leaves a baton for work this same session went on to finish.
