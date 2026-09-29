@@ -477,7 +477,7 @@ If response is 304 → log "cache hit: `<url>`"; skip subagent dispatch for this
 If response is 200 → extract `ETag` and `Last-Modified` from `/tmp/bm-headers`; update `${key}.json`:
 
 ```bash
-NEW_ETAG=$(grep -i '^etag:' /tmp/bm-headers | awk '{print $2}' | tr -d '\r')
+NEW_ETAG=$(grep -i '^etag:' /tmp/bm-headers | cut -d' ' -f2- | tr -d '\r')
 NEW_LAST_MOD=$(grep -i '^last-modified:' /tmp/bm-headers | cut -d' ' -f2- | tr -d '\r')
 jq -n --arg url "$URL" --arg etag "$NEW_ETAG" --arg lm "$NEW_LAST_MOD" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   '{url: $url, etag: $etag, last_modified: $lm, fetched_at: $ts}' > "<state>/cache/${key}.json"
