@@ -108,6 +108,8 @@ Output exactly this shape:
 
 Ask: **accept proposed / use original verbatim / tweak further / cancel.**
 
+**Fast path — the add was already approved in conversation.** When Derek has said yes to adding the entry (or approved its exact text) before `/md-add` runs, don't stop for a second approval: write it, then show the review block (§4) with the original and the text as written, so he can tweak after the fact. The gate exists so he sees the wording; it does not need to be a round trip when the decision is already made. If the text is Claude's draft that he has not seen, say so in the review.
+
 On accept, insert the entry at the chosen point with Edit (don't restructure surrounding content; don't fold the new entry into an existing one). For a **new** `~/.claude/rules/` file, use Write to create it with the approved `paths:` frontmatter + the entry.
 
 **Where the change lives:** `~/.claude/CLAUDE.md` and `~/.claude/rules/*.md` are tracked in the git repo backing `~/.claude` (a project `./CLAUDE.md` lives in its own repo). Surface that the write needs committing there to land on other machines — don't silently leave it uncommitted.
