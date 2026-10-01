@@ -68,7 +68,11 @@ Four vocabularies are in use (see Prior art). The Queue takes over the job of sa
 
 ### D8. How a mid-turn ask is received
 
-Pending the mechanics check below.
+What is known is under "Mid-turn mechanics" below. The choice is how much of receipt to trust to the model.
+
+1. **Skill first, then a hook (recommended).** Increment 1 ships `/pm <text>` as a skill. Increment 3 adds a `UserPromptSubmit` hook that recognises the ask, appends it to the Inbox itself, and tells the model it was filed; the existing Stop hook prints the `Filed:` lines for anything received that turn. Receipt and the acknowledgement then no longer depend on the model remembering. The same script is a shell command (`ask "<text>"`), so an ask can be filed from any terminal with no session involved.
+2. **Skill only.** Least to build. Receipt and the `Filed:` line rest on the model following the skill while busy with something else.
+3. **A plain prefix (`pm: …`) handled by a CLAUDE.md rule.** No skill load, but it is a rule with no mechanism behind it, which is the kind that has repeatedly failed to fire in this setup.
 
 ## How intake works
 
@@ -105,10 +109,21 @@ The `Done:` clause is what `/go-team`'s preflight requires of every open ask; tr
 
 **Review.** The `/pm` pass, after hygiene and the accuracy review, reconciles the Queue: check off asks whose story reached `done/`, flag dead pointers and asks that have sat untouched, then propose admissions (each with in-corpus evidence, as gap proposals are today), reorders and drops. Strong signal acts, real tradeoffs ask, as now. The pass stops rewriting `design/NEXT.md`.
 
+## Mid-turn mechanics
+
+Two requirements come from how Derek wants to use this, and both need a mechanism, not a resolution.
+
+- **Receipt must be nearly free at delivery.** A message typed while a turn is running reaches the model between tool calls. Whatever handles it there runs inside someone else's task, so it gets one file append and no thinking.
+- **The acknowledgement must be in the turn's final message.** In a mode that shows only that message, a mid-turn "filed" line is never seen.
+
+Observed while writing this draft (2026-10-01): messages delivered during a running turn arrived between tool calls, and the `UserPromptSubmit` hooks fired on each delivery and injected their context. The deliveries observed were subagent reports, not typed input. The Stop hook already prints a `systemMessage` at every turn end.
+
+Not yet established, and to be checked against the Claude Code docs before increment 1 is planned: whether a typed `/pm <text>` is expanded as a skill when delivered mid-turn or held until the turn ends, and whether a `UserPromptSubmit` hook fires at delivery for typed mid-turn input the way it did for the deliveries observed. If skills are held to turn end, option 1 of D8 still works but its first increment only captures between turns, and the hook moves up to increment 1.
+
 ## Prior art found
 
 - **`/pm` writes priority and nothing ranks by it.** The pass sets `priority:` on stories and reorders `TODO.md`. `backlog-ranking.md` and `backlog-scan` never read `priority:`. The board is its only reader. A "bump" that only edits the field would not change what `/next` recommends.
-- **`medium` is the default and it shows.** `/story` and the story template default to `medium`; across three projects, 54 of 97 open stories carry it. The level has stopped separating anything.
+- **The level field is too coarse to carry a bump.** `/story` and the story template default to `medium`. Across three projects, 43 of 93 open stories are `medium` and 19 are already `high`, so raising a story to `high` only adds it to that group, and there is no step above.
 - **Existing duplicate checks do not bump.** `/story` compares filenames and appends. `/todo` points at the existing entry. `/revisit` proposes an append only when the text names a story. `/idea` has none.
 - **Four priority vocabularies.** Stories in practice: `high | medium | low`. TODO: `P0–P3`. The corpus standard (`groot-claude-coord` `design/design-corpus/DESIGN.md`): `now | soon | someday`, on a flat story pile with a `readiness:` field. `/request`: `blocking | normal | low`.
 - **The corpus standard and practice have diverged.** The standard describes flat stories sorted by frontmatter and a board that renders `backlog-scan --json`. No project other than the standard's own repo has flattened, `backlog-scan` reads directories and has no `--json`, and the board parses the files itself. The de facto contract is: TODO checkboxes with P-tokens, readiness by directory, `priority:` words.
