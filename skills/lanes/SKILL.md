@@ -77,6 +77,26 @@ lane --owns <name> <thing>
 - **Do not propose a lane per person or per session.** Lanes are areas of the code. How many sessions are running is a separate, changeable fact.
 - **A single-session project needs no lanes, and saying so is a valid outcome.** Everything downstream is inert below two live lanes. If the project is one person on one thing, say that and stop.
 
+## Help
+
+When invoked as `/lanes help`, print the following block verbatim:
+
+```
+lanes — Work out what a project's domain lanes should be, from structure, design corpus, and commit history.
+
+Usage: /lanes [help]
+
+Modes (same sequence):
+  first run         No lanes yet, or only feature-named ones: propose a set.
+  re-run            Lanes exist: check them against where the work went and
+                    report drift (dead lanes, missing ones).
+  help              Show this message.
+
+Companion to /lane, which puts a session into one.
+
+See SKILL.md for full reference.
+```
+
 ## Related
 
 - `/lane` — put this session into one of them.

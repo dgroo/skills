@@ -17,6 +17,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, WebFetch, WebSearch, 
 - `/beginners-mind --skip-research` / `--skip-transcripts` / `--introspect-only` — phase-level cost control.
 - `/beginners-mind --bootstrap-corpus` — re-seed the project corpus.
 - `/beginners-mind apply <ID>` or `do recommended` — act on prior report's action items.
+- `/beginners-mind help` — show the usage block.
 
 ## Profile schema
 
@@ -733,5 +734,33 @@ Parse args at run start:
 | 6     | 5K                        | File I/O                                                        |
 
 Sum these for `--dry-run` projection (Phase 4 scales with source count).
+
+## Help
+
+When invoked as `/beginners-mind help`, print the following block verbatim:
+
+```
+beginners-mind — Periodic fresh-eyes audit of any project; produces a four-section report.
+
+Usage: /beginners-mind [--init|--force|--dry-run|--skip-research|--skip-transcripts|--introspect-only|--bootstrap-corpus|apply <ID>|do recommended|help]
+
+Arguments:
+  (none)              Full run: introspect, observe, fresh-observer, research, report.
+  --init              Interactive profile setup (auto-fires if no profile found).
+  --force             Bypass the cadence guardrail.
+  --dry-run           Show planned phases and estimated token spend; no fetches, no writes.
+  --skip-research     Phase-level cost control: skip external research.
+  --skip-transcripts  Phase-level cost control: skip transcript patterns.
+  --introspect-only   Phase-level cost control: introspection phase only.
+  --bootstrap-corpus  Re-seed the project corpus.
+  apply <ID>          Act on one action item from the prior report.
+  do recommended      Act on the prior report's recommended action items.
+  help                Show this message.
+
+Report sections: Recommendations, Behavioral observations, Cool things,
+"Why is it like this?".
+
+See SKILL.md for full reference.
+```
 
 (Further sections to be added by subsequent plan tasks.)

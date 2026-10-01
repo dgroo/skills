@@ -18,6 +18,7 @@ When several sessions run at once, each is a conversation you are personally in 
 | --- | --- |
 | `/standup` | The project owning the cwd (worktrees roll up to their checkout) |
 | `/standup all` | Every project on this host |
+| `/standup help` | Show the usage block |
 | `/standup <project>` | One named project |
 | `/standup <N>h` | Widen the stale window to N hours (e.g. `/standup 72h`) |
 
@@ -58,6 +59,26 @@ Waits older than the window print as `+N stalled >24h`. **Never drop it.** It is
 - **Not `/roci-sitrep`.** That is host vitals, git fleet, services, relay. This is attention.
 - **Not `/next`.** This tells you who is blocked, not what to work on.
 - **Not yet the full standup.** The design (`groot-claude-coord/design/session-teams/DESIGN.md` §7) has four sections: waiting-on-you, what each conversation is about, mechanical trouble (main red, a lane behind, a wrapped lane with unlanded work), and what landed. **Only §1 is built.** Do not improvise the other three from partial data — say they are not built if asked.
+
+## Help
+
+When invoked as `/standup help`, print the following block verbatim:
+
+```
+standup — Who is waiting on you, across every Claude Code session on this host.
+
+Usage: /standup [all|help]
+
+Arguments:
+  (none)            The project owning the cwd (worktrees roll up to their
+                    checkout), sorted longest-stall-first.
+  all               Every project on this host.
+  help              Show this message.
+
+Distinct from /sup (this session's situation) and /roci-sitrep (host vitals).
+
+See SKILL.md for full reference.
+```
 
 ## Related
 

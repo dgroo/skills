@@ -52,6 +52,26 @@ This is the correct limit, not a gap to work around: **one session, one lane, lo
 - **Watch the name.** If asked to create a lane named for a feature (`kickoff`, `nav-polish`, `fix-the-clock`), say so before creating it: the test is whether the name is still true in a month. Offer the domain it belongs to. Create it anyway if the user reaffirms — it is their call, and a bad lane name is cheap to abandon.
 - **Uncommitted work does not travel.** Entering a lane changes the working directory; edits in the old one stay there. If `git status` is dirty before entering, say so and let the user decide.
 
+## Help
+
+When invoked as `/lane help`, print the following block verbatim:
+
+```
+lane — Move this session into a domain lane (a long-lived worktree for one area of a project).
+
+Usage: /lane [<name>|help]
+
+Arguments:
+  <name>            Enter that lane, creating it if needed.
+  (none)            Report which lane you are in, or offer the roster when you
+                    are in the main checkout.
+  help              Show this message.
+
+Companion to /lanes, which decides what a project's lanes should be.
+
+See SKILL.md for full reference.
+```
+
 ## Related
 
 - `/lanes` — works out what a project's lanes *should be*, from the tree and the commit history. Run it first on a project with no lanes.

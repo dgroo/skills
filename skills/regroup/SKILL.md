@@ -14,6 +14,7 @@ argument-hint: "[? = report only, change nothing]"
 
 - `/regroup ?` — run the read half only. Report what would land, what would be pulled forward, and what would be skipped. Change nothing.
 - `/regroup` — do it.
+- `/regroup help` — show the usage block.
 
 ## Sequence
 
@@ -67,6 +68,28 @@ Ending on the readout rather than on a claim is the point. If it does not say **
 - **It does not force anything.** A dirty or ahead worktree is skipped and reported. No `reset`, no `checkout --force`, no discarding.
 - **It does not harvest.** Writing down what a lane learned is `/wrapup`'s job, per lane, and a consolidation that also tried to journal four sessions' thinking would do both badly. If lanes are wrapping because they are out of context, `/wrapup` each of them **first** — this pass moves commits, not knowledge.
 - **It does not re-carve the roster or reorder the backlog.** `/lanes` and `/pm` are their own passes on their own cadence.
+
+## Help
+
+When invoked as `/regroup help`, print the following block verbatim:
+
+```
+regroup — Bring every lane in a project to one baseline: land what is outstanding, pull clean worktrees forward.
+
+Usage: /regroup [?|help]
+
+Arguments:
+  (none)            Do it: land outstanding work, pull each clean worktree
+                    forward to the remote default branch, prove it with
+                    lane --state.
+  ?                 Report only: what would land, be pulled forward, or be
+                    skipped. Changes nothing.
+  help              Show this message.
+
+Companion to /lanes (decides the domains) and /land (lands one branch).
+
+See SKILL.md for full reference.
+```
 
 ## Related
 

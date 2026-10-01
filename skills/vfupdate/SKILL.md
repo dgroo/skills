@@ -81,3 +81,25 @@ For each ⚠ flagged item, confirm whether the real code path now works, and if 
 - Commit any demo fixes made to un-break things as their own `test(demo)`/`fix(autobot)` commits on `demo-local` (never pushed).
 - If the rebase pulls handler-signature changes into the settlement path (`orderServiceV2.ts`, the queue handlers the poller imports), the poller may need updating — the `fill-and-sell:fill` row going red is the signal.
 - This is Derek's personal workflow skill; it lives in `dgroo/skills`, not the org repos.
+
+## Help
+
+When invoked as `/vfupdate help`, print the following block verbatim:
+
+```
+vfupdate — Sync the Verifact demo to upstream sandbox and use the demo suite as a regression smoke test.
+
+Usage: /vfupdate [help]
+
+Process:
+  1. Preflight
+  2. Baseline run (before)
+  3. Update from upstream
+  4. After run
+  5. Diff report: what got fixed, what newly broke, what is still broken
+  6. Workaround check
+
+Only a pass-to-fail spec counts as a regression. Never pushes demo-local.
+
+See SKILL.md for full reference.
+```
