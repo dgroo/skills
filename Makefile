@@ -15,7 +15,7 @@ install: install-hooks
 		if [ -L "$$target" ] && [ "$$(readlink "$$target")" = "$$skill" ]; then \
 			echo "  ok  $$name (already linked)"; \
 		elif [ -e "$$target" ]; then \
-			echo "  SKIP  $$name — already exists at $$target (not overwriting)"; \
+			echo "  ‼ COLLISION  $$name — $$target already exists and is not this repo's; /$$name resolves to THAT one until you remove or rename it"; \
 		else \
 			ln -s "$$skill" "$$target"; \
 			echo "  link  $$name → $$skill"; \
