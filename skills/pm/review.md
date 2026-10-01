@@ -4,7 +4,7 @@
 
 `/pm` is a **periodic** backlog-stewardship ceremony, not a per-session tool. It's the deeper cousin of `/cleanup-design`: where cleanup-design does safe document hygiene (drift, dead links, move-to-done on strong signal), `/pm` **wraps** it and then makes the judgment calls cleanup-design deliberately declines — is this story still _wanted_, what's the right _priority order_, what work is _missing_. It's the `/sup`-wraps-`/sitrep` pattern: delegate the mechanical layer, add the opinionated one on top.
 
-**Stateless by design.** There's no ledger, no last-run stamp, nothing to drift. The durable artifacts `/pm` writes — reordered `TODO.md`, `priority:` frontmatter on stories, a refreshed `design/NEXT.md`, newly-filed gap drafts — _are_ the state. Run it whenever the backlog feels stale; `/wrapup` will also nudge toward it when the corpus looks untended (see [Companions](#companions)).
+**Stateless by design.** There's no ledger, no last-run stamp, nothing to drift. The durable artifacts `/pm` writes — reordered `TODO.md`, `priority:` frontmatter on stories, newly-filed gap drafts — _are_ the state. Run it whenever the backlog feels stale; `/wrapup` will also nudge toward it when the corpus looks untended (see [Companions](#companions)).
 
 ## When to use vs. skip
 
@@ -61,7 +61,7 @@ Then **write the order back** — this is durable, not a session-scoped ranking:
 
 - **Reorder `TODO.md`** so the top is the highest-leverage open item.
 - **Set / adjust `priority:` frontmatter** on stories where the corpus supports a clear level.
-- **Refresh `design/NEXT.md`**'s do-next order if it's gone stale against the new ranking (overwrite; NEXT.md is the ephemeral "pick up here", its history lives in `DIARY.md`).
+- **Leave `design/NEXT.md` alone.** It is the per-thread session handoff (a baton plus `## Thread:` sections) and `/wrapup` is its only writer; overwriting it with a ranking would destroy handoffs other sessions are relying on. If a thread's do-next list looks stale against the new order, say so in the present step.
 
 Split by confidence, mirroring cleanup-design's move-to-done discipline:
 
@@ -100,7 +100,7 @@ Keep it a glance. The corpus diff carries the detail; this block carries the _ju
 ## Rules
 
 - **Delegate hygiene, don't reimplement it.** Step 2 is a `/cleanup-design` call. If you find yourself re-writing its drift/dead-link/move-to-done logic, stop and just invoke it.
-- **Reprioritization is durable — write the order back.** The whole reason `/pm` exists over a two-step `/cleanup-design` → `/next` is that it _persists_ priority into `TODO.md` / story frontmatter / `NEXT.md`. A pass that only _reports_ a better order has skipped its core job.
+- **Reprioritization is durable — write the order back.** The whole reason `/pm` exists over a two-step `/cleanup-design` → `/next` is that it _persists_ priority into `TODO.md` and story frontmatter. A pass that only _reports_ a better order has skipped its core job.
 - **Genuine priority tradeoffs are always Derek's call.** Strong-signal reorders act; real ties ask — even under `!`. Don't manufacture confidence to avoid a question; a surfaced tradeoff is a useful output, a wrong-but-confident reorder is a trust cost.
 - **No imagined work.** Every gap-proposal cites an in-corpus source. A plausible-sounding task with no evidence is a hallucinated backlog item — don't file it.
 - **Stateless.** Don't create a ledger or a last-run stamp. The backlog files are the state; the nudge keys on their staleness, not on a timer.

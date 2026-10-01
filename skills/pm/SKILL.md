@@ -1,6 +1,6 @@
 ---
 name: pm
-description: Periodic backlog-stewardship pass for a project's design corpus — the "sit in the PM chair" ceremony. Delegates document hygiene to /cleanup-design, then adds the two layers cleanup-design won't: a judgment-heavy accuracy review of stories/notes (is this still true and still wanted?), durable reprioritization of the backlog (reorder TODO / story priority / NEXT.md on strong signal, ask on genuine tradeoffs), and grounded gap-proposal (file drafts for work the corpus clearly implies but nobody's filed). Stateless — the backlog files ARE the state. Use for "run a PM pass", "tidy and reprioritize the backlog", "is our backlog stale / correctly ordered / missing anything", "/pm".
+description: Periodic backlog-stewardship pass for a project's design corpus — the "sit in the PM chair" ceremony. Delegates document hygiene to /cleanup-design, then adds the two layers cleanup-design won't: a judgment-heavy accuracy review of stories/notes (is this still true and still wanted?), durable reprioritization of the backlog (reorder TODO / story priority on strong signal, ask on genuine tradeoffs), and grounded gap-proposal (file drafts for work the corpus clearly implies but nobody's filed). Stateless — the backlog files ARE the state. Use for "run a PM pass", "tidy and reprioritize the backlog", "is our backlog stale / correctly ordered / missing anything", "/pm".
 argument-hint: "? | ! | help"
 ---
 
@@ -28,7 +28,7 @@ Usage: /pm [? | !]
 Verbs:
   (none)            Default pass: hygiene (via /cleanup-design) + accuracy
                     review + strong-signal reprioritization written back to
-                    TODO/story-frontmatter/NEXT.md. Present gaps + genuine
+                    TODO and story frontmatter. Present gaps + genuine
                     priority tradeoffs for a decision.
   help              Show this message.
 
