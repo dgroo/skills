@@ -541,6 +541,8 @@ Goal: cross-reference all prior phases into a single coherent report.
 
 Anti-rec filter: if any rec matches the profile's _What to skip_ section, drop it.
 
+**Relay rule — a subagent claim that reaches a recommendation is verified or marked inherited.** Phases 1–4 are subagent output, and a subagent's inference reads exactly like its measurement. Before a claim becomes a recommendation's motivation or body, either check it with one command (a `grep`, a `git merge-tree`, a count over the other column) and say so, or write it as `(inherited from Phase N, unverified)`. Two usage counts reported from one window are not "unused": print the window beside any zero. Origin, 2026-09-29: a report said `/land` was never used (it was typed zero times and invoked eight) and that an upstream merge would conflict on two restructured skills (`git merge-tree` showed it would not); both were relayed from subagents unchecked and corrected the same day.
+
 **Behavioral observations section.** Walk Phase 2's three sub-sections. Each pattern with frequency >= 3 across the run window is reported. Each gets a one-paragraph description + a proposed remediation (which may become a Recommendation with cross-reference).
 
 **Cool things callout section.** Walk:
