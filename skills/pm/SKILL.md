@@ -1,5 +1,5 @@
 ---
-name: project-manager
+name: pm
 description: Periodic backlog-stewardship pass for a project's design corpus — the "sit in the PM chair" ceremony. Delegates document hygiene to /cleanup-design, then adds the two layers cleanup-design won't: a judgment-heavy accuracy review of stories/notes (is this still true and still wanted?), durable reprioritization of the backlog (reorder TODO / story priority / NEXT.md on strong signal, ask on genuine tradeoffs), and grounded gap-proposal (file drafts for work the corpus clearly implies but nobody's filed). Stateless — the backlog files ARE the state. Use for "run a PM pass", "tidy and reprioritize the backlog", "is our backlog stale / correctly ordered / missing anything", "/pm". Trigger: /pm.
 ---
 
@@ -116,7 +116,7 @@ Keep it a glance. The corpus diff carries the detail; this block carries the _ju
 When invoked as `/pm help`, print the following block verbatim:
 
 ```
-pm (project-manager) — Periodic backlog-stewardship pass. Wraps
+pm — Periodic backlog-stewardship pass (the project-manager chair). Wraps
 /cleanup-design for hygiene, then adds accuracy review, durable
 reprioritization, and grounded gap-proposal. Stateless — the backlog
 files are the state.
