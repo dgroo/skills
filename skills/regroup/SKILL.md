@@ -1,10 +1,10 @@
 ---
-name: consolidate
-description: Bring every lane in a project to one baseline — land whatever is outstanding, then pull each clean worktree forward to the remote default branch, and prove it with `lane --state`. Use when asked to "consolidate the lanes", "get everyone to a baseline", "are all lanes on the same code — make it so", "regroup before we fan back out", "/consolidate". Companion to /lanes (which decides the domains) and /land (which lands one branch); this is the whole-project sweep across all of them.
+name: regroup
+description: Bring every lane in a project to one baseline — land whatever is outstanding, then pull each clean worktree forward to the remote default branch, and prove it with `lane --state`. Use when asked to "consolidate the lanes", "get everyone to a baseline", "are all lanes on the same code — make it so", "regroup before we fan back out", "/regroup" (until 2026-10-01 this was /consolidate; renamed because upstream joewalnes/skills ships an unrelated /consolidate that rewrites commit history). Companion to /lanes (which decides the domains) and /land (which lands one branch); this is the whole-project sweep across all of them.
 argument-hint: "[? = report only, change nothing]"
 ---
 
-# /consolidate — get every lane onto one commit
+# /regroup — get every lane onto one commit
 
 `lane --state` answers _"is everyone on the same code?"_. This answers _"make them so."_
 
@@ -12,8 +12,8 @@ argument-hint: "[? = report only, change nothing]"
 
 ## Modifier
 
-- `/consolidate ?` — run the read half only. Report what would land, what would be pulled forward, and what would be skipped. Change nothing.
-- `/consolidate` — do it.
+- `/regroup ?` — run the read half only. Report what would land, what would be pulled forward, and what would be skipped. Change nothing.
+- `/regroup` — do it.
 
 ## Sequence
 
