@@ -40,6 +40,14 @@ Read `~/.claude/CLAUDE.md`. Extract:
 
 These drive the per-skill rating.
 
+### Step 2b — Measure use, and say over what window
+
+Run `skill-usage --json` (dotfiles). It counts, per installed skill, invocations by sessions (the Skill tool, in `~/.claude/projects/**/*.jsonl`) and commands Derek typed (`~/.claude/history.jsonl`), and it reports the **window** those counts cover. Carry the window into the report next to every zero. Retained transcripts cover roughly the last two months; on 2026-09-29 an audit read "0 uses" for suites that had shaped four projects in May, because May was outside the window.
+
+So a zero is a question, not a verdict. Before rating any skill red for disuse, check the **durable artifacts**: grep `~/code/*/design`, `~/code/*/DIARY.md`, and `~/code/*/diary/` for the skill's name and its output fingerprints (`REQUIRED SUB-SKILL: Use superpowers`, `GSTACK REVIEW REPORT`, `~/.gstack/projects/`, `/office-hours`, `plan-eng-review`), and read `~/.gstack/projects/*/*.jsonl` for gstack's own review and codex timeline. A skill with a zero in the window and a design doc that credits it is "used at project starts", which is its own category below.
+
+Also record what changed in the third-party stacks since the last report (`~/.claude/design/skills-review.html`'s date): gstack's version and its `CHANGELOG.md` entries since then, each plugin's version in `~/.claude/plugins/installed_plugins.json`, and upstream `joewalnes/skills` commits (`git -C ~/code/claude/skills log --oneline <last>..upstream/main`). A recommendation made against last quarter's skill bodies may not hold against this quarter's.
+
 ### Step 3 — Categorize and sort
 
 Group skills into these buckets (skip empty ones):
@@ -114,6 +122,8 @@ Group recommendations into three tiers:
 - **🟢 Safe to auto-apply** — concrete `rm` / `make install` commands that delete clear-no-value skills (test skills, stale dirs, alias skills the user explicitly opts to drop). Each gets an ID (`A1`, `A2`, ...).
 - **🔵 Suggested edit** — drafts of CLAUDE.md additions or settings changes. Each gets an ID (`E1`, `E2`, ...).
 - **🟡 Needs your call** — overlapping skills where the user has to choose. Each gets an ID (`D1`, `D2`, ...). No commands until decided.
+
+**Rate "used at project starts" as its own tier, not as red.** `/office-hours`, `/plan-eng-review`, `brainstorming` and `writing-plans` showed zero use in a two-month window and real value in the founding design docs of four projects. Any skill whose value lands at a moment the window rarely contains (a new project, a reboot, a first release) gets that label and a one-line "reach for it when …" note, never a removal command, unless a personal skill has demonstrably absorbed its job.
 
 **Be conservative on red ratings.** The user has explicitly said: don't object to skills that seem usable in other projects. Treat red as "candidate to consider", not "delete". Only A-tier (safe to auto-apply) gets concrete commands.
 
