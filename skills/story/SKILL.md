@@ -78,7 +78,7 @@ When the current block of work completes, surface the stub and offer — don't a
 ## Guidelines
 
 - **Verbatim is the contract.** The user typed a paragraph because the richness matters; every word you "improve" is signal lost. If the text seems to contradict itself, file it anyway — `/ponder` is where tensions get worked out.
-- **Near-zero derail.** No exploring the codebase, no clarifying questions, no "here's how I'd approach it." A `/story` queued mid-turn should cost the working session one file write and one line of output.
+- **Near-zero derail.** No exploring the codebase, no clarifying questions, no "here's how I'd approach it." A `/story` typed while a turn is running is held until that turn ends (Claude Code queues slash commands rather than delivering them mid-turn); when it runs it should cost the session one file write and one line of output.
 - **Not a tracker entry, not a spark, not a think.** Concrete bug/task with a priority → `/todo`. One-line thought → `/idea`. Ready to think now → `/ponder`. `/story` exists precisely for "story-shaped, but not now."
 - **Promotion is `/ponder`'s job.** The stub's marker names the next step; this skill never takes it.
 
@@ -112,4 +112,5 @@ See SKILL.md for full reference.
 - **`/idea`** — one-line spark capture to the sparkfile; its `iterate` elaborate-path promotes sparks into the same `drafts/` lane `/story` files to directly.
 - **`/ponder`** — the developer of these stubs: explore, think in options, write the real story. `/story` is deliberately the un-`/ponder`: capture without thinking.
 - **`/todo`** — concrete bugs/tasks with priorities; different lane.
+- **`/pm <text>`** — the door when the size is not obvious or the work may already be on file: it checks existing stories by content, files in this stub format when the ask is new and story-sized, and puts it on the ask queue.
 - **`/groot-project`** — owns the `design/stories/` convention (readiness-by-directory, `STORY_TEMPLATE.md`) this skill files into.
