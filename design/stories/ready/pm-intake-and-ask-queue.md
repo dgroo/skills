@@ -9,7 +9,7 @@ priority: high
 
 Derek's words: "I often want to file 'I'd like to work on this soon' tasks into projects, that may or may not already be stories, and are more significant than /idea — add this to the work/story queue; if there's already a story, bump it in priority, if not create one. What I probably actually want is something that acts as the PM: as CTO/CEO I'd talk to a PM and fire off tasks/work, confident they would organize them into the queue and help prioritize." And: "one way I'd really want to be able to use this is to fire things into a session while it is working on something else."
 
-This is a design draft. Nothing is built, and nothing gets built from `drafts/`.
+Derek accepted the design and all eight decisions on 2026-10-01. Nothing is built yet; building waits for his separate go.
 
 ## The proposal on one screen
 
@@ -19,25 +19,25 @@ This is a design draft. Nothing is built, and nothing gets built from `drafts/`.
 4. **The periodic review is the existing `/pm` pass**, with the Queue as the list Derek reviews. The PM may propose adding, reordering or dropping Queue items; only Derek's word puts an item on it.
 5. **The board needs no new plumbing from this side.** The PM writes files. `ASKS.md` is one more list file with a documented line format, and any question the PM has for Derek is written as a `<!-- derek(cc): … -->` mark, which the board's waiting lane and `find-review-marks` already pick up.
 
-## Open decisions
+## Decisions
 
-Each is Derek's call. The recommendation is listed first.
+Derek took option 1 of each on 2026-10-01. The alternatives stay listed so the calls are not re-argued from scratch.
 
 ### D1. Where the capability lives
 
-1. **Extend `/pm` (recommended).** `/pm <text>` is intake, `/pm triage` drains the Inbox, bare `/pm` stays the periodic pass. `SKILL.md` becomes a short router with receipt at the top; the pass moves to a sibling `review.md` that is read only when the pass runs, so a receipt does not pull 150 lines of ceremony into a working session. One name for "tell the PM."
+1. **Extend `/pm` (decided).** `/pm <text>` is intake, `/pm triage` drains the Inbox, bare `/pm` stays the periodic pass. `SKILL.md` becomes a short router with receipt at the top; the pass moves to a sibling `review.md` that is read only when the pass runs, so a receipt does not pull 150 lines of ceremony into a working session. One name for "tell the PM."
 2. **A new small skill for intake** (`/ask`), with `/pm` gaining only the Queue reconciliation. Cheapest to load, but it splits the persona across two names and adds a skill to maintain.
 3. **Minimal: no new verb.** `/story` gains a body-level duplicate check and writes a Queue line; the ranking rule is added. No Inbox, no sizing, no routing to TODO or IDEAS. This reaches "file it, bump it if it exists" and nothing else Derek listed. It is a real option if the PM persona turns out to be more than is wanted.
 
 ### D2. A separate `ASKS.md`, or ask metadata on the items themselves
 
-1. **`design/ASKS.md` with Inbox and Queue (recommended).** One file to open, reorder by hand, and annotate. Receipt is a one-line append that cannot be mis-filed. Origin is the file. Compatible with `/go-team`.
+1. **`design/ASKS.md` with Inbox and Queue (decided).** One file to open, reorder by hand, and annotate. Receipt is a one-line append that cannot be mis-filed. Origin is the file. Compatible with `/go-team`.
 2. **Frontmatter only**: an `asked: [dates]` list on stories and an inline marker on TODO entries, with order derived from recency. No second surface and nothing to drift, but there is no list to review, no hand-set order, and a mid-turn receipt would still need somewhere durable to land before triage.
 3. **Reuse `design/NEXT.md`.** Not recommended: it is the session handoff, owned by `/wrapup`, and its sections park after 14 days.
 
 ### D3. What a bump does to order
 
-1. **A position cue in the ask wins; otherwise stamp the date and let the PM place it under the pass's existing rule (recommended)**: strong signal moves it (the ask unblocks the item above it), no signal leaves it where it is, and the re-ask count is what the review weighs ("asked three times, still sixth").
+1. **A position cue in the ask wins; otherwise stamp the date and let the PM place it under the pass's existing rule (decided)**: strong signal moves it (the ask unblocks the item above it), no signal leaves it where it is, and the re-ask count is what the review weighs ("asked three times, still sixth").
 2. **Stamp only.** Order changes only in the review.
 3. **A re-ask always goes to the top.** Simple, but it silently rewrites an order Derek set by hand.
 
@@ -45,32 +45,32 @@ Each is Derek's call. The recommendation is listed first.
 
 Four vocabularies are in use (see Prior art). The Queue takes over the job of saying what is wanted soon, which lowers the stakes of this decision.
 
-1. **Keep current practice and write it down (recommended).** Stories stay `high | medium | low`, TODO stays `P0–P3`, and the mapping the board already applies (high→P1, medium→P2, low→P3) is recorded once in the corpus standard. Triage sets `priority: high` when it places a story on the Queue and never lowers it, so today's board sorts asked work first with no board change.
+1. **Keep current practice and write it down (decided).** Stories stay `high | medium | low`, TODO stays `P0–P3`, and the mapping the board already applies (high→P1, medium→P2, low→P3) is recorded once in the corpus standard. Triage sets `priority: high` when it places a story on the Queue and never lowers it, so today's board sorts asked work first with no board change.
 2. **Adopt the corpus standard's `now | soon | someday`.** It matches Derek's own phrasing and it is a horizon, which is what an ask carries. It costs a field edit on roughly a hundred stories and a change to every reader. If chosen, the first `/pm` review in each project is the migration.
 3. **`P0–P3` everywhere.** One vocabulary, same migration cost as option 2, and it reads as severity, which fits bugs better than stories.
 
 ### D5. When triage runs
 
-1. **A background subagent starts as soon as the receipt is written, with two fallbacks (recommended).** The agent keeps the reading out of the working session's context. If no agent tool is available, triage runs in-session when the current block of work ends, the way `/story` resurfaces a stub today. In every case the Inbox is durable, so any later `/pm`, `/sup`, `/next` or `/wrapup` sees the untriaged count.
+1. **A background subagent starts as soon as the receipt is written, with two fallbacks (decided).** The agent keeps the reading out of the working session's context. If no agent tool is available, triage runs in-session when the current block of work ends, the way `/story` resurfaces a stub today. In every case the Inbox is durable, so any later `/pm`, `/sup`, `/next` or `/wrapup` sees the untriaged count.
 2. **Always in-session at the block boundary.** No agent cost; spends the working session's context.
 3. **Only at the next `/pm`.** Cheapest; the `Filed:` line can never say more than "in the inbox."
 
 ### D6. Filing into another project
 
-1. **`/pm @<project> <text>` appends to that project's Inbox and stops (recommended).** Triage happens in a session of that project, which knows its own corpus. If the project is not cloned on this host, the ask goes in the current project's Inbox tagged `@<project>` and the `Filed:` line says so.
+1. **`/pm @<project> <text>` appends to that project's Inbox and stops (decided).** Triage happens in a session of that project, which knows its own corpus. If the project is not cloned on this host, the ask goes in the current project's Inbox tagged `@<project>` and the `Filed:` line says so.
 2. **Route through upstream `/request`.** Its mailbox lives outside every checkout, so it is not carried between hosts by design sync and is invisible to a board that renders the corpus. Its foreign-repo guard hook is not installed here and contradicts the one-front-door hub workflow.
 3. **One central inbox for all projects.** Simplest receipt, but it puts every project's asks in one repo regardless of sensitivity tier.
 
 ### D7. A cap on the Queue
 
-1. **Soft cap, PM pushes back (recommended).** Past about eight open items the PM says so and asks which ones drop to `someday`. A queue of twenty is a backlog with a different name.
+1. **Soft cap, PM pushes back (decided).** Past about eight open items the PM says so and asks which ones drop to `someday`. A queue of twenty is a backlog with a different name.
 2. **No cap.**
 
 ### D8. How a mid-turn ask is received
 
 The facts are under "Mid-turn mechanics" below. The short version: a slash command typed during a turn waits for the turn to end, and a plain message does not.
 
-1. **Skill first, then a hook for true mid-turn capture (recommended).** Increment 1 ships `/pm <text>` as a skill. Typed mid-turn, it is held and runs as its own short turn when the work finishes, so it never interrupts the work and its acknowledgement is that turn's final message. Increment 3 adds a `UserPromptSubmit` hook that recognises a plain-message ask (`pm: …`), appends it to the Inbox itself, and tells the model it was filed; the existing Stop hook prints the `Filed:` lines for anything received that turn. The ask is then on disk the moment it is typed, and neither receipt nor acknowledgement depends on the model remembering. The same script is a shell command (`ask "<text>"`), so an ask can be filed from any terminal with no session involved.
+1. **Skill first, then a hook for true mid-turn capture (decided).** Increment 1 ships `/pm <text>` as a skill. Typed mid-turn, it is held and runs as its own short turn when the work finishes, so it never interrupts the work and its acknowledgement is that turn's final message. Increment 3 adds a `UserPromptSubmit` hook that recognises a plain-message ask (`pm: …`), appends it to the Inbox itself, and tells the model it was filed; the existing Stop hook prints the `Filed:` lines for anything received that turn. The ask is then on disk the moment it is typed, and neither receipt nor acknowledgement depends on the model remembering. The same script is a shell command (`ask "<text>"`), so an ask can be filed from any terminal with no session involved.
 2. **Skill only.** Least to build, and often enough: the ask is captured as soon as the turn ends. Until then it exists only in the prompt queue, several asks drain one turn at a time, and in a final-message-only view each acknowledgement replaces the work turn's report on screen.
 3. **A plain prefix handled by a CLAUDE.md rule, no hook.** Delivered mid-turn, but it is a rule with no mechanism behind it, which is the kind that has repeatedly failed to fire in this setup.
 
@@ -114,11 +114,13 @@ The `Done:` clause is what `/go-team`'s preflight requires of every open ask; tr
 Checked against the Claude Code docs on 2026-10-01 (`interactive-mode`, `hooks-guide`, `sub-agents`, `fullscreen`):
 
 - **A plain message queued during a turn is delivered within that turn**, as soon as the running tool calls finish.
-- **A slash command or skill queued during a turn is held until the turn ends**, then run one at a time in the order typed. So `/pm <text>` (and `/story <text>` today) never runs mid-turn. `/story`'s own text assumes it does.
+- **A slash command or skill queued during a turn is held until the turn ends**, then run one at a time in the order typed. So `/pm <text>` (and `/story <text>` today) never runs mid-turn. `/story`'s own text assumes it does. A queued `!` shell command is held the same way, so `ask` is immediate only from another terminal. `Ctrl+Enter` sends what is queued without waiting.
 - **A `UserPromptSubmit` hook receives the prompt text, can add context, and can block the prompt** (exit code 2) so it never reaches the model. A separate `UserPromptExpansion` hook fires when a typed command expands and can block that.
 - **A Stop hook's `systemMessage` is shown to the user** independently of the model's final message.
 - **A background subagent's result arrives as a later turn.**
 - **The final-message-only view is `/focus`**, documented for the fullscreen renderer.
+
+The first four were read directly in `interactive-mode` and `hooks`; the last two come from a docs-research agent and were not re-read.
 
 Observed in this session, not documented: `UserPromptSubmit` hooks fired on messages delivered mid-turn and their injected context arrived with the message. Those deliveries were subagent reports, not typed input.
 
@@ -137,7 +139,7 @@ What this means for the two requirements Derek set:
 - **Four priority vocabularies.** Stories in practice: `high | medium | low`. TODO: `P0–P3`. The corpus standard (`groot-claude-coord` `design/design-corpus/DESIGN.md`): `now | soon | someday`, on a flat story pile with a `readiness:` field. `/request`: `blocking | normal | low`.
 - **The corpus standard and practice have diverged.** The standard describes flat stories sorted by frontmatter and a board that renders `backlog-scan --json`. No project other than the standard's own repo has flattened, `backlog-scan` reads directories and has no `--json`, and the board parses the files itself. The de facto contract is: TODO checkboxes with P-tokens, readiness by directory, `priority:` words.
 - **Origin is recorded nowhere as a field.** `/go-team` ranks by origin through which file holds the item: `ASKS.md` first, and one agent always on its top open item. Its reason is a human-approved feature that sat unbuilt for twelve hours among 120 machine-generated entries. No project here has an `ASKS.md`. Some TODO entries carry it in prose ("(Derek, 2026-09-15)").
-- **The lead dispatches and keeps no backlog.** In `session-teams/DESIGN.md` §4–§5 the lead is Derek's default conversation; it routes work to lanes as briefs in `design/queue/<lane>.md` and keeps its picture in `NEXT.md`. A groomed backlog was explicitly dropped from that design. Lanes and the lead are inert below two live lanes.
+- **The lead dispatches and keeps no backlog.** In `session-teams/DESIGN.md` §4–§5 the lead is Derek's default conversation; it routes work to lanes as briefs in `design/queue/<lane>.md` and keeps its picture in `NEXT.md`. The August version of that design argued against a groomed backlog as the primary loop, and the 2026-09-29 revision gives the lead none. Lanes and the lead are inert below two live lanes.
 - **`NEXT.md` changed underneath `/pm`.** It is now a baton plus per-thread handoff sections written by `/wrapup`. Step 4 of the pass still says to refresh its do-next order.
 - **Epics have a working convention**: `<slug>-epic.md` with `**Epic:**` backlinks on children (two epics, 28 backlinks in use). The standard's `type: epic` is unused.
 - **`walk-a-queue-disposition-primitive.md`** (drafts, parked) describes the present-item, pick-disposition loop four skills reimplement. The review's walk over the Queue would be a sixth consumer.
@@ -154,7 +156,7 @@ The PM files and ranks; it never dispatches. With no lanes, the PM is the whole 
 - **An `origin:` field on every story.** It needs a schema change, a backfill, and a reader in every tool; file membership gives the same ranking with none of that.
 - **Decomposing epics at intake.** That is design thinking, which is `/ponder`'s job and needs Derek.
 - **Triage from the filing project when the target is another repo.** The filing session does not know the target's corpus; this is the part of `/request`'s reasoning worth keeping.
-- **GitHub Issues as the queue.** Already rejected as a second backlog in `session-work-claims.md`.
+- **GitHub Issues as the queue.** `session-work-claims.md` already rejected issues as the primary backlog, because they become a second one beside the corpus, and kept them for cross-repo asks.
 - **The rest of gstack `plan-ceo-review`.** The minimal alternative (D1 option 3) and the twelve-month check are kept; scope modes and scored options are ceremony for a capture path.
 
 ## Twelve months out
