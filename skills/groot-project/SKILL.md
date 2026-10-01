@@ -62,6 +62,7 @@ Each phase has one of three modes: **auto-default-Y** (skill announces and proce
 | 6   | Makefile                        | auto-default-Y / drift-flag | Create if missing; flag drift if present but missing standard targets.                                              |
 | 6B  | Pre-commit hook                 | auto-default-Y              | Generate `hooks/pre-commit` (formats staged Markdown via prettier); compose, never clobber an existing hook.        |
 | 6C  | Commit-footer hook              | auto-default-Y              | Generate `hooks/prepare-commit-msg` (appends Claude co-author + session footer); compose, never clobber.           |
+| 6D  | Pre-push gate                   | auto-default-Y              | Generate `hooks/pre-push` (runs `make lint` + `make test` before a code push, writes `.verdict`); compose, never clobber. |
 | 7   | Terminal background             | always-interactive          | Invoke `/terminal-setup` (delegates fully).                                                                         |
 | 7B  | Port allocation                 | auto-default-Y              | Invoke `~/bin/pick-a-port --write` to claim a dev port in `[ports]`. Skip with `--no-port` if not a server project. |
 | 8   | Spinner verbs                   | always-asks                 | Themed `.claude/settings.json` spinner pool. Skip if already set.                                                   |
@@ -607,6 +608,96 @@ exit 0
 ```
 
 In `--auto` mode this phase runs unchanged. In `status` mode, flag a missing `hooks/prepare-commit-msg` as drift.
+
+### Phase 6D: Pre-push gate (lint + test, verdict file)
+
+Generate a `hooks/pre-push` script that runs the Makefile's own `lint` and `test` targets before any push that touches code, refuses the push if either fails, and writes `.verdict` (gitignored) at the worktree root — the HEAD it ran at and each instrument's exit code — so a landing can read a file rather than believe a session's account of its tests. This is what makes "main stays green" mechanically true, which `groot-claude-coord` `design/session-teams/DESIGN.md` §3 names as the precondition for lanes landing their own work without review.
+
+Mode: **auto-default-Y**, via the same `make hooks-install` mechanism as Phase 6B. Also append `.verdict` to `.gitignore`. Skip silently when the Makefile declares neither `lint` nor `test` — a gate over nothing is noise (the hook records such a target as `unavailable:no-target`, never as failed, so could-not-run and ran-and-failed stay distinguishable).
+
+**Composition, never clobber.** If `hooks/pre-push` already exists, do **not** overwrite it — offer to add the gate's body near the top instead.
+
+**Prove it red before trusting it green.** After installing, run the hook once with a shimmed `make` whose `test` exits non-zero and confirm it refuses; a gate that cannot go red manufactures confidence (upstream `go-team` found exactly this: a predicate that refused every green branch, then a rewrite that failed open). First installed in Warball2 on 2026-10-01: 24 s on the real suite.
+
+**`hooks/pre-push` template:**
+
+```bash
+#!/usr/bin/env bash
+# <project> pre-push gate — installed by `make hooks-install` (copies into .git/hooks/).
+#
+# Runs the project's own `make lint` and `make test` and refuses the push if
+# either fails. "Main stays green" is the precondition for lanes landing their
+# own work without review (groot-claude-coord design/session-teams/DESIGN.md
+# §3); a rule that reads like CI is not CI, so this is a hook, not a sentence.
+#
+# It also writes `.verdict` (gitignored) at the worktree root: the HEAD it ran
+# at and each instrument's exit code. A landing can then read a file rather than
+# believe a session's account of its tests. A missing or stale verdict is a
+# refusal, not an absence. (Cribbed from upstream go-team, references/gate.md.)
+#
+# A push that touches only design/ and Markdown is let through untested — the
+# design-sync watcher pushes those every few seconds, with --no-verify anyway.
+# Bypass for a human with a reason: `git push --no-verify`.
+set -uo pipefail
+
+root="$(git rev-parse --show-toplevel)" || exit 0
+cd "$root" || exit 0
+
+# A target the Makefile does not declare is recorded as unavailable, never as
+# failed: could-not-run and ran-and-failed must stay distinguishable.
+instruments=(lint test)
+
+# Only code pushes pay for the suite. stdin lines: <local ref> <local sha> <remote ref> <remote sha>
+code_touched=0
+while read -r _ local_sha _ remote_sha; do
+    [ -z "${local_sha:-}" ] && continue
+    [ "$local_sha" = "0000000000000000000000000000000000000000" ] && continue   # deleting a ref
+    if [ "${remote_sha:-}" = "0000000000000000000000000000000000000000" ]; then
+        range="$local_sha"            # new branch: everything on it
+    else
+        range="$remote_sha..$local_sha"
+    fi
+    if git diff --name-only "$range" 2>/dev/null | grep -qvE '^design/|\.md$'; then
+        code_touched=1
+    fi
+done
+if [ "$code_touched" -eq 0 ]; then
+    echo "→ pre-push: design/ and Markdown only — gate skipped"
+    exit 0
+fi
+
+head="$(git rev-parse HEAD)"
+verdict="$root/.verdict"
+{
+    echo "head=$head"
+    echo "when=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+} > "$verdict"
+
+failed=()
+for inst in "${instruments[@]}"; do
+    if ! make -n "$inst" >/dev/null 2>&1; then
+        echo "$inst=unavailable:no-target" >> "$verdict"
+        continue
+    fi
+    echo "→ pre-push: make $inst"
+    if make "$inst"; then
+        echo "$inst=0" >> "$verdict"
+    else
+        rc=$?
+        echo "$inst=$rc" >> "$verdict"
+        failed+=("$inst")
+    fi
+done
+
+if [ "${#failed[@]}" -gt 0 ]; then
+    echo "✗ pre-push: refused — ${failed[*]} failed at $head (see .verdict)" >&2
+    exit 1
+fi
+echo "✓ pre-push: gate passed at ${head:0:12} (.verdict written)"
+exit 0
+```
+
+In `--auto` mode this phase runs unchanged. In `status` mode, flag a missing `hooks/pre-push` as drift only when the Makefile has a `test` target.
 
 ### Phase 7: Terminal background
 
