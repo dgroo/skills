@@ -1,6 +1,6 @@
 ---
 name: scorecard
-description: Evaluate code quality with letter grades across multiple dimensions
+description: Letter-grade audit of a codebase as it stands: code quality and agent-readiness. Use after a feature or before a big PR.
 argument-hint: [directory | --quick]
 ---
 
@@ -22,7 +22,14 @@ Perform a comprehensive, critical third-party audit of a codebase and produce a 
 /scorecard                    # Full codebase audit of current directory
 /scorecard src/               # Audit specific directory
 /scorecard --quick            # Abbreviated audit (summary table only)
+/scorecard --agents           # Agent-readiness audit only (second table, skip the code grades)
 ```
+
+A full run produces **two** grades: one for the code, one for agent-readiness. They answer different questions for different audiences, so they get separate tables and separate overall marks — `Code: B / Agent-readiness: C+`.
+
+## Where the rest lives
+
+This file is the process and the output format. Read `references/dimensions.md` — the 14 code rubrics, the 5 agent-readiness rubrics, and the grading scale — when you reach Phase 2 and are ready to grade, not before. `references/worked-example.md` is one finished report; read it once when learning the format, not every run.
 
 ## Analysis Process
 
@@ -74,6 +81,7 @@ Launch these investigations simultaneously using the Task tool with subagent_typ
 - Check for contradictions between different docs
 - Verify that documented features actually exist in code
 - Check if claimed metrics (coverage %, performance numbers) are substantiated
+- Read one user-facing page as a first-time reader: can you say what it's for and what to do next? Does it talk about how it was produced instead of the subject? (`/docs` has the standard)
 
 **Agent 5 — Performance & Duplication:**
 - Identify hot paths (rendering loops, request handlers, per-frame/per-request code)
@@ -85,116 +93,50 @@ Launch these investigations simultaneously using the Task tool with subagent_typ
 - Catalog all duplicated code patterns with specific locations
 - Identify abstractions that should exist but don't
 
+**Agent 6 — Agent Readiness:**
+- Read the agent-facing instructions (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`) and check **every factual claim** against the code — stale rules are the finding, not the absence of rules
+- Find the work queue. Is it ranked? Are there duplicate or dangling entry numbers? Are the owner's own requests distinguishable from machine-generated ones?
+- Find the verification recipe. Run it. Does it work *right now*? How many environments does it cover?
+- Hunt vacuous gates: for every test threshold and CI check, ask what input would make it fail. Report each one that has no answer
+- Look for thresholds set just above a measured failure rate, tests whose names promise more than their assertions deliver, and tests loosened to accommodate a bug
+- Check isolation: worktrees, ports, shared machine-wide singletons (devices, session pools, databases, keychains), whether production is guard-blocked, and whether real credentials or personal data are reachable from an ordinary task
+- Check whether lessons are recorded anywhere, and whether the same mistake recurs in the history
+
+### Phase 1.5: External Security Cross-Check (best-effort)
+
+Alongside Agent 3, attempt an independent second opinion from a different model via the `delegate-security-audit` skill. This exists because a single model — including Claude auditing its own analysis — misses classes of vulnerabilities another model catches, and Claude's own guardrails limit how adversarially it will probe certain code. Treat this as strictly additive: if it's unavailable, the scorecard proceeds on Agent 3 alone.
+
+**Check availability first; skip silently if unavailable:**
+
+```bash
+command -v pi >/dev/null && pi auth check --provider openrouter --no-refresh >/dev/null 2>&1 && echo available
+```
+
+If `pi` isn't installed, or the OpenRouter credential check fails, don't attempt the delegation — proceed with Agent 3's findings alone and note in the report: "External security cross-check skipped (delegate-security-audit unavailable: `pi` not installed / OpenRouter not authenticated)." Never block or fail the scorecard over this being unavailable.
+
+**If available**, invoke the `delegate-security-audit` skill (via the Skill tool) for guidance, but override its default behavior for this context: **scorecard is a read-only grading tool**, so brief GLM explicitly not to modify any files, and run its `pi` command with `--exclude-tools edit,write` appended (the same read-only pattern `delegate-review` uses) regardless of what that skill's own example shows — a grading pass must never leave code changes behind as a side effect. Give it the same scope Agent 3 covers (shell execution patterns, path traversal/symlink/TOCTOU, injection, hardcoded secrets, unsafe deserialization, predictable randomness in security contexts) and ask for a report — findings with file:line and severity, not fixes. Run it in the background (`run_in_background`) while the other Phase 1 agents work, since it can take several minutes; this costs real money, which is expected for a periodic scorecard run per CLAUDE.md, but don't loop it.
+
+Fold its findings into Agent 3's before grading, tagging each with its source. Where the two disagree on severity, or one surfaces something the other missed, note the discrepancy in the report rather than silently picking one — the disagreement itself is signal.
+
 ### Phase 2: Grading
 
-After all agents complete, synthesize findings into grades. Be honest and critical. A "B" should mean genuinely good code, not "I didn't look hard enough to find problems."
+After all agents complete, synthesize findings into grades against the rubrics in `references/dimensions.md`. Be honest and critical. A "B" should mean genuinely good code, not "I didn't look hard enough to find problems."
 
-## Evaluation Dimensions
+## Output Format for Agent-Readiness
 
-### 1. Architecture (Weight: High)
-How well-structured is the codebase? Are responsibilities clear?
-- **A**: Clean separation of concerns, clear module boundaries, dependency injection, single responsibility
-- **B**: Good structure with minor coupling issues or one area of unclear responsibility
-- **C**: Some modules doing too much, moderate coupling, unclear boundaries in places
-- **D**: God objects, circular dependencies, tangled responsibilities
-- **F**: Monolithic, no discernible structure
+```
+| #  | Dimension            | Grade | Key Finding |
+|----|----------------------|-------|-------------|
+| A1 | Tracking & Priorities| C     | 134 entries, 3 references point at a renumbered item |
+| A2 | Verifiability        | B+    | Real device harness; only ever driven from one origin |
+| A3 | Guard Integrity      | C-    | A documented gate does not exist in code; one suite cannot fail |
+| A4 | Isolation & Safety   | B     | Worktrees used; shared device collisions misread as page bugs |
+| A5 | Knowledge Capture    | B-    | Excellent lessons in code comments, not propagated to docs |
 
-### 2. Code Quality (Weight: High)
-Is the code correct, readable, and maintainable?
-- **A**: No bugs found, clear naming, good error handling, proper resource cleanup throughout
-- **B**: Minor issues, readable, mostly correct
-- **C**: Some bugs or error handling gaps, readability issues in places
-- **D**: Multiple bugs, poor readability, missing error handling
-- **F**: Pervasive bugs, unreadable code
+**Agent-Readiness: C+**
+```
 
-### 3. Consistency (Weight: Medium)
-Are patterns, naming, and conventions uniform across the codebase?
-- **A**: Uniform patterns, naming, error handling, and style throughout
-- **B**: Mostly consistent with minor variations
-- **C**: Inconsistent in some areas — different patterns for the same problem
-- **D**: Wildly different styles across files, no discernible conventions
-- **F**: Every file looks like it was written by a different person
-
-### 4. Security (Weight: High)
-Are there vulnerabilities? Is the threat model appropriate?
-- **A**: No vulnerabilities found, proper input validation, secure defaults, documented threat model
-- **B**: Minor gaps but no exploitable issues, good practices overall
-- **C**: Some risks that need attention (e.g., unsanitized input in non-critical paths)
-- **D**: Exploitable vulnerabilities present
-- **F**: Critical vulnerabilities (injection, auth bypass, data exposure)
-
-### 5. Performance (Weight: Medium)
-Is the code efficient where it matters?
-- **A**: Hot paths are optimized, appropriate caching, no unnecessary work
-- **B**: Generally efficient, minor optimization opportunities
-- **C**: Some unnecessary work in hot paths, missing obvious caches
-- **D**: O(n^2) in hot paths, redundant I/O, no caching where needed
-- **F**: Fundamentally broken performance characteristics
-
-### 6. DRY / Duplication (Weight: Medium)
-Is logic expressed once, or copy-pasted?
-- **A**: No meaningful duplication, good abstractions at the right level
-- **B**: Minor duplication, mostly DRY
-- **C**: Noticeable copy-paste that should be refactored (3+ instances)
-- **D**: Significant duplication across files
-- **F**: Rampant copy-paste throughout
-
-### 7. Testability (Weight: Medium)
-Is the code designed to be testable?
-- **A**: Dependency injection, clear interfaces, pure functions, easy to mock boundaries
-- **B**: Mostly testable, minor coupling issues
-- **C**: Some components hard to test in isolation, tight coupling in places
-- **D**: Tightly coupled, requires complex setup to test anything
-- **F**: Untestable — global state, hidden dependencies, no seams
-
-### 8. Test Coverage & Quality (Weight: Medium)
-Do tests exist, and do they actually catch bugs?
-- **A**: Comprehensive coverage, tests verify behavior (not just smoke tests), edge cases covered
-- **B**: Good coverage with minor gaps, tests are meaningful
-- **C**: Tests exist but have gaps, some tautological tests, missing edge cases
-- **D**: Sparse tests, many tautological, major features untested
-- **F**: No tests or tests that always pass
-
-### 9. Type Safety (Weight: Medium)
-Is the type system used effectively? (Grade within the language's capabilities — don't penalize Perl for not being TypeScript.)
-- **A**: Strong typing throughout, generics used well, no escape hatches
-- **B**: Good typing with minor gaps (a few `any`/`Object`/untyped areas)
-- **C**: Mixed — some typed, some untyped, type assertions used as shortcuts
-- **D**: Weak typing, frequent escape hatches, types are lies
-- **F**: No typing, or types are so wrong they're misleading
-- **N/A**: Language has no type system (Python without hints, Perl, shell scripts) — skip this dimension and redistribute weight
-
-### 10. Documentation (Weight: Medium)
-Is the project documented? Are docs accurate?
-- **A**: Comprehensive, accurate, up-to-date docs; code is self-documenting where appropriate
-- **B**: Good docs with minor gaps or slightly stale references
-- **C**: Docs exist but have inaccuracies, stale references, or significant gaps
-- **D**: Minimal or mostly wrong documentation
-- **F**: No documentation, or docs that actively mislead
-
-### 11. Error Handling (Weight: Medium)
-Does the code handle failures gracefully?
-- **A**: Comprehensive error handling, typed errors, graceful degradation, clear user messages
-- **B**: Good coverage, minor gaps, consistent patterns
-- **C**: Basic handling, some swallowed errors or inconsistent patterns
-- **D**: Many unhandled cases, errors swallowed or leak implementation details
-- **F**: No error handling, crashes on unexpected input
-
-### 12. Extensibility (Weight: Low)
-How easy is it to add features or modify behavior?
-- **A**: Plugin architecture or clear extension points, open/closed principle
-- **B**: Reasonably extensible, adding features is straightforward
-- **C**: Can be extended but requires modifications to existing code
-- **D**: Hard to extend without significant refactoring
-- **F**: Requires rewrite to add features
-
-### 13. Repo Hygiene (Weight: Low)
-Is the repository clean, well-organized, and professional?
-- **A**: Clean git history, proper .gitignore, no junk files, CI configured, clear branching strategy
-- **B**: Mostly clean with minor issues
-- **C**: Some junk files, messy history, incomplete .gitignore
-- **D**: Significant clutter, broken CI, no .gitignore
-- **F**: Repository is a mess
+Then, in the detailed report, add one section: **"What would break first in an unattended run"** — the single change that would most increase how long agents can work here without a human. Be concrete and name the file.
 
 ## Output Format
 
@@ -220,6 +162,7 @@ Is the repository clean, well-organized, and professional?
 | 11| Error Handling    | C+    | Inconsistent user-facing messages |
 | 12| Extensibility     | B     | Good plugin points, tight core coupling |
 | 13| Repo Hygiene      | B-    | Junk files, missing .gitignore entries |
+| 14| Accretion         | C     | Add:delete 7:1 in production code; zero refactor moves in 110 commits |
 
 **Overall: C+**
 ```
@@ -250,65 +193,6 @@ Easy fixes that would meaningfully improve quality. Each should be achievable in
 
 #### Technical Debt (if applicable)
 Larger structural issues that need sustained effort. For each item, describe the current state, the target state, and a rough sense of scope (single file vs cross-cutting).
-
-## Grading Scale
-
-| Grade | Meaning | Implication |
-|-------|---------|-------------|
-| A+/A  | Excellent | Ship with confidence |
-| A-/B+ | Very good | Minor polish needed |
-| B/B-  | Solid | Some issues to address |
-| C+/C  | Fair | Needs attention before scaling |
-| C-/D+ | Below average | Significant work needed |
-| D/D-  | Poor | Major problems |
-| F     | Failing | Fundamental issues |
-
-**Overall grade** = weighted average, but drag it down if any HIGH-weight category is D or below. A project with A architecture but F security is not a B — it's a C at best.
-
-## Worked Example
-
-```
-# Codebase Scorecard: payment-service
-
-**Audited**: 2026-03-06 | **Size**: 42 files, 8.2 KLOC | **Language(s)**: TypeScript
-
-| # | Category          | Grade | Key Finding |
-|---|-------------------|-------|-------------|
-| 1 | Architecture      | A-    | Clean adapter pattern, single responsibility |
-| 2 | Code Quality      | B+    | One off-by-one in retry logic |
-| 3 | Consistency       | A     | Uniform error handling and naming throughout |
-| 4 | Security          | A     | Input sanitized, no secrets in code |
-| 5 | Performance       | B     | Minor: unbatched DB reads in reconciliation |
-| 6 | DRY               | B     | Validation logic duplicated in 2 handlers |
-| 7 | Testability       | A     | DI throughout, pure business logic functions |
-| 8 | Test Coverage     | B     | 80% coverage, needs E2E for webhook flow |
-| 9 | Type Safety       | A     | Full TypeScript strict, no `any`, proper generics |
-| 10| Documentation     | B-    | Missing JSDoc on PaymentProcessor class |
-| 11| Error Handling    | B+    | Good custom error classes, add retry for transient |
-| 12| Extensibility     | A     | Easy to add new payment providers via adapter |
-| 13| Repo Hygiene      | A-    | Clean history, CI configured, one stale branch |
-
-**Overall: B+**
-
-### Top Strengths
-- Adapter pattern in `src/providers/` makes adding payment providers trivial — add one file, register in factory
-- Custom error hierarchy (`PaymentError` → `ValidationError` | `ProviderError` | `TimeoutError`) with proper propagation
-- Comprehensive TypeScript strict mode, zero `any` usages, well-typed generics on `Result<T, E>`
-
-### Critical Issues
-- **MEDIUM [Bug]** `src/retry.ts:45` — off-by-one in exponential backoff: `delay = baseDelay * (2 ** attempt)` should be `2 ** (attempt - 1)` since `attempt` is 1-indexed. First retry waits 2x too long.
-- **MEDIUM [Performance]** `src/reconciliation.ts:112-130` — reconciliation handler loads transactions one-by-one in a loop instead of batching. Will hit N+1 at scale.
-
-### Architecture Assessment
-Clean layered architecture. The provider adapter pattern (`src/providers/base.ts` → Stripe, PayPal, etc.) is well-designed and follows open/closed principle. Business logic is properly separated from I/O in `src/domain/`.
-
-The one concern is that `src/handlers/webhook.ts` (340 lines) is doing too much — parsing, validation, idempotency checking, event dispatching, and error recovery. This should be split into a webhook parser and an event dispatcher.
-
-### Quick Wins
-1. Extract `src/validation.ts:45-89` shared logic from `src/handlers/charge.ts:23-67` — removes duplication, DRY grade → A-
-2. Add JSDoc to `PaymentProcessor` and `ProviderFactory` public methods — Documentation grade → B+
-3. Fix retry off-by-one — Code Quality grade → A-
-```
 
 ## Guidelines for the Auditor
 

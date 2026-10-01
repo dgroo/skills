@@ -1,6 +1,6 @@
 ---
 name: bug
-description: Add a new bug or todo to the project's tracker (alias for /todo)
+description: Alias for /todo — add a bug to the tracker.
 argument-hint: <description of the bug or task>
 ---
 

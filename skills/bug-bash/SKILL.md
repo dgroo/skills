@@ -47,6 +47,8 @@ Filter to open bugs only. Sort by priority (highest first), then by order of app
 
 ## Phase 1: Pre-flight Check
 
+**Work in your own worktree, never the shared checkout.** `git worktree add <path> -b bug-bash/<date> main` and do everything there. Other agents may be working the same repo; the shared checkout is touched only to merge. Never `git stash` — `refs/stash` is shared across every worktree of a repo, and a sibling's `stash pop` can cross-apply into yours. And never edit another project's repository: if a bug's fix belongs in a dependency, file it with `/request` and mark this one blocked.
+
 Before touching any code, verify the project builds and tests pass in its current state.
 
 1. **Identify build/test commands**: Read `Makefile`, `package.json`, `Cargo.toml`, `pyproject.toml`, `build.gradle`, etc. Look for the project's documented build and test commands (often in README, CONTRIBUTING, or CLAUDE.md).
@@ -65,12 +67,7 @@ For each bug, in priority order:
 
 ### Step 1: Understand
 
-Read the bug description carefully. Identify:
-- What is the expected behavior?
-- What is the actual (broken) behavior?
-- What files/modules are likely involved?
-
-Use Grep, Glob, and Read tools to find the relevant code. Understand the current implementation before changing anything.
+Establish expected versus actual behaviour and the code involved. Understand the current implementation before changing it.
 
 ### Step 2: Reproduce
 
@@ -79,6 +76,8 @@ Before writing any fix, confirm the bug exists:
 - **Reproduce interactively** if it's a UI/behavioral issue (use tmux for TUI apps, curl for APIs, etc.), OR
 - **Read the code and confirm** the logical error if the bug is evident from inspection (e.g., wrong variable name, off-by-one)
 
+**Proof of bite.** A test that demonstrates the bug must actually fail against the unfixed code — run it *before* the fix and keep the failure output for the commit message. A guard that was never seen to fail is decoration: several have shipped that would have passed either way. If you prove it by tampering (reverting the fix, swapping in the old file), **commit the fix first** — an agent lost all its work to `git checkout --` mid-tamper — and the tampered build must compile and run, or you've proven nothing. Also write the case that must *not* trigger: a predicate tested only on the input its author wrote is unproven.
+
 If you cannot reproduce the bug or confirm it exists in the current code:
 - It may already be fixed. Check recent commits.
 - It may be environment-specific. Note this.
@@ -86,10 +85,10 @@ If you cannot reproduce the bug or confirm it exists in the current code:
 
 ### Step 3: Fix
 
-Implement the fix. Follow these principles:
-- **Minimal change**: Fix the bug, don't refactor the neighborhood. Keep the diff small.
-- **Match existing patterns**: Follow the codebase's conventions for style, naming, and error handling.
-- **No drive-by changes**: Don't fix unrelated issues in the same commit. If you spot another bug, add it to the bug tracker — don't fix it inline.
+Implement the fix:
+- **One thesis per fix.** Fix the cause, not the symptom — a fix that only adds a guard should say in its commit body why the case was genuinely missing. Don't refactor the neighbourhood unless the fix requires it; if it does, the commit says so. Size isn't the measure; whether it shrinks or holds the learning surface is.
+- **Match existing patterns** for style, naming, and error handling.
+- **No drive-by changes.** If you spot another bug, add it to the tracker — don't fix it inline.
 
 ### Step 4: Test
 
@@ -99,11 +98,7 @@ Verify the fix thoroughly:
 2. **Run the full test suite**: Compare against the baseline from Phase 1. If any previously-passing test now fails, your fix introduced a regression.
    - If regression: **revert your changes**, note the conflict in the bug tracker ("Fix attempted but caused regression in X — needs more careful approach"), and move on.
 3. **Add or update tests** for the fixed behavior if a test didn't already exist
-4. **Interactive/E2E testing** if the project supports it (especially for UI bugs):
-   - For TUI apps: build, launch in tmux, interact, capture pane output
-   - For web apps: start the server, curl endpoints or check browser
-   - For CLI tools: run with various inputs and check output
-   - For libraries: ensure the public API still works as documented
+4. **Drive the real thing** if the project has a recipe for it (`CLAUDE.md`'s verification recipe) — especially for UI bugs. Tests exercise the mechanism; this exercises the integration.
 
 ### Step 5: Clean Up
 
@@ -172,6 +167,9 @@ After all bugs are processed (or the limit is reached), produce a summary:
 ## Skipped Bugs
 - **P2: God object decomposition** — Too large. Fix requires architectural refactor across Editor.pm, Commands.pm, and Palette.pm. Not suitable for a bug bash.
 
+## Not Done
+- [Anything left out of a fix, deliberately or not: the second call site you didn't reach, the edge case you didn't cover, the test you couldn't make fail. An honest omissions list is worth more than the fixes — ask for it explicitly and it arrives; omit it and it never does.]
+
 ## Decisions Made
 - [Any judgment calls you made during the bash, with reasoning]
 
@@ -189,7 +187,7 @@ Push the branch if on a feature branch. Report the summary to the user.
 
 You are working unassisted. When a decision is required:
 
-1. **Prefer the conservative option.** If unsure between two approaches, pick the one that changes less code and has less risk.
+1. **Prefer the option you can explain.** If unsure between two approaches, pick the one whose thesis fits in a sentence and doesn't grow the public surface — not simply the one with the smaller diff.
 2. **Follow existing patterns.** If the codebase does X one way everywhere, do it the same way — even if you think another way is better.
 3. **Don't gold-plate.** Fix the bug as described. Don't add features, extra configurability, or "while I'm here" improvements.
 4. **When in doubt, skip.** It's better to skip a bug and let a human decide than to make a bad fix that introduces a regression.
@@ -200,6 +198,7 @@ You are working unassisted. When a decision is required:
 ## Important Safety Rules
 
 - **Never force-push.** Always use regular `git push`.
+- **Never `git stash`, never edit another project's checkout.** See Phase 1.
 - **Never modify git config.** Don't change user.name, user.email, or any git settings.
 - **One commit per bug.** Don't squash or amend across bugs.
 - **Revert on regression.** If your fix breaks something, revert it — don't try to fix the fix.

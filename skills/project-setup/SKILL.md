@@ -27,242 +27,23 @@ This is faster than going one-by-one — the user can scan the full list and opt
 
 ## Suggestions
 
-Work through these in whatever order makes sense for the project. Skip any that are already in place.
-
-### 1. Bug Tracker / Todo List
-
-**Pitch:** A single place to track bugs, tasks, and feature requests so nothing falls through the cracks. AI agents can read and update it autonomously.
-
-**Implementation:**
-- If the project already uses GitHub Issues, Linear, Jira, or similar — use that. Note the convention in `CLAUDE.md`.
-- Otherwise, create a `TODO.md` in the repo root with this format:
-
-```markdown
-# Todo
-
-<!-- Format: [status] P<priority> (category) Title -->
-<!-- Status: [ ] open, [~] in progress, [x] done, [-] won't fix -->
-<!-- Priority: P0 critical, P1 high, P2 medium, P3 low -->
-<!-- Category: bug, feature, chore, docs -->
-
-## Open
-
-- [ ] **P2** (bug) Sidebar flickers on window resize
-  Fix: Debounce the resize handler in `src/layout.ts`
-
-- [ ] **P1** (feature) Add keyboard shortcuts for navigation
-  See discussion in #42
-
-## Done
-
-- [x] **P1** (bug) Login fails silently on expired token — 2026-03-28
-  Resolved: Added token expiry check in `auth.ts:validateSession()`, shows error toast
-```
-
-**Key points:**
-- Visually scannable — status/priority/category on one line, details indented below
-- "Done" entries include date and brief resolution note (what was done, not just "fixed")
-- Keep it flat and simple — no YAML frontmatter, no complex metadata
-- Compatible with the `/todo` and `/bug-bash` skills
-
-Add to `CLAUDE.md`:
-```
-## Bug tracking
-Bugs and tasks are tracked in `TODO.md`. Use `/todo` to add entries and `/bug-bash` to work through them.
-```
-
----
-
-### 2. Engineering Diary
-
-**Pitch:** A narrative log of how the project evolved — the *why* behind changes that isn't obvious from code or commit messages. Useful context for AI agents resuming work and for humans onboarding.
-
-**Implementation:** Create `DIARY.md` in the repo root:
-
-```markdown
-# Engineering Diary
-
-Latest entries first. Record significant decisions, architecture changes, and non-obvious context.
-
----
-
-## 2026-03-31 — Initial project setup
-
-Set up the project with [brief description]. Key decisions:
-- Chose X over Y because...
-- Structure follows...
-```
-
-Add to `CLAUDE.md`:
-```
-## Engineering diary
-Maintain `DIARY.md` — add an entry when making significant changes, architectural decisions, or non-obvious tradeoffs. Latest entries at top. Write in narrative form, not bullet dumps. Focus on *why* and *context*, not *what* (that's in the commits).
-```
-
----
-
-### 3. Changelog
-
-**Pitch:** A simple, human-readable log of what changed and when. Unlike git log, it's curated — only meaningful changes, no merge commits or fixups. Easy for anyone to scan without touching git.
-
-**Implementation:** Create `CHANGELOG.md` in the repo root:
-
-```markdown
-# Changelog
-
-## 2026-03-31
-
-- Add keyboard shortcuts for navigation
-- Fix sidebar flicker on window resize
-
-## 2026-03-28
-
-- Initial release
-```
-
-**Key points:**
-- Grouped by date (newest first), one bullet per change
-- Short descriptions — what happened, not how
-- No commit hashes, no authors, no version numbers unless the project does releases
-- Update it with every commit
-
-Add to `CLAUDE.md`:
-```
-## Changelog
-Update `CHANGELOG.md` with every commit. Format: grouped by date (newest first), one bullet per change with a short description. Keep it human-readable — no commit hashes, no authors.
-```
-
----
-
-### 4. Regular Scorecard
-
-**Pitch:** Periodic code quality audits catch problems before they accumulate. The `/scorecard` skill grades your codebase across 13 dimensions.
-
-Add to `CLAUDE.md`:
-```
-## Code quality
-Run `/scorecard` periodically — after completing a feature, before major PRs, or when onboarding to assess health. Address critical findings before moving on.
-```
-
----
-
-### 5. Atomic Commits
-
-**Pitch:** Small, focused commits are easier to review, revert, and understand. AI agents naturally batch work — this rule keeps commits clean.
-
-Add to `CLAUDE.md`:
-```
-## Commits
-Break work into small atomic commits — one logical change per commit. Don't bundle unrelated changes. A bug fix, a new feature, and a refactor are three commits, not one.
-```
-
----
-
-### 6. Test and Lint Before Committing
-
-**Pitch:** Catch breakage before it enters the history. Simple rule, big payoff.
-
-**Implementation:** First, identify the project's test and lint commands (look at `package.json` scripts, `Makefile`, CI config, etc.). Then add to `CLAUDE.md`:
-
-```
-## Pre-commit checks
-Always run tests and linting before committing:
-\`\`\`bash
-<test command>    # e.g. npm test, pytest, go test ./...
-<lint command>    # e.g. npm run lint, ruff check, golangci-lint run
-\`\`\`
-Do not commit if tests fail or lint errors are present. Fix first.
-```
-
-Adapt the commands to whatever the project actually uses. If there's no test/lint setup, flag that as a gap and offer to help set it up.
-
----
-
-### 7. Test-First Development
-
-**Pitch:** Writing a failing test before implementing forces clear thinking about expected behavior and gives you a definitive "done" signal. Balance fast unit tests with thorough end-to-end tests.
-
-Add to `CLAUDE.md`:
-```
-## Test-first
-Before implementing a feature or fix:
-1. Write a test that captures the expected behavior
-2. Run it — verify it **fails** (if it passes, the test isn't testing the right thing)
-3. Implement until the test passes
-4. Keep a healthy mix: fast unit tests for logic, end-to-end integration tests to validate it actually works in context
-
-Don't skip step 2 — a test that never failed never caught anything.
-```
-
----
-
-### 8. Keep README Current
-
-**Pitch:** Stale docs are worse than no docs — they mislead. Updating docs at commit time costs 30 seconds; fixing confused users costs hours.
-
-Add to `CLAUDE.md`:
-```
-## Documentation
-Update README.md (and any relevant docs) before committing if the change affects:
-- Public API, CLI interface, or configuration
-- Setup/installation steps
-- Feature behavior visible to users
-```
-
----
-
-### 9. Encode Preferences into Rules
-
-**Pitch:** When you correct the AI or express a preference during a session, capture it permanently so it doesn't need to be repeated.
-
-Add to `CLAUDE.md`:
-```
-## Evolving preferences
-When the user expresses a coding preference, convention, or correction during a session, offer to encode it into this CLAUDE.md file so it persists across sessions. Examples: naming conventions, preferred libraries, architecture patterns, things to avoid.
-```
-
----
-
-### 10. Mistake Retrospectives
-
-**Pitch:** When the AI makes a mistake — especially "I forgot to do X" — treat it as a process problem, not a one-off. A quick retrospective and a rule change prevents recurrence.
-
-Add to `CLAUDE.md`:
-```
-## Mistake retrospectives
-When you make a mistake (especially forgetting something the user asked for):
-1. Acknowledge it directly
-2. Identify the root cause — why did this happen? (e.g. no checklist, unclear convention, missing rule)
-3. Suggest a concrete project change to prevent recurrence (add a rule to CLAUDE.md, add a pre-commit check, create a checklist in the relevant skill)
-Don't just apologize — fix the system.
-```
-
----
-
-### 10. Multiple Request Organization
-
-**Pitch:** Allow user to batch up ideas and braindump quickly, but Claude to work through in an organized and diligent manner.
-
-Add to `CLAUDE.md`:
-```
-## Completing requests
-
-When the user gives multiple requests:
-1. Queue them mentally but complete ONE fully before starting the next
-2. "Complete" means: code written, built, deployed to Docker, tested with rodney, verified working
-3. If a request involves UI: screenshot the result and confirm it matches what was asked
-4. Never mark something done until you've verified it works end-to-end
-5. If you can't complete a request in one go (e.g., blocked by data issues), say so explicitly rather than half-doing it and moving on
-6. If multiple requests conflict or depend on each other, state the dependency and ask which to prioritize
-
-Anti-patterns to avoid:
-- Starting 4 things, finishing 0
-- Saying "let me commit this and move on to..." when the current thing isn't verified
-- Adding code that changes behavior without testing the behavior changed
-- Reacting to new user messages mid-task instead of finishing current work first
-- Saying "let me ignore X for now" — either fix it or explicitly tell the user it's queued
-```
----
+Thirteen, each with a one-line pitch. The full text — templates, `CLAUDE.md` snippets, scaffolding — is in `references/suggestions.md`; read the ones the user accepts when implementing them, not all thirteen up front.
+
+| # | Suggestion | Pitch |
+|---|---|---|
+| 1 | **Bug Tracker / Todo List** | A single place to track bugs, tasks, and feature requests so nothing falls through the cracks. |
+| 2 | **Engineering Diary** | A narrative log of how the project evolved — the *why* behind changes that isn't obvious from code or commit messages. |
+| 3 | **Changelog** | A simple, human-readable log of what changed and when. |
+| 4 | **Regular Scorecard** | Periodic code quality audits catch problems before they accumulate. |
+| 5 | **Atomic Commits** | Small, focused commits are easier to review, revert, and understand. |
+| 6 | **Lint and Tests as Mechanisms, Not Reminders** | Catch breakage before it enters the history — with something that refuses, not a sentence asking nicely. |
+| 7 | **Test-First Development** | Writing a failing test before implementing forces clear thinking about expected behavior and gives you a definitive "done" signal. |
+| 8 | **Keep README Current** | Stale docs are worse than no docs — they mislead. |
+| 9 | **Encode Preferences into Rules** | When you correct the AI or express a preference during a session, capture it permanently so it doesn't need to be repeated. |
+| 10 | **Mistake Retrospectives** | When the AI makes a mistake — especially "I forgot to do X" — treat it as a process problem, not a one-off. |
+| 11 | **Multiple Request Organization** | Allow user to batch up ideas and braindump quickly, but Claude to work through in an organized and diligent manner. |
+| 12 | **Unattended Agent Permissions** | An overnight agent run that hits a permission prompt at minute three sits there until morning. |
+| 13 | **Agent Operations Scaffolding** | `/go-team` and `/bug-bash` depend on a handful of files and one `CLAUDE.md` section. |
 
 ## Status Check
 
@@ -281,9 +62,11 @@ Project setup status:
   [x] Keep README current — rule in CLAUDE.md
   [ ] Encode preferences — not mentioned
   [x] Mistake retrospectives — rule in CLAUDE.md
-  [ ] Multiple Request Organization - not mentioned
+  [ ] Multiple Request Organization — not mentioned
+  [ ] Unattended agent permissions — no .claude/settings.json allowlist
+  [ ] Agent operations scaffolding — no `## Agent operations` section / ASKS.md / .verdict
 
-6/10 adopted. Want to add any of the missing ones?
+6/13 adopted. Want to add any of the missing ones?
 ```
 
 ## Guidelines
