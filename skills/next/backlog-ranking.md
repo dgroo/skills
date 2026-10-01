@@ -10,7 +10,7 @@ Run the shared scanner — one command, one definition of "where filed work live
 backlog-scan
 ```
 
-It emits a grouped, counted inventory of the `design/NEXT.md` session handoff (emitted first; see §3 rule 0), `TODO.md` (open entries), `design/stories/ready` (outranks drafts), `design/stories/drafts`, `design/helping-hands`, pending `REVISIT.md` items, open PRs, and stale branches — surfaces with nothing shown as `— 0`. Use its titles and counts directly. **Glance — don't deep-read;** read an individual file only when a candidate genuinely needs disambiguating (e.g. to confirm a dependency).
+It emits a grouped, counted inventory of the `design/NEXT.md` session handoff (emitted first; see §3 rule 0), the `ASKS.md` queue and untriaged inbox (Derek's asks; see §3 rule 0b), `TODO.md` (open entries), `design/stories/ready` (outranks drafts), `design/stories/drafts`, `design/helping-hands`, pending `REVISIT.md` items, open PRs, and stale branches — surfaces with nothing shown as `— 0`. Use its titles and counts directly. **Glance — don't deep-read;** read an individual file only when a candidate genuinely needs disambiguating (e.g. to confirm a dependency).
 
 If `backlog-scan` isn't on PATH (older host, dotfiles not yet pulled), fall back to a quick manual glance at `TODO.md`, `design/stories/ready/*.md`, `design/helping-hands/*.md`, and `gh pr list` — but the script is the intended path; surface the gap so it gets installed.
 
@@ -41,6 +41,12 @@ On a genuinely fresh session with no prior turns this yields nothing and the pic
    - **Multiple threads:** first surface the whole picture — one line per thread (`slug · focus one-liner · wrapped <date> · branch if named`), framed as "N threads were in flight." Then pick a thread: the one topic-matching a stated intent when there is one, else the most recently wrapped; its first do-next item is the pick. Items _within_ a thread stay in their listed order. A thread section naming a branch means its work lives on that branch/worktree — flag that the pick-up belongs there, not on the current branch.
 
    This is exactly what a `/clear` (or a machine migration) would otherwise discard, so reading `NEXT.md` is the prior sessions' plans surviving into this one. When `backlog-scan` shows the surface as `present` (an unparsed handoff), **read `NEXT.md` itself** and lead with what it says. The handoff is _ephemeral_: a session that finishes a thread deletes that thread's section (that's `/wrapup`'s job) — so if a thread's items look already-shipped (cross-check recent commits), say so rather than re-recommending them.
+
+**0b. Then Derek's ask queue — above every heuristic below.** `design/ASKS.md` (or root `ASKS.md`; surfaced by `backlog-scan` as `ASKS queue`) is what Derek has asked for, in the order he wants it, maintained by `/pm`. Machine-found work will always outnumber his requests, so an ask outranks it by where it is filed, not by how it scores:
+   - **The top open Queue line is the pick** once the handoff (rule 0) is spoken for. Queue order is Derek's — do **not** re-rank its lines by the criteria below, which order only the backlog _beneath_ the Queue.
+   - **A prerequisite inherits the rank.** If something must land before the top ask can (a blocker, a helping-hand, a fix), that thing leads, named as such: "do X first — it unblocks your ask Y." This is the one way unasked work gets ahead of an ask.
+   - **A line that cannot start is parked, not waited on.** If the top line points at a not-yet-pondered stub, the pick is `/ponder <slug>` — developing it _is_ the work on that ask. If it needs a decision only Derek can make, say what it needs in one line and take the next line down.
+   - **Untriaged asks are a candidate, not a pick to implement.** When `backlog-scan` shows `ASKS inbox … — N` with N > 0, offer `/pm triage` as one menu option (it is small, and it may reorder the Queue); never implement straight from the Inbox.
 
 1. **Unblocks downstream work.** Helping-hands often gate other items; a ready story may be a prerequisite for drafts. The thing that makes _other_ things possible wins — lead with it.
 2. **Makes other work easier (leverage).** Infrastructure, a shared script, a refactor several queued items would build on. Lowers the cost of everything after it.
