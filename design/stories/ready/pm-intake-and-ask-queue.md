@@ -9,7 +9,9 @@ priority: high
 
 Derek's words: "I often want to file 'I'd like to work on this soon' tasks into projects, that may or may not already be stories, and are more significant than /idea — add this to the work/story queue; if there's already a story, bump it in priority, if not create one. What I probably actually want is something that acts as the PM: as CTO/CEO I'd talk to a PM and fire off tasks/work, confident they would organize them into the queue and help prioritize." And: "one way I'd really want to be able to use this is to fire things into a session while it is working on something else."
 
-Derek accepted the design and all eight decisions on 2026-10-01. Nothing is built yet; building waits for his separate go.
+Derek accepted the design and all eight decisions on 2026-10-01.
+
+**Status: increment 1 is built (2026-10-01); increments 2–5 are not.** Shipped: the skill is renamed `project-manager` → `pm` so `/pm` resolves; `/pm <text>` receipt and in-session triage; `/pm triage`; the `ASKS.md` format (`skills/pm/asks-template.md`); the `Filed:` line; ranking rule 0b in `next/backlog-ranking.md`; the `ASKS queue` and `ASKS inbox` surfaces in `backlog-scan` (dotfiles, with tests). Two fixes rode along as their own commits: the pass no longer overwrites `design/NEXT.md`, and `/story` no longer claims it runs mid-turn. Remaining, each waiting for Derek's go: review-time Queue reconciliation, admissions and the cap (2); background triage and the hook receipt path, after the logging-hook experiment (3); `@<project>` routing (4); recording the contract in the corpus standard (5).
 
 ## The proposal on one screen
 
