@@ -17,7 +17,7 @@ This is a design draft. Nothing is built, and nothing gets built from `drafts/`.
 2. **`/pm <text>` becomes intake, in two phases.** Receipt appends the text to the Inbox and does nothing else, so it is safe to fire at a busy session. Triage happens later: size the ask, check it against existing work by reading bodies (not just filenames), then either create a stub or append to the existing story, and place a line on the Queue. That placement is the bump.
 3. **Ranking starts reading the Queue.** `/next` and `/sup` rank from `next/backlog-ranking.md`, which today never looks at `priority:` at all. A new rule puts the top open Queue item directly under the session handoff. An ask outranks machine-found work because of which file it is in, with no per-item origin field.
 4. **The periodic review is the existing `/pm` pass**, with the Queue as the list Derek reviews. The PM may propose adding, reordering or dropping Queue items; only Derek's word puts an item on it.
-5. **The board needs no new plumbing from this side.** The PM writes files. `ASKS.md` is one more list file with a documented line format, and any question the PM has for Derek is written as a `<!-- derek(pm): … -->` mark, which the board's waiting lane and `find-review-marks` already pick up.
+5. **The board needs no new plumbing from this side.** The PM writes files. `ASKS.md` is one more list file with a documented line format, and any question the PM has for Derek is written as a `<!-- derek(cc): … -->` mark, which the board's waiting lane and `find-review-marks` already pick up.
 
 ## Open decisions
 
@@ -33,7 +33,7 @@ Each is Derek's call. The recommendation is listed first.
 
 1. **`design/ASKS.md` with Inbox and Queue (recommended).** One file to open, reorder by hand, and annotate. Receipt is a one-line append that cannot be mis-filed. Origin is the file. Compatible with `/go-team`.
 2. **Frontmatter only**: an `asked: [dates]` list on stories and an inline marker on TODO entries, with order derived from recency. No second surface and nothing to drift, but there is no list to review, no hand-set order, and a mid-turn receipt would still need somewhere durable to land before triage.
-3. **Reuse `design/NEXT.md`.** Rejected in the section on rejected options: it is the session handoff, owned by `/wrapup`.
+3. **Reuse `design/NEXT.md`.** Not recommended: it is the session handoff, owned by `/wrapup`, and its sections park after 14 days.
 
 ### D3. What a bump does to order
 
@@ -68,11 +68,11 @@ Four vocabularies are in use (see Prior art). The Queue takes over the job of sa
 
 ### D8. How a mid-turn ask is received
 
-What is known is under "Mid-turn mechanics" below. The choice is how much of receipt to trust to the model.
+The facts are under "Mid-turn mechanics" below. The short version: a slash command typed during a turn waits for the turn to end, and a plain message does not.
 
-1. **Skill first, then a hook (recommended).** Increment 1 ships `/pm <text>` as a skill. Increment 3 adds a `UserPromptSubmit` hook that recognises the ask, appends it to the Inbox itself, and tells the model it was filed; the existing Stop hook prints the `Filed:` lines for anything received that turn. Receipt and the acknowledgement then no longer depend on the model remembering. The same script is a shell command (`ask "<text>"`), so an ask can be filed from any terminal with no session involved.
-2. **Skill only.** Least to build. Receipt and the `Filed:` line rest on the model following the skill while busy with something else.
-3. **A plain prefix (`pm: …`) handled by a CLAUDE.md rule.** No skill load, but it is a rule with no mechanism behind it, which is the kind that has repeatedly failed to fire in this setup.
+1. **Skill first, then a hook for true mid-turn capture (recommended).** Increment 1 ships `/pm <text>` as a skill. Typed mid-turn, it is held and runs as its own short turn when the work finishes, so it never interrupts the work and its acknowledgement is that turn's final message. Increment 3 adds a `UserPromptSubmit` hook that recognises a plain-message ask (`pm: …`), appends it to the Inbox itself, and tells the model it was filed; the existing Stop hook prints the `Filed:` lines for anything received that turn. The ask is then on disk the moment it is typed, and neither receipt nor acknowledgement depends on the model remembering. The same script is a shell command (`ask "<text>"`), so an ask can be filed from any terminal with no session involved.
+2. **Skill only.** Least to build, and often enough: the ask is captured as soon as the turn ends. Until then it exists only in the prompt queue, several asks drain one turn at a time, and in a final-message-only view each acknowledgement replaces the work turn's report on screen.
+3. **A plain prefix handled by a CLAUDE.md rule, no hook.** Delivered mid-turn, but it is a rule with no mechanism behind it, which is the kind that has repeatedly failed to fire in this setup.
 
 ## How intake works
 
@@ -94,7 +94,7 @@ Filed: <short title> → design/ASKS.md inbox (triage pending)
   - Task-sized: add a TODO entry in that file's own format and a Queue line pointing at it.
   - A spark with no "soon" in it: one line in `IDEAS.md`, no Queue line.
   - Epic-sized: one stub named `<slug>-epic.md`, per the existing convention, with a Queue line and a suggestion to `/ponder` it. Triage never decomposes an epic.
-- **Do not guess.** Two plausible matches, or an ask that contradicts a `ready/` story, stays in the Inbox with a `<!-- derek(pm): … -->` mark stating the question and the default the PM would take.
+- **Do not guess.** Two plausible matches, or an ask that contradicts a `ready/` story, stays in the Inbox with a `<!-- derek(cc): … -->` mark stating the question and the default the PM would take.
 - **Remove the Inbox entry** once routed. Git keeps the history.
 
 **The Queue line.** One line per ask, in priority order:
@@ -111,14 +111,23 @@ The `Done:` clause is what `/go-team`'s preflight requires of every open ask; tr
 
 ## Mid-turn mechanics
 
-Two requirements come from how Derek wants to use this, and both need a mechanism, not a resolution.
+Checked against the Claude Code docs on 2026-10-01 (`interactive-mode`, `hooks-guide`, `sub-agents`, `fullscreen`):
 
-- **Receipt must be nearly free at delivery.** A message typed while a turn is running reaches the model between tool calls. Whatever handles it there runs inside someone else's task, so it gets one file append and no thinking.
-- **The acknowledgement must be in the turn's final message.** In a mode that shows only that message, a mid-turn "filed" line is never seen.
+- **A plain message queued during a turn is delivered within that turn**, as soon as the running tool calls finish.
+- **A slash command or skill queued during a turn is held until the turn ends**, then run one at a time in the order typed. So `/pm <text>` (and `/story <text>` today) never runs mid-turn. `/story`'s own text assumes it does.
+- **A `UserPromptSubmit` hook receives the prompt text, can add context, and can block the prompt** (exit code 2) so it never reaches the model. A separate `UserPromptExpansion` hook fires when a typed command expands and can block that.
+- **A Stop hook's `systemMessage` is shown to the user** independently of the model's final message.
+- **A background subagent's result arrives as a later turn.**
+- **The final-message-only view is `/focus`**, documented for the fullscreen renderer.
 
-Observed while writing this draft (2026-10-01): messages delivered during a running turn arrived between tool calls, and the `UserPromptSubmit` hooks fired on each delivery and injected their context. The deliveries observed were subagent reports, not typed input. The Stop hook already prints a `systemMessage` at every turn end.
+Observed in this session, not documented: `UserPromptSubmit` hooks fired on messages delivered mid-turn and their injected context arrived with the message. Those deliveries were subagent reports, not typed input.
 
-Not yet established, and to be checked against the Claude Code docs before increment 1 is planned: whether a typed `/pm <text>` is expanded as a skill when delivered mid-turn or held until the turn ends, and whether a `UserPromptSubmit` hook fires at delivery for typed mid-turn input the way it did for the deliveries observed. If skills are held to turn end, option 1 of D8 still works but its first increment only captures between turns, and the hook moves up to increment 1.
+Two things are undocumented and need a ten-minute experiment with a logging hook before the hook path is planned: whether `UserPromptSubmit` fires when Enter is pressed or when the queued message is delivered, and whether blocking a queued message ends the turn that is running. Whether hook messages show under `/focus` is also undocumented; the Stop message is visible in this setup today.
+
+What this means for the two requirements Derek set:
+
+- **Nearly free at delivery.** On the skill path there is no mid-turn delivery; the receipt turn should still be one append so queued asks drain quickly. On the plain-message path the hook does the append and the model does nothing.
+- **Acknowledged in the final message.** On the skill path the receipt turn's final message is the `Filed:` line. On the plain-message path the model must carry it to the end of a turn that was about something else, which is why the Stop hook is the backstop.
 
 ## Prior art found
 
@@ -154,9 +163,9 @@ The ideal: asks arrive from a terminal, a phone, a chat bot or the board into on
 
 ## First increments, if Derek says go
 
-1. **The file and the verb.** `ASKS.md` format, `/pm <text>` receipt, in-session triage (new or bumped), the `Filed:` line, the ranking rule, the `backlog-scan` surface. Touches `dgroo/skills` and one script in dotfiles. Scope 1x; low novelty; the risk is mid-turn behaviour. Roughly one to two pair-hours, ±2x.
+1. **The file and the verb.** `ASKS.md` format, `/pm <text>` receipt, in-session triage (new or bumped), the `Filed:` line, the ranking rule, the `backlog-scan` surface. Touches `dgroo/skills` and one script in dotfiles. Scope 1x; low novelty; low risk, since the skill path relies only on documented behaviour. Roughly one to two pair-hours, ±2x.
 2. **Review integration.** Queue reconciliation, admissions, the cap, and removing the `NEXT.md` rewrite from the pass. 0.5x.
-3. **Background triage and the cheaper receipt path** chosen in D8. 1x; more novel.
+3. **Background triage and the hook receipt path** from D8, after the logging-hook experiment. The hook lands in `dot-claude` and the script in dotfiles. 1x; more novel.
 4. **`@<project>` routing.** 0.5x.
 5. **Record the contract** in the corpus standard, including the D4 outcome and the drift listed under Prior art. That lands in `groot-claude-coord`. Board lanes for Inbox and Queue are the board project's own story.
 
