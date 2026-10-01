@@ -29,6 +29,16 @@ if ! git rev-parse --verify --quiet upstream/main >/dev/null; then
     exit 0
 fi
 
+# A merge FROM upstream stages every upstream-tracked skill it brings in. That is
+# the one commit this guard must not refuse: the edits are upstream's own, and
+# refusing them is how the fork stops being able to pull. Skip when the commit
+# in progress merges a commit that upstream/main already contains. (2026-10-01:
+# the first upstream merge in three months hit this and needed the override.)
+merge_head="$(git rev-parse --verify --quiet MERGE_HEAD || true)"   # set -e: no MERGE_HEAD is not an error
+if [ -n "$merge_head" ] && git merge-base --is-ancestor "$merge_head" upstream/main; then
+    exit 0
+fi
+
 upstream_skills="$(git ls-tree -r --name-only upstream/main \
     | awk -F/ '$1 == "skills" && NF >= 2 { print $2 }' \
     | sort -u)"
