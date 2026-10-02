@@ -5,13 +5,13 @@ priority: high
 
 # The PM takes the work: one door for asks, one queue Derek can read
 
-*Authored by Claude Fable 5.1 with Derek · Last updated 2026-10-01.*
+*Authored by Claude Fable 5.1 with Derek · Last updated 2026-10-02.*
 
 Derek's words: "I often want to file 'I'd like to work on this soon' tasks into projects, that may or may not already be stories, and are more significant than /idea — add this to the work/story queue; if there's already a story, bump it in priority, if not create one. What I probably actually want is something that acts as the PM: as CTO/CEO I'd talk to a PM and fire off tasks/work, confident they would organize them into the queue and help prioritize." And: "one way I'd really want to be able to use this is to fire things into a session while it is working on something else."
 
 Derek accepted the design and all eight decisions on 2026-10-01.
 
-**Status: increment 1 is built (2026-10-01); increments 2–5 are not.** Shipped: the skill is renamed `project-manager` → `pm` so `/pm` resolves; `/pm <text>` receipt and in-session triage; `/pm triage`; the `ASKS.md` format (`skills/pm/asks-template.md`); the `Filed:` line; ranking rule 0b in `next/backlog-ranking.md`; the `ASKS queue` and `ASKS inbox` surfaces in `backlog-scan` (dotfiles, with tests). Two fixes rode along as their own commits: the pass no longer overwrites `design/NEXT.md`, and `/story` no longer claims it runs mid-turn. Remaining, each waiting for Derek's go: review-time Queue reconciliation, admissions and the cap (2); background triage and the hook receipt path, after the logging-hook experiment (3); `@<project>` routing (4); recording the contract in the corpus standard (5).
+**Status: increments 1 and 2 are built (2026-10-01, 2026-10-02); 3–5 are not.** Increment 2 added step 4B to the pass (`skills/pm/review.md`): triage a non-empty Inbox, check off and prune landed asks, surface stale asks and dead pointers, and propose admissions, reorders and drops past a soft cap of eight. The logging-hook experiment that gates increment 3 is done; its results are under "Mid-turn mechanics". Increment 1 shipped: the skill is renamed `project-manager` → `pm` so `/pm` resolves; `/pm <text>` receipt and in-session triage; `/pm triage`; the `ASKS.md` format (`skills/pm/asks-template.md`); the `Filed:` line; ranking rule 0b in `next/backlog-ranking.md`; the `ASKS queue` and `ASKS inbox` surfaces in `backlog-scan` (dotfiles, with tests). Two fixes rode along as their own commits: the pass no longer overwrites `design/NEXT.md`, and `/story` no longer claims it runs mid-turn. Remaining, each waiting for Derek's go: background triage and the hook receipt path (3); `@<project>` routing (4); recording the contract in the corpus standard (5).
 
 ## The proposal on one screen
 
@@ -72,7 +72,7 @@ Four vocabularies are in use (see Prior art). The Queue takes over the job of sa
 
 The facts are under "Mid-turn mechanics" below. The short version: a slash command typed during a turn waits for the turn to end, and a plain message does not.
 
-1. **Skill first, then a hook for true mid-turn capture (decided).** Increment 1 ships `/pm <text>` as a skill. Typed mid-turn, it is held and runs as its own short turn when the work finishes, so it never interrupts the work and its acknowledgement is that turn's final message. Increment 3 adds a `UserPromptSubmit` hook that recognises a plain-message ask (`pm: …`), appends it to the Inbox itself, and tells the model it was filed; the existing Stop hook prints the `Filed:` lines for anything received that turn. The ask is then on disk the moment it is typed, and neither receipt nor acknowledgement depends on the model remembering. The same script is a shell command (`ask "<text>"`), so an ask can be filed from any terminal with no session involved.
+1. **Skill first, then a hook for true mid-turn capture (decided).** Increment 1 ships `/pm <text>` as a skill. Typed mid-turn, it is held and runs as its own short turn when the work finishes, so it never interrupts the work and its acknowledgement is that turn's final message. Increment 3 adds a `UserPromptSubmit` hook that recognises a plain-message ask (`pm: …`), appends it to the Inbox itself, and tells the model it was filed; a Stop hook refuses to end the turn until the final message carries the `Filed:` line for anything received that turn (the 2026-10-02 measurements below rule out simply printing it from the Stop hook). The ask is then on disk the moment it is typed, and neither receipt nor acknowledgement depends on the model remembering. The same script is a shell command (`ask "<text>"`), so an ask can be filed from any terminal with no session involved.
 2. **Skill only.** Least to build, and often enough: the ask is captured as soon as the turn ends. Until then it exists only in the prompt queue, several asks drain one turn at a time, and in a final-message-only view each acknowledgement replaces the work turn's report on screen.
 3. **A plain prefix handled by a CLAUDE.md rule, no hook.** Delivered mid-turn, but it is a rule with no mechanism behind it, which is the kind that has repeatedly failed to fire in this setup.
 
@@ -126,12 +126,20 @@ The first four were read directly in `interactive-mode` and `hooks`; the last tw
 
 Observed in this session, not documented: `UserPromptSubmit` hooks fired on messages delivered mid-turn and their injected context arrived with the message. Those deliveries were subagent reports, not typed input.
 
-Two things are undocumented and need a ten-minute experiment with a logging hook before the hook path is planned: whether `UserPromptSubmit` fires when Enter is pressed or when the queued message is delivered, and whether blocking a queued message ends the turn that is running. Whether hook messages show under `/focus` is also undocumented; the Stop message is visible in this setup today.
+**Measured 2026-10-02** with a logging hook, in a throwaway session driven through tmux (Claude Code 2.1.287, fullscreen renderer, tool calls collapsed to one-line summaries as in `/focus`). Each trial ran a 25-second tool call and typed into the session about 12 seconds in.
+
+- **`UserPromptSubmit` fires when Enter is pressed, not at delivery.** It ran 0.7 s after the message was typed, 16 s before the tool finished. A hook can therefore put an ask on disk the moment it is typed.
+- **A plain message typed mid-turn is delivered within that turn.** The reply answered both prompts and there was one Stop.
+- **Blocking a queued message does not disturb the running turn.** The tool finished and the turn ended normally. The blocked message simply never arrived.
+- **A mid-turn block leaves nothing on screen.** A notice flashed above the input while the turn ran and was gone when it ended. The same block while idle leaves a persistent "blocked by hook" line carrying the hook's message.
+- **The Stop hook's `systemMessage` was not displayed in that view.** Neither the test hook's message nor the existing stop-status one appeared in any capture, although the hook ran. So a Stop-hook message cannot be the backstop for the `Filed:` line.
+
+What follows for the hook path: the hook should append and let the message through with added context ("already in the Inbox; do not re-file; end the turn with its `Filed:` line"), not block it, because a block is silent mid-turn. The backstop that works is a Stop hook that refuses to let the turn end while a received ask has no `Filed:` line in the final message, which the existing Stop hook is already positioned to check since it reads that message.
 
 What this means for the two requirements Derek set:
 
 - **Nearly free at delivery.** On the skill path there is no mid-turn delivery; the receipt turn should still be one append so queued asks drain quickly. On the plain-message path the hook does the append and the model does nothing.
-- **Acknowledged in the final message.** On the skill path the receipt turn's final message is the `Filed:` line. On the plain-message path the model must carry it to the end of a turn that was about something else, which is why the Stop hook is the backstop.
+- **Acknowledged in the final message.** On the skill path the receipt turn's final message is the `Filed:` line. On the plain-message path the model must carry it to the end of a turn that was about something else, which is why a Stop hook that blocks on a missing `Filed:` line is the backstop.
 
 ## Prior art found
 
@@ -169,7 +177,7 @@ The ideal: asks arrive from a terminal, a phone, a chat bot or the board into on
 
 1. **The file and the verb.** `ASKS.md` format, `/pm <text>` receipt, in-session triage (new or bumped), the `Filed:` line, the ranking rule, the `backlog-scan` surface. Touches `dgroo/skills` and one script in dotfiles. Scope 1x; low novelty; low risk, since the skill path relies only on documented behaviour. Roughly one to two pair-hours, ±2x.
 2. **Review integration.** Queue reconciliation, admissions, the cap, and removing the `NEXT.md` rewrite from the pass. 0.5x.
-3. **Background triage and the hook receipt path** from D8, after the logging-hook experiment. The hook lands in `dot-claude` and the script in dotfiles. 1x; more novel.
+3. **Background triage and the hook receipt path** from D8, shaped by the 2026-10-02 measurements: a pass-through `UserPromptSubmit` hook that appends, and a Stop hook that blocks on a missing `Filed:` line. The hook lands in `dot-claude` and the script in dotfiles. 1x; more novel.
 4. **`@<project>` routing.** 0.5x.
 5. **Record the contract** in the corpus standard, including the D4 outcome and the drift listed under Prior art. That lands in `groot-claude-coord`. Board lanes for Inbox and Queue are the board project's own story.
 
