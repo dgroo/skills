@@ -1,6 +1,6 @@
 ---
 name: pm
-description: The project's PM. `/pm <text>` takes work Derek wants done — anything from a spark to an epic — records it, checks it against existing work (an existing story gets the addition and a bump instead of a twin), and puts it on the ask queue in `design/ASKS.md`, which /next and /sup rank directly under the session handoff. `/pm triage` works through asks waiting in the inbox. Bare `/pm` is the periodic backlog-stewardship pass — hygiene via /cleanup-design, an accuracy review of stories, durable reprioritization (TODO order and story priority, asking on genuine tradeoffs), and grounded gap proposals. Use for "add this to the queue", "I want to work on this soon", "file this with the PM", "bump the X story", "run a PM pass", "is the backlog stale / in the right order / missing anything".
+description: The project's PM. `/pm <text>` — or a plain `pm: <text>` message, which a hook files the moment it is typed, even mid-turn — takes work Derek wants done — anything from a spark to an epic — records it, checks it against existing work (an existing story gets the addition and a bump instead of a twin), and puts it on the ask queue in `design/ASKS.md`, which /next and /sup rank directly under the session handoff. `/pm triage` works through asks waiting in the inbox. Bare `/pm` is the periodic backlog-stewardship pass — hygiene via /cleanup-design, an accuracy review of stories, durable reprioritization (TODO order and story priority, asking on genuine tradeoffs), and grounded gap proposals. Use for "add this to the queue", "I want to work on this soon", "file this with the PM", "bump the X story", "run a PM pass", "is the backlog stale / in the right order / missing anything".
 argument-hint: "<work to file> | triage | ? | ! | help"
 ---
 
@@ -12,7 +12,8 @@ Derek hands work to the PM the way he would to a team lead: he says what he want
 
 | Invocation              | Behavior                                                                                                             |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `/pm <text>`            | **Intake.** [Receipt](#receipt--always-first-always-one-append), then [triage](#triage) unless the session is mid-task. |
+| `pm: <text>` (a plain message) | **Intake, and the one form that works the same idle or busy.** The `pm-receipt` hook files it the moment Enter is pressed and says so in a `[pm-receipt hook]` note; you [triage](#triage) if idle, or keep working and triage when the block wraps. |
+| `/pm <text>`            | **Intake.** [Receipt](#receipt--always-first-always-one-append), then [triage](#triage) unless the session is mid-task. Typed mid-turn, it waits for the turn to end. |
 | `/pm triage`            | [Triage](#triage) everything waiting in the Inbox.                                                                   |
 | `/pm`, `/pm ?`, `/pm !` | The periodic pass. **Read [`review.md`](review.md)** (installed at `~/.claude/skills/pm/review.md`) and follow it.   |
 | `/pm help`              | Print the [Help](#help) block verbatim.                                                                              |
@@ -21,7 +22,7 @@ Anything after `/pm` that is not `triage`, `?`, `!` or `help` is an ask. That in
 
 ## The ask file
 
-`design/ASKS.md` holds what Derek has asked for, in order. Use root `ASKS.md` only when the project keeps its meta-files at the root and has no `design/`. If neither exists, create `design/ASKS.md` from [`asks-template.md`](asks-template.md) (installed at `~/.claude/skills/pm/asks-template.md`).
+`design/ASKS.md` holds what Derek has asked for, in order. Use root `ASKS.md` only when the project keeps its meta-files at the root and has no `design/`. If neither exists, create `design/ASKS.md` from [`asks-template.md`](asks-template.md) (installed at `~/.claude/skills/pm/asks-template.md`). In a linked worktree the ask file is the **main checkout's** copy, not the worktree's: asks belong on trunk, where design sync and the lead read them.
 
 - **`## Queue`** is the priority list: one line per ask, top is next. Each line points at the story or TODO entry that holds the substance. `/next` and `/sup` rank the top open line directly under the session handoff (`backlog-ranking.md` §3).
 - **`## Inbox`** is the last section of the file: raw asks, verbatim, oldest first, not yet triaged.
@@ -30,15 +31,19 @@ Anything after `/pm` that is not `triage`, `?`, `!` or `help` is an ask. That in
 
 ## Receipt — always first, always one append
 
-1. Append one entry at the end of the ask file: `- <YYYY-MM-DD HH:MM> — <the text, verbatim>`. Indent continuation lines two spaces. A leading `@<project>` stays in the entry.
+**If the message carries a `[pm-receipt hook]` note, the receipt is already done.** The hook appended the ask when Derek pressed Enter. Do not append it again; go straight to the triage decision below.
+
+Otherwise:
+
+1. Append one entry to the Inbox: `- <YYYY-MM-DD HH:MM> — <the text, verbatim>`. Indent continuation lines two spaces. A leading `@<project>` stays in the entry. Use the `ask` command when it is installed (`ask "<text>"`, in `~/bin`): it finds or creates the right file, including from a worktree, and places the entry. Append by hand only when it is not.
 2. That is the whole receipt. Read nothing else, derive nothing, ask nothing. The ask is now on disk whatever happens to the session.
 
 Then decide whether to triage now:
 
-- **The session is idle, or `/pm` is what Derek is doing:** triage in the same turn.
-- **The session is in the middle of other work:** do not. Acknowledge as `triage pending`, add an in-session task ("triage the ASKS inbox when the current block wraps"), and go back to the work. The Inbox is the persistent record; the task is only what makes it resurface.
+- **The session is idle, or the ask is what Derek is doing:** triage in the same turn.
+- **The session is in the middle of other work:** do not triage in this context. Acknowledge as `triage pending` and go back to the work. Hand the Inbox to a **background agent** if the session can start one (Sonnet-tier, not Haiku, which did not hold the stub format when tried; brief: "read `~/.claude/skills/pm/SKILL.md`, run its Triage section in `<project path>`, and report the `Filed:` lines"), and relay its `Filed:` lines when it reports. If it cannot, add an in-session task ("triage the ASKS inbox when the current block wraps"). Either way the Inbox is the persistent record.
 
-A slash command typed while a turn is running is held until the turn ends, so `/pm <text>` never interrupts a running task. An ask that arrives mid-turn as a plain message ("pm: …", "add to the queue: …") is the case to be careful with: receipt only, keep working, and carry the `Filed:` line to the end of the turn.
+How the two typed forms behave mid-turn: `pm: <text>` is a plain message, so the hook files it at Enter and it reaches you while the turn is still running; keep working, and end the turn with its `Filed:` line. `/pm <text>` is a slash command, which Claude Code holds until the turn ends. A turn that received a `pm:` ask and ends without a `Filed:` line is refused once by the `pm-filed-check` hook.
 
 ## Triage
 
@@ -114,9 +119,15 @@ When invoked as `/pm help`, print the following block verbatim:
 pm — the project's PM. Takes asks, keeps the ask queue, runs the periodic
 backlog pass.
 
-Usage: /pm [<work to file> | triage | ? | ! | help]
+Usage: pm: <work to file>          (plain message — works idle or mid-turn)
+       /pm [<work to file> | triage | ? | ! | help]
 
 Verbs:
+  pm: <text>        The one form to remember. A hook appends the ask to the
+                    Inbox the moment you press Enter, even while Claude is
+                    busy; idle, it is triaged straight away; mid-task, the
+                    work continues and the turn ends with its "Filed:" line.
+                    (From a shell with no session: ask "<text>".)
   <text>            Intake. Append the ask verbatim to the Inbox in
                     design/ASKS.md, then triage it: check it against existing
                     work, bump the existing story or file a new stub / TODO
@@ -158,4 +169,4 @@ See SKILL.md for intake and review.md for the pass.
 - **`/ponder`** — develops a stub into a real story. Intake stops short of it on purpose.
 - **`/next`**, **`/sup`** — read the Queue through `backlog-scan` and rank it under the handoff.
 - **`/go-team`** — reads `ASKS.md` first and works its top open item; the Queue format keeps its `- [ ]` and `Done:` conventions.
-- **Design record:** `design/stories/ready/pm-intake-and-ask-queue.md` in this repo. Built so far: receipt, in-session triage, the Queue, ranking, and the pass's queue review (reconcile, admissions, cap). Not yet: background triage, a hook for mid-turn receipt, carrying `@<project>` asks to their project.
+- **Design record:** `design/stories/ready/pm-intake-and-ask-queue.md` in this repo. Built so far: receipt, in-session and background triage, the Queue, ranking, the pass's queue review (reconcile, admissions, cap), and the `pm:` path — the `ask` command (dotfiles `~/bin/ask`) plus the `pm-receipt` and `pm-filed-check` hooks (`~/.claude/hooks/`). Not yet: carrying `@<project>` asks to their project.
