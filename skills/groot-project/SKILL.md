@@ -445,7 +445,7 @@ If `TODO.md` already exists, leave it untouched (even if its format diverges —
 
 ### Phase 3B: Project goals block
 
-Fills (or retrofits) the `## Project goals` section of `CLAUDE.md` — the small always-loaded block that answers the global "Keep the goal in view" rule's question, "what are this project's goals?". Design record: `remote-coding-setup` `design/stories/ready/project-goals-block.md`. Semantics: guideposts, not a fence — the block is a question-trigger for off-goal work, never a gate. Hard cap ~20 lines; elaboration belongs in `design/DESIGN.md`.
+Fills (or retrofits) the `## Project goals` section of `CLAUDE.md` — the small always-loaded block that answers the global "Keep the goal in view" rule's question, "what are this project's goals?". Design record: `remote-coding-setup` `design/stories/done/project-goals-block.md`. Semantics: guideposts, not a fence — the block is a question-trigger for off-goal work, never a gate. Hard cap ~20 lines; elaboration belongs in `design/DESIGN.md`.
 
 **When it fires:** the skeleton was just generated with placeholder goals, OR pre-flight found an existing `CLAUDE.md` without a `## Project goals` section (offer, never auto-insert — mirroring the conventions-block retrofit). If the block exists, detection-skip (revisions are a conversational edit, not a phase).
 
