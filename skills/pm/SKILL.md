@@ -48,7 +48,7 @@ Start by reconciling the Queue, then take each Inbox entry, oldest first.
 
 **1. Another project's ask.** An entry tagged `@<project>` for a different project stays in the Inbox; say it is waiting to be carried over. Do not triage another project's work from here.
 
-**2. Size it** from the text, without asking: a spark (a thought, no "soon" in it), a task (concrete, no design needed), a story (needs design), an epic (too large for one story).
+**2. Size it** from the text, without asking: a spark (a thought, no "soon" in it), a task (concrete, no design needed), a story (needs design), an epic (too large for one story). **"I'm debating building X" is a story, and it is queued.** When Derek says he is debating, considering, or not sure about something, he means "I think I want this and need help thinking it through, weighing the tradeoffs, or deciding whether it is a good idea." That is an ask for a `/ponder`, not a spark: file the stub, put it on the Queue, and say in the `Filed:` line that its next step is a ponder.
 
 **3. Look for existing work, by content.** Run `backlog-scan`, list story titles across `drafts/`, `ready/` and `done/` (`grep -m1 '^# '`), and scan `TODO.md`, `IDEAS.md` and `REVISIT.md`. Read the opening section of at most the three most plausible matches. If none of them is the same work, it is new.
 
@@ -86,6 +86,7 @@ A turn that received or triaged an ask ends with one line per ask, placed direct
 
 ```
 Filed: <short title> → design/stories/drafts/<slug>.md (new, 4th in queue)
+Filed: <short title> → design/stories/drafts/<slug>.md (new, 4th in queue — a "debating" ask: next step is /ponder <slug>)
 Filed: <short title> → design/stories/ready/<slug>.md (bumped, asked 3×, still 2nd)
 Filed: <short title> → TODO.md (new task, 5th in queue)
 Filed: <short title> → design/IDEAS.md (spark, not queued)
