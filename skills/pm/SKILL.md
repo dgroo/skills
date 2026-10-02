@@ -56,7 +56,7 @@ Start by reconciling the Queue, then take each Inbox entry, oldest first.
 
 - **Matches an open story:** append the text verbatim to that story under `## Captured addition (/pm, unreviewed)`, dated. Bump its Queue line (step 5).
 - **Matches something in `done/`:** it already shipped. Say where. If the ask clearly wants more than what shipped, file a new story that links the done one; otherwise there is nothing to queue.
-- **New, story-sized:** write a stub in `design/stories/drafts/` in `/story`'s stub format (verbatim body, the not-yet-pondered marker, `author: user`; honor the project's `STORY_TEMPLATE.md`). Never file to `ready/`.
+- **New, story-sized:** write a stub in `design/stories/drafts/` in `/story`'s stub format (verbatim body, the not-yet-pondered marker, `author: user`; honor the project's `STORY_TEMPLATE.md`). Never file to `ready/`. If step 3 turned up work that is related but not the same — including a story in another project — record it in one `Related (found at triage):` line under the marker, so `/ponder` starts from it. That line is the PM's; the body stays Derek's.
 - **Task-sized:** add an entry to `TODO.md` in that file's own format, per `/todo`.
 - **A spark:** one line in `design/IDEAS.md` in `/idea`'s format. No Queue line.
 - **Epic-sized:** one stub named `<slug>-epic.md` in `drafts/`, and suggest `/ponder <slug>-epic`. Never decompose an epic at intake.
