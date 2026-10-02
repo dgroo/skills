@@ -72,6 +72,7 @@ Start by reconciling the Queue, then take each Inbox entry, oldest first.
 - A new ask with no cue goes at the bottom of the Queue.
 - A re-ask adds today's date to the line. Move it only on strong signal (it unblocks a line above it) and say why; otherwise it keeps its position, and the date count is what the review weighs.
 - A story placed on the Queue gets `priority: high` if it was lower. Never lower a priority here.
+- **The cap is the review's to enforce, intake only mentions it.** If this line takes the Queue past about eight open lines, still place it, and add to the `Filed:` line: `queue is at <N> — worth a /pm pass`.
 
 **6. Do not guess.** Two plausible matches, or an ask that contradicts a `ready/` story, stays in the Inbox with a `<!-- derek(cc): <the question> — default: <what the PM would do> -->` mark on the line below it. Say so in the `Filed:` line.
 
@@ -124,8 +125,10 @@ Verbs:
   triage            Reconcile the Queue, then triage everything in the Inbox.
   (none)            The periodic pass: hygiene (via /cleanup-design) + accuracy
                     review + strong-signal reprioritization written back to
-                    TODO and story frontmatter. Present gaps + genuine
-                    priority tradeoffs for a decision.
+                    TODO and story frontmatter + the ask queue reconciled
+                    (landed asks checked off and pruned). Presents gaps,
+                    genuine priority tradeoffs, and proposed Queue admissions,
+                    reorders and drops (cap: about eight open asks) for a decision.
   help              Show this message.
 
 Modifiers for the pass (decisiveness dial):
@@ -137,7 +140,8 @@ Modifiers for the pass (decisiveness dial):
 The ask file (design/ASKS.md):
   ## Queue          Ordered asks, top = next. /next and /sup rank the top open
                     line right under the session handoff. Only Derek's word
-                    adds a line; reorder by hand freely.
+                    adds a line (the pass proposes, never adds, even under !);
+                    reorder by hand freely.
   ## Inbox          Raw asks awaiting triage.
 
 Companions:
@@ -153,4 +157,4 @@ See SKILL.md for intake and review.md for the pass.
 - **`/ponder`** — develops a stub into a real story. Intake stops short of it on purpose.
 - **`/next`**, **`/sup`** — read the Queue through `backlog-scan` and rank it under the handoff.
 - **`/go-team`** — reads `ASKS.md` first and works its top open item; the Queue format keeps its `- [ ]` and `Done:` conventions.
-- **Design record:** `design/stories/ready/pm-intake-and-ask-queue.md` in this repo. Built so far: receipt, in-session triage, the Queue, ranking. Not yet: review-time queue reconciliation and a cap, background triage, a hook for mid-turn receipt, carrying `@<project>` asks to their project.
+- **Design record:** `design/stories/ready/pm-intake-and-ask-queue.md` in this repo. Built so far: receipt, in-session triage, the Queue, ranking, and the pass's queue review (reconcile, admissions, cap). Not yet: background triage, a hook for mid-turn receipt, carrying `@<project>` asks to their project.

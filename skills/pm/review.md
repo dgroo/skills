@@ -4,7 +4,7 @@
 
 `/pm` is a **periodic** backlog-stewardship ceremony, not a per-session tool. It's the deeper cousin of `/cleanup-design`: where cleanup-design does safe document hygiene (drift, dead links, move-to-done on strong signal), `/pm` **wraps** it and then makes the judgment calls cleanup-design deliberately declines — is this story still _wanted_, what's the right _priority order_, what work is _missing_. It's the `/sup`-wraps-`/sitrep` pattern: delegate the mechanical layer, add the opinionated one on top.
 
-**Stateless by design.** There's no ledger, no last-run stamp, nothing to drift. The durable artifacts `/pm` writes — reordered `TODO.md`, `priority:` frontmatter on stories, newly-filed gap drafts — _are_ the state. Run it whenever the backlog feels stale; `/wrapup` will also nudge toward it when the corpus looks untended (see [Companions](#companions)).
+**Stateless by design.** There's no ledger, no last-run stamp, nothing to drift. The durable artifacts `/pm` writes — reordered `TODO.md`, `priority:` frontmatter on stories, a reconciled `ASKS.md` Queue, newly-filed gap drafts — _are_ the state. Run it whenever the backlog feels stale; `/wrapup` will also nudge toward it when the corpus looks untended (see [Companions](#companions)).
 
 ## When to use vs. skip
 
@@ -68,6 +68,19 @@ Split by confidence, mirroring cleanup-design's move-to-done discipline:
 - **Strong signal → act.** Where the correct order is unambiguous (story A demonstrably blocks B and C; a stale draft clearly belongs at the bottom), just make the edit.
 - **Genuine tradeoff → ask.** Where priority is a real judgment call — two items of comparable value, a tradeoff only Derek can weigh (user-facing polish vs. infra debt), a bet on direction — **present it as a compact option list and let Derek decide.** Never manufacture a confident reorder out of a genuine tie. This is the one place even `/pm !` still stops.
 
+### 4B. The ask queue — reconcile it, then review it with Derek
+
+`design/ASKS.md` (or root `ASKS.md`) is Derek's ask queue; intake is in [`SKILL.md`](SKILL.md). No ask file → skip this step silently.
+
+- **Triage first.** If the Inbox has entries, run SKILL.md's triage on them before anything else here. A review over an untriaged Inbox ranks a Queue that is missing its newest asks.
+- **Reconcile — mechanical, so act.** A line whose story is in `stories/done/`, or whose TODO entry is checked, becomes `[x]`. A pointer that broke because a story moved is fixed in place. Then list every `[x]` and `[-]` line in the present block ("landed since the last pass") and **remove those lines** — git keeps the history, and a Queue that carries its dead is harder to read than one that doesn't.
+- **Unresolvable pointers and stale asks — surface, don't decide.** A pointer whose target is gone (deleted, archived) and an open line that has sat untouched — newest `asked` date more than about 30 days old and no commit to its story or TODO entry since — both go to Derek as "still wanted?". Never drop an ask on staleness alone.
+- **Queue order is Derek's.** Step 4's reprioritization orders the backlog _beneath_ the Queue. Propose a Queue reorder only on strong signal: one line is a prerequisite of a line above it, or a line has been asked for repeatedly and still sits low ("asked three times, sixth"). Propose; he moves it.
+- **Admissions — propose, never add.** Unasked work that the corpus says belongs on the Queue: something that blocks a queued ask, or a `ready/` story marked `high` that serves a stated project goal and has no line. Each proposal cites its evidence, exactly as gap-proposals do (§5). On Derek's yes, add the line with today's date as its `asked` stamp — his yes is the ask. **This holds under `!` too:** only Derek's word puts a line on the Queue, because that rule is the whole reason an ask outranks machine-found work.
+- **The cap.** More than about eight open lines is a backlog wearing the Queue's name. Say how many there are and ask which drop: a dropped line is marked `[-]` (and removed on the next pass), and its story keeps existing at whatever priority Derek names.
+
+Under `/pm ?` all of this is reported and nothing is written. Under `/pm !` triage, reconciliation and pruning act; admissions, reorders and drops still ask.
+
 ### 5. Gap-proposal — grounded, never imagined
 
 Look for obvious holes: work the corpus clearly _implies_ but nobody's filed. **Every proposed gap must be evidenced** — borrow `/next`'s grounding rule (no imagined work):
@@ -85,6 +98,7 @@ Summarize the pass in one compact block, grouped:
 
 - **Tidied:** what hygiene + accuracy review changed (delegated to cleanup-design + demotes/closes). Cite counts, not a wall of detail.
 - **Reprioritized:** the durable reorders made (strong-signal), and — as a compact option list — any genuine priority tradeoffs awaiting a decision.
+- **Asks:** what landed since the last pass (the lines just pruned), anything stale or pointing nowhere, and — as a compact option list — proposed admissions, reorders, and drops if the Queue is over the cap. Omit the group when the project has no ask file.
 - **Gaps:** proposed drafts with their evidence, awaiting confirm (or filed, with `!`).
 
 Keep it a glance. The corpus diff carries the detail; this block carries the _judgment_. On a genuinely tidy, well-ordered, non-gappy backlog, say so plainly — "backlog is clean, correctly ordered, no obvious gaps" is a valid and valuable outcome.
@@ -102,6 +116,7 @@ Keep it a glance. The corpus diff carries the detail; this block carries the _ju
 - **Delegate hygiene, don't reimplement it.** Step 2 is a `/cleanup-design` call. If you find yourself re-writing its drift/dead-link/move-to-done logic, stop and just invoke it.
 - **Reprioritization is durable — write the order back.** The whole reason `/pm` exists over a two-step `/cleanup-design` → `/next` is that it _persists_ priority into `TODO.md` and story frontmatter. A pass that only _reports_ a better order has skipped its core job.
 - **Genuine priority tradeoffs are always Derek's call.** Strong-signal reorders act; real ties ask — even under `!`. Don't manufacture confidence to avoid a question; a surfaced tradeoff is a useful output, a wrong-but-confident reorder is a trust cost.
+- **Only Derek admits to the Queue.** The pass reconciles and prunes the ask queue on its own; it proposes admissions, reorders and drops and waits — even under `!`.
 - **No imagined work.** Every gap-proposal cites an in-corpus source. A plausible-sounding task with no evidence is a hallucinated backlog item — don't file it.
 - **Stateless.** Don't create a ledger or a last-run stamp. The backlog files are the state; the nudge keys on their staleness, not on a timer.
 - **It's a glance, not a report.** The present block carries judgment; the corpus diff carries detail. Don't narrate every edit.
