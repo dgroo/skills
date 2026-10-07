@@ -484,7 +484,16 @@ def update_gitignore(project_dir: Path, dry_run: bool) -> None:
         print("  refined bare '.obsidian/' -> selective (config now tracked)")
         return
 
-    missing = [ln for ln in GITIGNORE_LINES if ln not in existing]
+    # `.obsidian/plugins/*` (the per-file form the baseline-plugins sync writes)
+    # already ignores the bundles AND leaves its `!plugins/<id>/data.json`
+    # re-includes working. Adding the directory form on top would shadow those
+    # re-includes — git can't re-include a file whose parent dir is ignored.
+    stripped = {ln.strip() for ln in existing}
+    missing = [
+        ln
+        for ln in GITIGNORE_LINES
+        if ln not in stripped and not (ln.endswith("/") and ln + "*" in stripped)
+    ]
     if not missing:
         print("  already covered")
         return
