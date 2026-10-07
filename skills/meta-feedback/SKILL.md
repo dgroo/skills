@@ -1,7 +1,7 @@
 ---
 name: meta-feedback
-description: End-of-session lookback on the collaboration itself, not the code. Finds the moments in this session where Derek's ask and the outcome diverged (a correction, a reversal, a redo, a false "verified", a procedure done by hand that wants to be a skill) and turns each into a concrete proposed change — sharper prompting, a CLAUDE.md / rules / memory edit, or a skill add/edit/remove — scoped global or project-specific. Signal over volume: "clean, nothing to fold back" is a normal result, but useful changes aren't dropped for tidiness. Modes: bare `/meta-feedback` (propose now, interactive), `file` (write a central review report without asking — what /wrapup calls; surfaces major findings), `review` (walk pending reports to do / hand off / decline, then delete resolved ones). Triggers on "/meta-feedback", "meta feedback", "what should we fold back from this session", "how could I have steered that better". Not for reviewing code.
-argument-hint: "[file | review | help]"
+description: End-of-session lookback on the collaboration itself, not the code. Finds the moments in this session where Derek's ask and the outcome diverged (a correction, a reversal, a redo, a false "verified", a procedure done by hand that wants to be a skill) and turns each into a concrete proposed change — sharper prompting, a CLAUDE.md / rules / memory edit, or a skill add/edit/remove — scoped global or project-specific. Signal over volume: "clean, nothing to fold back" is a normal result, but useful changes aren't dropped for tidiness. Modes: bare `/meta-feedback` (propose now, interactive), `file` (write a central review report without asking — what /wrapup calls; surfaces major findings), `review` (collate pending reports into one Obsidian review page, a recommendation and tick-boxes per item), `apply` (act on what Derek ticked or commented, log it, delete resolved reports). Triggers on "/meta-feedback", "meta feedback", "what should we fold back from this session", "how could I have steered that better". Not for reviewing code.
+argument-hint: "[file | review | apply | help]"
 ---
 
 # Meta feedback
@@ -20,7 +20,8 @@ Adapted from a friend's `/meta-feedback` skill (itself a colleague's end-of-sess
 | --- | --- |
 | `/meta-feedback` | Run the lookback now; present proposals; apply the ones Derek picks. |
 | `/meta-feedback file` | Run the lookback; write a central report; ask nothing. **What `/wrapup` calls** — a hurried wrap never has to evaluate anything, but major findings get a one-line flag. Zero findings → writes nothing. |
-| `/meta-feedback review` | Walk pending reports one proposal at a time: do / hand off / decline / skip. Deletes each report once nothing in it is open. `/sup` suggests this whenever reports are pending. |
+| `/meta-feedback review` | Collate every open report into `design/meta-feedback/REVIEW.md`: one heading per proposal, a stated recommendation on each, tick-boxes per item and per section. Asks nothing in the terminal; Derek reviews in Obsidian. `/sup` suggests this whenever reports are pending and newer than the page. |
+| `/meta-feedback apply` | Read `REVIEW.md`: act on every ticked box and `derek:` comment, log each to the ledger, drop the item from the page, delete each report once nothing in it is open. |
 | `/meta-feedback help` | Print usage (see Help section). |
 
 ## Signal rules
@@ -63,26 +64,38 @@ Classify each finding with one test: **would this have mattered in a session on 
 6. **By mode:**
    - **bare** — present the report (format below) inline, ending with the numbered list. Dispose of what Derek picks (see Disposition); anything he leaves open gets filed as a report, as in `file` mode, so it isn't lost with the scrollback. Memory is the one thing you may write unasked, and only when the fact is verified and uncontroversial — say so.
    - **file** — write the report (below). Ask nothing, apply nothing. Emit one line: `Filed N meta-feedback proposal(s) → <grootos-link URL>`. For each **major** finding, also emit `⚠ Meta-feedback: <one line> — worth a look before you go (filed either way).` `/wrapup` carries these into its output; it still doesn't block the wrap.
-   - **review** — list open reports in the reports dir, oldest first. Walk each proposal (headline and `Also`) with Disposition. Be aggressive about finishing: the goal of a review pass is an empty directory.
+   - **review** — list open reports in the reports dir, oldest first, and run the existence and ledger checks on every proposal (headline and `Also`) before writing a word. Cluster proposals that target the same entry or mechanism into one section. Then write (or extend) the review page (see "Review page" below) and stop: emit one line, `Review page ready: N items in M sections → <grootos-link URL>`. Never walk the proposals in the terminal; the page is the review. (Derek, 2026-10-07: eleven reports' worth of dispositions in one terminal reply was too much to review.)
+   - **apply** — read the review page. A ticked section box approves every recommendation in that section; a ticked item box is that item's disposition; a `derek:` comment overrides either and may change the shape or the home. Dispose of each decided item (see Disposition), resolve each `derek:` mark to `derek✓(cc): <what/where>`, remove the item from the page (a section with no items left goes too), and delete any report whose proposals are all in the ledger. Untouched items stay on the page for the next pass; the prompting notes leave when their `seen` box is ticked. Be aggressive about finishing: the goal of an apply pass is an empty directory.
 
 ## Disposition
 
-Every proposal leaves `review` (or bare mode) in one of four ways:
+Every proposal leaves `apply` (or bare mode) in one of four ways:
 
 - **Do it** — CLAUDE.md and rules via `/md-add`; a new skill via `/skill-add`; an edit to an existing skill by editing its source in `dgroo/skills`; memory by writing the file directly; anything else by just doing it in the owning repo.
 - **Hand it off** — too big to do in the moment → file it as a story (`design/stories/drafts/`) or `TODO.md` entry in the _owning_ repo (`dgroo/skills`, `dot-claude`, the remote-coding repo, the project itself), citing the report's evidence. The story now owns it.
 - **Decline** — with a short reason.
 - **Skip** — leave it open for another pass.
 
-Every non-skip outcome appends one line to the ledger: `<date> · <project> · <one-line finding> · accepted <sha> | handed off → <path> | declined: <reason>`. When a report has no open items left, **delete the report file** — the ledger and git history keep the record, and a resolved report left in place is noise that hides the open ones. (This deletion is the explicit purpose of `review`; it doesn't need a separate confirmation.)
+Every non-skip outcome appends one line to the ledger: `<date> · <project> · <one-line finding> · accepted <sha> | handed off → <path> | declined: <reason>`. When a report has no open items left, **delete the report file** — the ledger and git history keep the record, and a resolved report left in place is noise that hides the open ones. (This deletion is the explicit purpose of `apply`; it doesn't need a separate confirmation.)
 
 ## Where reports live
 
 All reports go to **one central place** so a project Derek stops working on can't strand them: `design/meta-feedback/` in the remote-coding capture repo (the repo named in global CLAUDE.md's "Cross-project capture" rule). It's live-synced across hosts, and `/sup` checks it from any project.
 
 - **Report:** `design/meta-feedback/<YYYY-MM-DD>-<project>-<slug>.md` (slug = the session topic, kebab-case, 2–4 words). The design-sync watcher owns commits under `design/` there — don't hand-craft a `docs(design)` commit.
+- **Review page:** `design/meta-feedback/REVIEW.md`, the one page Derek answers (format below); same watcher-owned commits.
 - **Ledger:** `design/meta-feedback/LEDGER.md` — one line per disposed proposal, newest first. The recurrence and declined checks (rules 5, 6, 8) grep it; cross-project recurrence is the promote-to-global signal.
 - Keep report content to _process_. Don't copy project data, credentials, or customer content into a report — it lands in a different repo than the session's.
+
+## Review page
+
+`design/meta-feedback/REVIEW.md`, beside the reports. Modelled on the dashboard project's `design/NEEDS-DEREK.md` page: Derek reads and answers it in Obsidian, so everything he can act on is a heading (it lands in the Outline) with tick-boxes under it, and his comments are `derek:` HTML comments per the global inline-review-marks convention.
+
+- **Header:** H1, provenance stamp, a "How to answer" paragraph (tick an item, tick a section, or comment; what `apply` does with each), then the collation date and report count.
+- **Sections** (`## A. <one-line theme>`): proposals clustered by the entry or mechanism they touch, so a rule three reports want changed is one rewrite, not three items. Each opens with the source-report links (relative) and the target file, then `- [ ] approve every recommendation in this section`.
+- **Items** (`### A1 · <one-line change>`): `**Cost:**` one line, the moment and what it cost. `**Recommendation:**` one line, always present, starting with the verb (`do`, `hand off`, `decline`, `close`); when the home or the shape is uncertain it says so plainly and the alternative gets its own box; a genuinely open call says "no firm recommendation" in those words, never a soft hedge. Then the exact edit as a `diff` block when it is text, or one sentence when it is a file or a TODO entry. Then the boxes: `- [ ] do as recommended` (or `hand off` / `close` / `decline as recommended`), `- [ ] decline`, plus one box per named alternative.
+- **Prompting notes:** one section at the end, reading only, with a single `- [ ] seen` box.
+- **Re-running `review`** with items still open: keep every existing item with its ticks and comments, append the new reports' proposals into the matching section or a new one, bump the stamp. Never regenerate over Derek's marks.
 
 ## Report format
 
@@ -137,9 +150,14 @@ Verbs:
   file              Run the lookback; write a report to the capture repo's
                     design/meta-feedback/. Asks nothing; flags major findings
                     in one line. What /wrapup calls. Zero findings -> nothing.
-  review            Walk open proposals: do / hand off (story or TODO in the
-                    owning repo) / decline / skip. Logs each to LEDGER.md and
-                    deletes a report once it's fully resolved.
+  review            Collate open reports into design/meta-feedback/REVIEW.md:
+                    a heading per proposal with a stated recommendation and
+                    tick-boxes per item and per section, for review in
+                    Obsidian. Asks nothing in the terminal.
+  apply             Act on what the review page has ticked or commented:
+                    do / hand off (story or TODO in the owning repo) /
+                    decline. Logs each to LEDGER.md, clears the item from
+                    the page, deletes a report once fully resolved.
   help              Show this message.
 
 Signal rules: grounded in session moments (not the topic), each with a named
