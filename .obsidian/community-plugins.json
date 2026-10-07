@@ -1,5 +1,11 @@
 [
   "git-file-explorer-colors",
   "another-dynamic-highlights",
-  "highlightr-plugin"
+  "highlightr-plugin",
+  "dataview",
+  "templater-obsidian",
+  "obsidian-style-settings",
+  "obsidian-minimal-settings",
+  "obsidian-git",
+  "git-file-explorer"
 ]
