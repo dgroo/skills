@@ -1,7 +1,7 @@
 ---
 name: revisit
 description: Add or work through entries in a project's `REVISIT.md` — the queue of items to resurface in a future session, either at a future date or when a specific event happens. Mirrors `/todo` (entry-style filing) and `/helping-hands` (walk-with-attempted-self-resolution flow), but the trigger is *time-or-event*, not *as-soon-as-possible*. Use when asked to "revisit this later", "check back in N weeks", "remind me when we work on X", "/revisit", "/revisit walk", "/revisit add ...".
-argument-hint: <text> [--in 6w|--when "<event>"] | walk | <slug>
+argument-hint: <text> [--in 6w|--when "<event>"] | add --watch <issue-url> | walk | <slug>
 ---
 
 # revisit
@@ -27,6 +27,7 @@ Skip when the project doesn't have a `REVISIT.md` and the item being filed is th
 | `/revisit <slug>`                        | Focus the single-item flow on one entry by its slug.                                                                                  |
 | `/revisit add "<text>" --in <duration>`  | File a new time-triggered entry. `<duration>` accepts `6w`, `2mo`, `30d`, or `YYYY-MM-DD`. **Run the dedup check first** (see below). |
 | `/revisit add "<text>" --when "<event>"` | File a new event-triggered entry.                                                                                                     |
+| `/revisit add --watch <issue-url>`       | Watch an upstream GitHub issue/PR. Templated date entry (default `--in 3w`) with a `**Watch:**` field. See "Watching an upstream issue". |
 
 ## Auto-discovery
 
@@ -61,6 +62,7 @@ Frontmatter-style bold fields (not YAML — keeps the file scannable as prose):
 - `**Created:** YYYY-MM-DD` — required.
 - `**Priority:** high|medium|low` — mirrors helping-hands. Default `medium`.
 - `**Resolved:** YYYY-MM-DD — <one-line decision>` — appended at closure. Won't re-surface but stays for audit.
+- `**Watch:** <github issue/PR url> [<url>…]` — optional. Marks the entry as tracking upstream state. `upstream-watch.py` (in this skill dir) reads every Watch URL in unresolved entries across `~/code` and reports when one is closed or gets a reply from someone other than Derek. That sweep runs on `/sup` in remote-coding-setup only. The entry's date is still the backstop if no sweep runs before it comes due.
 
 ## Single-item flow
 
@@ -137,6 +139,25 @@ git commit -m "revisit: <slug> (when: <date or event>)"
 
 One line: `Filed: <slug> — REVISIT.md (resurfaces <when>)`. No body recap.
 
+### Watching an upstream issue (`--watch`)
+
+`/revisit add --watch <issue-url> ["<why>"] [--in <duration>]`. Use it when Derek cares about an upstream issue or PR he filed, upvoted, or depends on. File it in the project that hit the bug, not centrally: the sweep finds Watch fields everywhere.
+
+1. `gh issue view <url> --json title,state` (or `gh pr view`) for the title. Sandbox-disabled, because it needs the network.
+2. Use the same dedup check as above. Also grep every `~/code` REVISIT.md for the URL; if another entry already watches it, add a cross-reference there instead of filing a duplicate.
+3. Default trigger is `--in 3w`. Slug: `<repo>-<number>-<few-words>`.
+4. Use this body template:
+   - `**Created:**` / `**Priority:**` (default `low`)
+   - `**Watch:** <url>`
+   - `**Why:**` What breaks for Derek, which local workaround or skill depends on it, and whether that thing was deliberately left unchanged.
+   - `**How to resolve:**`
+     1. `gh issue view <n> -R <repo> --comments`: fixed, won't-fix, or no response?
+     2. **Fixed:** verify locally with a concrete repro, remove the workaround, and resolve.
+     3. **Won't-fix:** rework the dependent thing, then resolve with a pointer to that change.
+     4. **No response:** 👍 the issue, then push the date out about 4 weeks.
+5. Commit and confirm as above.
+
+
 ## `walk` flow
 
 Iterate over due items in order. For each: run the single-item flow. After each item closes (or surfaces an ask), pause for the next user direction before moving on — don't run the whole queue silently.
@@ -169,6 +190,7 @@ If `REVISIT.md` doesn't exist and the user is filing the first entry:
 | `/revisit <slug>`                    | Single-item flow on one entry                      | User already knows which |
 | `/revisit add "<text>" --in 6w`      | Filing flow → new entry → commit                   | Filing date-triggered    |
 | `/revisit add "<text>" --when "..."` | Filing flow → event-triggered entry → commit       | Filing event-triggered   |
+| `/revisit add --watch <url>`         | Templated upstream-watch entry → commit            | Tracking an upstream bug |
 
 | Phase (single item) | Output                                                       |
 | ------------------- | ------------------------------------------------------------ |
@@ -197,6 +219,8 @@ Verbs:
   add "<text>" --in <duration>     File a new time-triggered entry.
                                    <duration>: 6w, 2mo, 30d, or YYYY-MM-DD.
   add "<text>" --when "<event>"    File a new event-triggered entry.
+  add --watch <issue-url>          Watch an upstream issue/PR (default 3w;
+                                   swept centrally by upstream-watch.py).
   help              Show this message.
 
 Single-item flow phases:
