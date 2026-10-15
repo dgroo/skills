@@ -40,6 +40,19 @@ The context-pressure form: `context-low-check.py`'s `<context-pressure>` reminde
 - **Emit:** one line — `Checkpoint: NEXT.md <thread> refreshed[, baton set], <N> local commit(s) — continuing.`
 - The session's eventual real `/wrapup` owns the section and baton from here: it rewrites or deletes them, so a checkpoint never leaves a baton for work this same session went on to finish.
 
+### `/wrapup all` — wrap every session on this host, then snapshot for `cc-relaunch`
+
+The reboot form. One session (normally the hub session in `remote-coding-setup`, but any session will do) drives every other interactive session on this host through its own `/wrapup`, then records what was running so `cc-relaunch` (`/reclaude`) can bring it back after the reboot. A trailing reason (`/wrapup all rebooting for the tailscaled migration`) goes into the messages and the snapshot note. It wraps; it never reboots.
+
+1. **Census.** `ListAgents`. Keep the rows that are interactive sessions on this machine (they carry a `tmux` target); drop this session, Remote Control / offline rows, cloud rows and subagents. Print the roster, one line per session: name and tmux target.
+2. **Dispatch.** One `SendMessage` per session, all sent before waiting on any, each with `notify_when_idle: true`. First line: `Host reboot coming: run /wrapup ! wrapping for a host reboot, then reply with your verdict line.` Body: do not start new work; if you are stopped on a permission prompt or a question, reply with what you are waiting on instead of wrapping; touch only your own thread's files. A session in a different permission mode holds the message for its user's approval, and the tool result or a delivery notice says so: record it as *held*, never resend.
+3. **Collect.** Replies and idle notices arrive as cross-session messages; don't poll `ListAgents` and don't send "are you done?". Wait up to 10 minutes, with a background `sleep 600` as the fallback wake. Tally each session as READY, WAIT, STAY, blocked (permission prompt), asked (stopped on a question), held, or no reply.
+4. **Snapshot.** Run `cc-relaunch snapshot --note "<reason>"` **sandbox-disabled**: `cc-session-board` needs an unsandboxed `ps`, and sandboxed every session reads as ended and the manifest comes out empty. Render its report verbatim; it is the record the post-reboot `cc-relaunch pick` works from.
+5. **Report.** One table: session · outcome · what it needs from Derek (blocked, asked, held and no-reply rows). A session that did not wrap is still in the manifest and is relaunched with its last tl;dr, so a non-wrap costs a thinner handoff, not a lost session. Never force one: a blocked session wraps once its prompt is answered, and `/wrapup all` can be run again.
+6. **Wrap yourself last**, as an ordinary `/wrapup`, writing the hub's NEXT.md baton: `After the reboot, run \`cc-relaunch pick\` (or /reclaude from any session) to relaunch the sessions recorded in ~/.claude/state/cc-relaunch/latest.json.`
+
+The relaunch half lives in dotfiles (`~/bin/cc-relaunch`, with `/reclaude` as its command wrapper; the script is not named `reclaude` because that is the shell alias for `claude --resume`): `snapshot` writes the manifest, `list` shows it, `pick` / `launch` start the chosen sessions through `cc-spawn` with a bootstrap prompt that points each at its project's `design/NEXT.md` and `/sup`.
+
 ## Three verdicts
 
 | Verdict      | When                                                                                                                  | What                                                                                                  |
@@ -282,6 +295,10 @@ Verbs:
   checkpoint        Capture without leaving (context-pressure form): refresh
                     NEXT.md section + baton, commit locally, no push, no
                     verdict — then keep working.
+  all [<reason>]    Reboot form: message every other session on this host to
+                    run its own /wrapup, collect the verdicts, then
+                    `cc-relaunch snapshot` the roster so `/reclaude` can
+                    relaunch them after the reboot. Wraps itself last.
   help              Show this message.
 
 Companion to /sup (descriptive sitrep). See SKILL.md for full reference.
