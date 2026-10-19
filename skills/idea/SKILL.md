@@ -25,35 +25,23 @@ The argument after `/idea` is the spark itself, unless it's exactly `review` or 
 
 ## Sparkfile location
 
-Detect the sparkfile in this order. First hit wins.
+Since 2026-10-19 the sparkfile is the **`## Someday` section of `design/TODO.md`** (grootPM `design/stories/ready/work-model-contract.md`, D1/D4: a spark is a task with no priority yet, not a file of its own). Detect in this order; first hit wins:
 
-1. `design/IDEAS.md`
-2. `IDEAS.md` (repo root)
-3. `SPARKFILE.md` (repo root)
-4. `design/SPARKFILE.md`
+1. `design/TODO.md` with a `## Someday` heading — append under it.
+2. `design/TODO.md` without one — add `## Someday` above `## Done` (or at the end) and append.
+3. A legacy `design/IDEAS.md`, `IDEAS.md`, `SPARKFILE.md` or `design/SPARKFILE.md` that still exists — append there; the fleet sweep folds these in.
+4. Nothing — create `design/TODO.md` from `/groot-project`'s template (Open / Someday / Done) and append.
 
-If none exist, **create `design/IDEAS.md` by default** — the `design/` subtree (from `/groot-project`) is the right neighborhood. Fall back to `IDEAS.md` at the repo root only if there's no `design/` directory.
-
-When creating for the first time, seed it with this header and nothing else:
-
-```markdown
-# Ideas
-
-Spark capture. One line per entry. Tags in brackets are LLM-inferred and lossy — trust the text, not the tags. Use `/idea iterate` to walk and prune.
-
----
-```
-
-After the `---`, entries go in append order, newest at the bottom.
+Entries under `## Someday` go in append order, newest at the bottom.
 
 ---
 
 ## Subcommand: add (default)
 
-The mechanic is **append one line**. Format:
+The mechanic is **append one line**. Format (a checkbox, so the reader counts it as an open task with no priority):
 
 ```
-- <text> [tag, tag]
+- [ ] <text> [tag, tag]
 ```
 
 Tags are bracketed, lowercase, comma-separated. **Only attach tags when an obvious cue is present in the text** — a named UI surface, a named feature, a clear domain word. If you'd be guessing, omit the brackets. Speed matters more than tags; a one-line entry with no tags is fine.
@@ -72,7 +60,7 @@ Workflow:
 1. Find or create the sparkfile (see "Sparkfile location" above).
 2. Decide whether tags apply. **Don't ask the user.** If unsure, no tags.
 3. Append the line under the existing entries.
-4. Confirm in **one line**: `Spark filed → design/IDEAS.md` (no recap, no quoting back what they typed).
+4. Confirm in **one line**: `Spark filed → design/TODO.md § Someday` (no recap, no quoting back what they typed).
 
 **Don't commit.** Sparks are noisy by design — let them pile up until the user wants to review.
 
@@ -126,7 +114,7 @@ Don't auto-batch — one decision at a time, fast.
 
 - **Speed > everything.** A spark that takes 5 seconds to file is the product. If you find yourself drafting prose, you've already broken it.
 - **Don't ask, don't recap.** No "should I tag this?", no "got it, I'll add the following entry to…". Just file it and confirm in one line.
-- **The sparkfile is not the tracker.** If something is concrete enough to have a priority and a fix, it belongs in `TODO.md` (use `/todo`). If it has design weight, it belongs in `design/stories/`. Sparks are the pre-stage to both.
+- **Someday is not Open.** If something is concrete enough to have a priority and a fix, it is a task under `## Open` with a priority word (`/todo` or `/pm`). If it has design weight, it belongs in `design/stories/`. Sparks are the pre-stage to both; "promote" is moving the line up and giving it a priority.
 - **Drift is fine.** Old sparks rot. `/idea iterate` is the cleanup tool — use it when the file feels heavy, not on a schedule.
 - **Tag inference is lossy on purpose.** A spark without tags is a feature, not a failure. The user's text is the ground truth.
 
@@ -147,8 +135,8 @@ Verbs:
   help              Show this message.
 
 Sparkfile location (first hit wins):
-  design/IDEAS.md → IDEAS.md → SPARKFILE.md → design/SPARKFILE.md
-  Creates design/IDEAS.md by default if none exists.
+  design/TODO.md "## Someday" → a legacy design/IDEAS.md / IDEAS.md /
+  SPARKFILE.md → creates design/TODO.md with a Someday section.
 
 Bar: "would I lose this if I didn't write it down?"
 If concrete enough for a priority and fix → /todo.

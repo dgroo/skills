@@ -434,7 +434,7 @@ If `DIARY.md` already exists at project root, leave it untouched. Print: _"Exist
 ## Done
 ```
 
-If `design/TODO.md` already exists, leave it untouched (even if its format diverges — don't reformat). Print: _"Existing design/TODO.md — left untouched."_ Do not create `IDEAS.md` or `REVISIT.md`: a spark is a `## Someday` line and a revisit is a task with `· revisit <date>`.
+If `design/TODO.md` already exists, leave it untouched (even if its format diverges — don't reformat). Print: _"Existing design/TODO.md — left untouched."_ Do not create `IDEAS.md`: a spark is a `## Someday` line. `design/REVISIT.md` is `/revisit`'s file, created by that skill when a project first files a dated or event-triggered item; not part of the skeleton.
 
 ### Phase 3B: Project goals block
 
