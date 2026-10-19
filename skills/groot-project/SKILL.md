@@ -32,12 +32,12 @@ Gather state and print a summary before asking anything:
 - Is this a git repo? (`git rev-parse --is-inside-work-tree 2>/dev/null`)
 - Does a recent `/office-hours` design doc exist at `~/.gstack/projects/<basename>/*.md`? Take the most recent.
 - What language signals exist? Presence of `pyproject.toml`, `setup.py`, `package.json`, `Cargo.toml`, `go.mod`.
-- What standard files / directories are present? `README.md`, `Makefile`, `design/`, `design/DESIGN.md`, `design/helping-hands/`, `design/plans/`, `design/stories/`, `design/stories/drafts/`, `design/stories/ready/`, `design/stories/done/`, `design/stories/STORY_TEMPLATE.md`, `design/notes/`, `.gitignore`, `CLAUDE.md`, `DIARY.md`, `TODO.md`.
+- What standard files / directories are present? `README.md`, `Makefile`, `design/`, `design/DESIGN.md`, `design/helping-hands/`, `design/plans/`, `design/stories/`, `design/stories/drafts/`, `design/stories/ready/`, `design/stories/done/`, `design/stories/STORY_TEMPLATE.md`, `design/notes/`, `design/TODO.md`, `.gitignore`, `CLAUDE.md`, `DIARY.md`. A root-level `TODO.md` is the pre-2026-10-19 location (grootPM `work-model-contract.md` D4): note it as a Drift item — the move is `git mv TODO.md design/TODO.md`, and `backlog-scan` reads either.
 - **Obsidian vault state** (drives Phase 7C): does `./.obsidian/` exist? If so, is it the federation baseline or bare — i.e. does `.obsidian/appearance.json` carry `cssTheme: "Minimal"` and does `.obsidian/app.json` have `userIgnoreFilters`? A `.obsidian/` that exists but lacks these is a Phase 7C **drift** item, not a skip. (This is easy to miss — a default `.obsidian/` written by opening Obsidian once looks present but is empty `{}`.)
 - Does `CLAUDE.md` (if present) contain a `## Project goals` section? Absence is a Phase 3B item — an interview offer on an interactive run, a Drift line under `--auto`/`status`.
 - **Misplaced files at `design/` root**: any markdown file directly in `design/` other than `README.md` and `DESIGN.md`. List them — Phase 2's migration step will offer to move them into the right subdir.
 - **Collision detection** (read but don't act yet — these inform later phases):
-  - Joe-style artifacts: `TODO.md`, `DIARY.md`, `CHANGELOG.md` at the project root (indicates `/project-setup` has run or the user uses that convention).
+  - Joe-style artifacts: `DIARY.md`, `CHANGELOG.md` at the project root (indicates `/project-setup` has run or the user uses that convention). A root `TODO.md` is handled above, as drift toward `design/TODO.md`.
   - gstack artifacts: `~/.gstack/projects/<basename>/`, gstack hooks in `.claude/settings.json`, gstack-specific CLAUDE.md sections (e.g., a `## gstack` heading).
   - Existing `## Project conventions` section in `CLAUDE.md` — this is the shared memory across `/groot-project`, `/project-setup`, and gstack. If present, **read it and respect it** before suggesting changes.
 - Is there a terminal background color recorded for this project? (`~/.claude/skills/terminal-setup/terminal-setup.py <basename> --list-colors` shows the existing-background banner if so.)
@@ -376,21 +376,14 @@ Maintain `DIARY.md` — add an entry when making significant changes, architectu
 <!-- This section is the SHARED MEMORY across /groot-project, /project-setup, and gstack.
      Each tool reads this before suggesting structural changes. Edit deliberately. -->
 
-This project uses the `/groot-project` `design/` subtree, a root-level `DIARY.md`, and a root-level `TODO.md` for light task tracking. Three lanes, no overlap:
+Work lives in `design/` and is written in the fleet's one vocabulary (grootPM `design/stories/ready/work-model-contract.md`, the contract; `backlog-scan --json` is its reader):
 
-- **Light task tracking** — root `TODO.md`. For "fix the sidebar flicker" / "add this shortcut" / quick bugs. Compatible with `/todo`, `/bug`, and `/bug-bash` (Joe's upstream skills) without modification.
-- **Feature specs** — `design/stories/` (trust-tiered: drafts/ready/done). For work that needs design thinking before code. Heavier than a TODO entry; use when there's genuine spec work.
-- **User-action items** — `design/helping-hands/`. For tasks that need the user's hands, credentials, paid subscriptions, or physical access. Not for things Claude can do.
-- **Engineering diary** — root `DIARY.md`, rolling chronological narrative (latest entries on top). Separate from `design/notes/` (frozen snapshots) and `design/plans/` (forward-looking implementation blueprints).
-- **Changelog** — `git log` is canonical. No separate `CHANGELOG.md` by default.
-- **Cross-host handoff (optional, not enabled)** — if this project will be driven from more than one host, the Roci↔Serenity relay can hand work between Claude Code instances via git commits (human pulled in only for pushes/decisions). Off by default; run `/relay-setup` to add a `design/relay/` mailbox. Skip for single-host projects.
-- **Atomic commits, pre-commit test/lint, test-first, mistake retrospectives, encoding preferences** — covered globally in `~/.claude/CLAUDE.md`. Do not duplicate here.
+- **task** — concrete, no design needed; one line in `design/TODO.md`: `- [ ] high (bug) **Title** — summary`. Marks `[ ]` `[~]` `[x]` `[-]`; priority `urgent | high | medium | low`; `(bug)` is the only tag. `## Someday` holds unprioritised one-liners.
+- **story** — needs design before code; one file in `design/stories/{drafts,ready,done}/`, frontmatter `author` and `priority` (same words). An **epic** is a story that holds stories: `<slug>-epic.md`.
+- **ask** — Derek's word, in his order: `design/ASKS.md` (`/pm`). **handoff** — what the last session was doing: `design/NEXT.md` (`/wrapup`). **waiting on Derek** — `derek(<source>)` marks and `design/helping-hands/`.
+- Directories under `design/` are the standard four (`stories/`, `helping-hands/`, `notes/`, `plans/`) or named in `design/README.md`; the reader flags any other. `DIARY.md` stays at the root (narrative, latest first); `git log` is the changelog.
 
-If `/project-setup` is invoked later, it should _infer skips_ from this block (and from the file/heading evidence above) rather than from item numbers — Joe's upstream may renumber. Specifically:
-
-- Already covered here, skip: **bug tracker** (root `TODO.md` is in place — Joe's tracker convention applies as-is), **engineering diary** (root `DIARY.md` + `## Engineering diary` rule above), **changelog** (`git log` is canonical).
-- Already covered globally in `~/.claude/CLAUDE.md`, skip: atomic commits, pre-commit test/lint, test-first development, mistake retrospectives, encoding preferences.
-- Genuine candidates if not yet present: scorecard cadence note, README-currency rule, multi-request organization rule, and anything new Joe's `/project-setup` has added since this block was last reviewed.
+Joe's `/todo`, `/bug` and `/bug-bash` read the tracker at `design/TODO.md` via this pointer. `/project-setup`'s bug tracker, diary and changelog items are covered above; its engineering practices are covered in `~/.claude/CLAUDE.md`.
 
 ## <Language>-specific notes
 
@@ -424,24 +417,24 @@ Substitute the current date for `<YYYY-MM-DD>` at generation time. If an office-
 
 If `DIARY.md` already exists at project root, leave it untouched. Print: _"Existing DIARY.md — left untouched."_
 
-**`TODO.md`** — generate if missing. Use Joe's `/project-setup` format verbatim, since `/todo` and `/bug-bash` are built to read it:
+**`design/TODO.md`** — generate if missing (and no root `TODO.md` exists; a root one is a Drift item, moved with `git mv`, never duplicated). The line format is the contract's task line, which Joe's `/todo` and `/bug-bash` read via the CLAUDE.md pointer:
 
 ```markdown
 # Todo
 
-<!-- Format: [status] P<priority> (category) Title -->
-<!-- Status: [ ] open, [~] in progress, [x] done, [-] won't fix -->
-<!-- Priority: P0 critical, P1 high, P2 medium, P3 low -->
-<!-- Category: bug, feature, chore, docs -->
+<!-- A task: - [ ] <priority> (bug)? **Title** — summary -->
+<!-- Marks: [ ] open · [~] in progress · [x] done · [-] dropped -->
+<!-- Priority: urgent | high | medium | low. Tag: (bug) only — fix before new work. -->
+<!-- Someday: one-liners with no priority yet. Contract: grootPM design/stories/ready/work-model-contract.md -->
 
 ## Open
 
-(no open items yet — use `/todo <description>` to add one)
+## Someday
 
 ## Done
 ```
 
-If `TODO.md` already exists, leave it untouched (even if its format diverges — don't reformat). Print: _"Existing TODO.md — left untouched."_
+If `design/TODO.md` already exists, leave it untouched (even if its format diverges — don't reformat). Print: _"Existing design/TODO.md — left untouched."_ Do not create `IDEAS.md` or `REVISIT.md`: a spark is a `## Someday` line and a revisit is a task with `· revisit <date>`.
 
 ### Phase 3B: Project goals block
 
@@ -833,7 +826,7 @@ Done:
       design/2026-05-05-foo.md      → design/stories/ready/
   ✓ CLAUDE.md skeleton (with ## Engineering diary rule + ## Project conventions shared-memory block)
   ✓ DIARY.md (seeded with initial-setup entry)
-  ✓ TODO.md (light tracker for /todo, /bug, /bug-bash)
+  ✓ design/TODO.md (tasks, in the contract's line format)
   ✓ Office-hours import (from <doc-path>)
   ✓ .gitignore (Python)
   ✓ Makefile (Python)
@@ -841,8 +834,8 @@ Done:
   ✓ Spinner verbs (35 fantasy + sci-fi verbs, replace mode)
 
 Collision-detected:
-  - Found root-level TODO.md from /project-setup. Did not create design/TODO.md.
-    The CLAUDE.md conventions block notes this so future /project-setup runs respect it.
+  - Found root-level TODO.md (pre-2026-10-19 location). Did not create design/TODO.md;
+    Drift: `git mv TODO.md design/TODO.md` — backlog-scan reads either.
   - Found ~/.gstack/projects/<name>/ — imported office-hours doc; left other gstack
     artifacts alone.
 
@@ -963,13 +956,13 @@ Many gstack skills also read `CLAUDE.md` for project context. The conventions bl
 ### Order of invocation — both directions handled
 
 - **`/groot-project` first, then `/project-setup`** (the recommended path): the conventions block is in place. `/project-setup` reads it and skips covered items (5/6/7/9/10a duplicates, item 1 conflict with design/ tracking). It still offers 2/3/4/8/10b — the user picks.
-- **`/project-setup` first, then `/groot-project`**: pre-flight detects root-level `TODO.md` / `DIARY.md` / `CHANGELOG.md`. Phase 2 skips creating any equivalent under `design/`. Phase 3 inserts a `## Project conventions` block that _reflects what already exists_ (e.g., "Bug tracking — uses root `TODO.md` per `/project-setup`. Don't create `design/TODO.md`.") so subsequent `/groot-project` and `/project-setup` runs stay coherent.
+- **`/project-setup` first, then `/groot-project`**: pre-flight detects root-level `TODO.md` / `DIARY.md` / `CHANGELOG.md`. Phase 2 skips creating any equivalent under `design/` and reports the root `TODO.md` as drift toward `design/TODO.md` (one `git mv`; the format is the same). Phase 3 inserts the standard `## Project conventions` block, which names `design/TODO.md` as the tracker — Joe's skills follow that pointer, so the block stays coherent for both tools.
 - **Either run twice**: pre-flight detection makes both idempotent. No file is ever overwritten. The summary's "collision-detected" section makes the avoidance auditable.
 
 ### gstack collisions
 
 - **`/office-hours`** writes to `~/.gstack/projects/<basename>/`. Phase 4 imports from there. No collision.
-- **`/todo` and `/bug-bash`** (gstack) read/write root-level `TODO.md`. If `/project-setup` created one, gstack works on it natively. If this project uses the design/-centric pattern instead, the conventions block tells gstack skills that there's no `TODO.md` to read — they should fall back to `design/stories/` or ask.
+- **`/todo` and `/bug-bash`** look for the tracker at the root and in `docs/`, then follow a CLAUDE.md pointer. The conventions block is that pointer: it names `design/TODO.md`, so they work on it without modification.
 - **`/setup-deploy`** writes deploy config under its own heading in `CLAUDE.md`. Don't touch.
 - **`/plan-*` gstack skills** write plan files to ad-hoc paths. They don't conflict with `design/plans/` — but they also don't integrate. If the user wants gstack plan output to land in `design/plans/`, that's a manual move (out of scope for this skill).
 

@@ -62,8 +62,8 @@ Start by reconciling the Queue, then take each Inbox entry, oldest first.
 - **Matches an open story:** append the text verbatim to that story under `## Captured addition (/pm, unreviewed)`, dated. Bump its Queue line (step 5).
 - **Matches something in `done/`:** it already shipped. Say where. If the ask clearly wants more than what shipped, file a new story that links the done one; otherwise there is nothing to queue.
 - **New, story-sized:** write a stub in `design/stories/drafts/` in `/story`'s stub format (verbatim body, the not-yet-pondered marker, `author: user`; honor the project's `STORY_TEMPLATE.md`). Never file to `ready/`. If step 3 turned up work that is related but not the same — including a story in another project — record it in one `Related (found at triage):` line under the marker, so `/ponder` starts from it. That line is the PM's; the body stays Derek's.
-- **Task-sized:** add an entry to `TODO.md` in that file's own format, per `/todo`.
-- **A spark:** one line in `design/IDEAS.md` in `/idea`'s format. No Queue line.
+- **Task-sized:** add a line to `design/TODO.md` (root `TODO.md` where a project still has it there) in the contract's format: `- [ ] <urgent|high|medium|low> (bug)? **Title** — summary`.
+- **A spark:** one line under `## Someday` in `design/TODO.md`, no priority. Where a project still has `design/IDEAS.md`, use that instead. No Queue line.
 - **Epic-sized:** one stub named `<slug>-epic.md` in `drafts/`, and suggest `/ponder <slug>-epic`. Never decompose an epic at intake.
 - **An instruction about the queue:** apply it to the existing line: stamp, move, or mark `[-]` for a drop.
 
@@ -93,8 +93,8 @@ A turn that received or triaged an ask ends with one line per ask, placed direct
 Filed: <short title> → design/stories/drafts/<slug>.md (new, 4th in queue)
 Filed: <short title> → design/stories/drafts/<slug>.md (new, 4th in queue — a "debating" ask: next step is /ponder <slug>)
 Filed: <short title> → design/stories/ready/<slug>.md (bumped, asked 3×, still 2nd)
-Filed: <short title> → TODO.md (new task, 5th in queue)
-Filed: <short title> → design/IDEAS.md (spark, not queued)
+Filed: <short title> → design/TODO.md (new task, 5th in queue)
+Filed: <short title> → design/TODO.md § Someday (spark, not queued)
 Filed: <short title> → already shipped: design/stories/done/<slug>.md
 Filed: <short title> → design/ASKS.md inbox (triage pending)
 Filed: <short title> → design/ASKS.md inbox (needs your call: <the question>)
