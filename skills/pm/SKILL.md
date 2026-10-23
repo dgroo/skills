@@ -14,6 +14,7 @@ Derek hands work to the PM the way he would to a team lead: he says what he want
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `pm: <text>` (a plain message) | **Intake, and the one form that works the same idle or busy.** The `pm-receipt` hook files it the moment Enter is pressed and says so in a `[pm-receipt hook]` note; you [triage](#triage) if idle, or keep working and triage when the block wraps. |
 | `/pm <text>`            | **Intake.** [Receipt](#receipt--always-first-always-one-append), then [triage](#triage) unless the session is mid-task. Typed mid-turn, it waits for the turn to end. |
+| `/pm @<project> <text>` | **Intake for another project.** `ask` resolves the name through `pick-a-port --inventory --json` and files the receipt in *that* project's Inbox, verbatim with its tag; triage is that project's, not this session's. A name not on this host files here with the tag and says so. |
 | `/pm triage`            | [Triage](#triage) everything waiting in the Inbox.                                                                   |
 | `/pm`, `/pm ?`, `/pm !` | The periodic pass. **Read [`review.md`](review.md)** (installed at `~/.claude/skills/pm/review.md`) and follow it.   |
 | `/pm help`              | Print the [Help](#help) block verbatim.                                                                              |
@@ -35,7 +36,7 @@ Anything after `/pm` that is not `triage`, `?`, `!` or `help` is an ask. That in
 
 Otherwise:
 
-1. Append one entry to the Inbox: `- <YYYY-MM-DD HH:MM> — <the text, verbatim>`. Indent continuation lines two spaces. A leading `@<project>` stays in the entry. Use the `ask` command when it is installed (`ask "<text>"`, in `~/bin`): it finds or creates the right file, including from a worktree, and places the entry. Append by hand only when it is not.
+1. Append one entry to the Inbox: `- <YYYY-MM-DD HH:MM> — <the text, verbatim>`. Indent continuation lines two spaces. Use the `ask` command when it is installed (`ask "<text>"`, in `~/bin`): it finds or creates the right file, including from a worktree, and places the entry. A leading `@<project>` stays in the entry and routes it: `ask` looks the name up in the host's project inventory and files in that project's `ASKS.md` (same as `ask --project <name>`); when the name is not on this host it files here, tag and all, and prints a line saying so. Append by hand only when `ask` is not installed.
 2. That is the whole receipt. Read nothing else, derive nothing, ask nothing. The ask is now on disk whatever happens to the session.
 
 Then decide whether to triage now:
@@ -51,7 +52,7 @@ Start by reconciling the Queue, then take each Inbox entry, oldest first.
 
 **0. Reconcile pointers.** A line whose story is now in `stories/done/`, or whose TODO entry is checked, becomes `[x]`. A pointer that broke because a story moved between `drafts/` and `ready/` is fixed in place.
 
-**1. Another project's ask.** An entry tagged `@<project>` for a different project stays in the Inbox; say it is waiting to be carried over. Do not triage another project's work from here.
+**1. Another project's ask.** An entry tagged `@<project>` for a different project is one `ask` could not route when it was filed (the project is not cloned on this host). Try once more: `ask --project <name> "<the entry text>"` from here; if it routes, remove the entry and say where it went. If it still cannot, it stays in the Inbox; say it is waiting to be carried over. Never triage another project's work from here; its own session has the knowledge.
 
 **2. Size it** from the text, without asking: a spark (a thought, no "soon" in it), a task (concrete, no design needed), a story (needs design), an epic (too large for one story). **"I'm debating building X" is a story, and it is queued.** When Derek says he is debating, considering, or not sure about something, he means "I think I want this and need help thinking it through, weighing the tradeoffs, or deciding whether it is a good idea." That is an ask for a `/ponder`, not a spark: file the stub, put it on the Queue, and say in the `Filed:` line that its next step is a ponder.
 
@@ -98,6 +99,8 @@ Filed: <short title> → design/TODO.md § Someday (spark, not queued)
 Filed: <short title> → already shipped: design/stories/done/<slug>.md
 Filed: <short title> → design/ASKS.md inbox (triage pending)
 Filed: <short title> → design/ASKS.md inbox (needs your call: <the question>)
+Filed: <short title> → ~/code/<project>/design/ASKS.md inbox (routed to <project>; its PM triages it)
+Filed: <short title> → design/ASKS.md inbox (@<project> is not on this host; carry it over)
 ```
 
 After a new story stub, offer once, in one line, to work it up now or leave it for `/ponder`. Do not start.
@@ -108,7 +111,7 @@ After a new story stub, offer once, in one line, to work it up now or leave it f
 - **Verbatim.** Derek's words go into the Inbox, the stub, and the captured addition unchanged. The PM authors titles, slugs and Queue lines, nothing else.
 - **Intake never builds.** No implementing, no promoting to `ready/`, no design thinking. A stub's next step is `/ponder`.
 - **The Queue is Derek's.** His order stands unless he gives a cue or the signal is strong. Hand edits to the file are authoritative.
-- **File an ask where it belongs.** Text about a private project is not appended to a public repository's ask file; file it in the current project's Inbox with the `@<project>` tag and say so.
+- **File an ask where it belongs.** An ask about another project goes to that project's Inbox (`@<project>` or `ask --project`), where its own PM triages it with its own knowledge — the hand-work-to-projects default. Text about a private project is never appended to a public repository's ask file; when it cannot be routed, it stays in the current project's Inbox with the tag, and the `Filed:` line says so.
 - **The PM does not dispatch.** With lanes, the lead reads the Queue when choosing what to brief. Without them, `/next` does.
 
 ## Help
@@ -120,7 +123,7 @@ pm — the project's PM. Takes asks, keeps the ask queue, runs the periodic
 backlog pass.
 
 Usage: pm: <work to file>          (plain message — works idle or mid-turn)
-       /pm [<work to file> | triage | ? | ! | help]
+       /pm [<work to file> | @<project> <work to file> | triage | ? | ! | help]
 
 Verbs:
   pm: <text>        The one form to remember. A hook appends the ask to the
@@ -134,6 +137,10 @@ Verbs:
                     entry / spark, and place it on the Queue. Mid-task, only
                     the append happens and triage waits for the block to wrap.
                     Ends with a "Filed: <title> → <path> (new | bumped | …)" line.
+  @<project> <text> Intake for another project on this host: the receipt lands
+                    in that project's design/ASKS.md Inbox (name resolved via
+                    pick-a-port --inventory); its own PM triages it. A name not
+                    on this host files here with the tag and says so.
   triage            Reconcile the Queue, then triage everything in the Inbox.
   (none)            The periodic pass: hygiene (via /cleanup-design) + accuracy
                     review + strong-signal reprioritization written back to
@@ -169,4 +176,4 @@ See SKILL.md for intake and review.md for the pass.
 - **`/ponder`** — develops a stub into a real story. Intake stops short of it on purpose.
 - **`/next`**, **`/sup`** — read the Queue through `backlog-scan` and rank it under the handoff.
 - **`/go-team`** — reads `ASKS.md` first and works its top open item; the Queue format keeps its `- [ ]` and `Done:` conventions.
-- **Design record:** `design/stories/ready/pm-intake-and-ask-queue.md` in this repo. Built so far: receipt, in-session and background triage, the Queue, ranking, the pass's queue review (reconcile, admissions, cap), and the `pm:` path — the `ask` command (dotfiles `~/bin/ask`) plus the `pm-receipt` and `pm-filed-check` hooks (`~/.claude/hooks/`). Not yet: carrying `@<project>` asks to their project.
+- **Design record:** `design/stories/ready/pm-intake-and-ask-queue.md` in this repo. Built so far: receipt, in-session and background triage, the Queue, ranking, the pass's queue review (reconcile, admissions, cap), and the `pm:` path — the `ask` command (dotfiles `~/bin/ask`) plus the `pm-receipt` and `pm-filed-check` hooks (`~/.claude/hooks/`), and `@<project>` routing through `ask --project` (2026-10-23, grootPM `work-model-contract.md` increment 6).

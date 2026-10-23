@@ -32,6 +32,8 @@ Discover the design layout (same as `/cleanup-design`'s Orient): `design/stories
 
 **Run `/cleanup-design` first, don't reimplement it.** It owns the mechanical layer: drift (a decision one place the docs elsewhere haven't caught), dead cross-references, notes that should be `deprecated/`, and stories whose acceptance criteria are _obviously_ satisfied (move-to-done). Let it do its Scan → Triage → Present → Execute flow and land those findings.
 
+**Then the task file's own hygiene, which cleanup-design does not touch.** In `design/TODO.md` (root `TODO.md` where a project still has it), move every `[x]` and `[-]` line out of `## Open` into `## Done` (newest first) and prune `## Done` to its last 20 lines — git keeps the rest. Then stamp the pass: the header carries one comment line, `<!-- pm-pass: 2026-10-23 · 2026-09-30 · 2026-09-02 -->`, newest first, kept to the last three dates; add today's. That line is the only record a pass leaves, and §3's staleness rule reads it. (Work-model contract D8, grootPM `design/stories/ready/work-model-contract.md`.)
+
 You want a **clean corpus before you reorder it** — reprioritizing around stale/done entries is wasted work. If cleanup-design surfaces a big conformance drift (meta-files on the legacy root layout, etc.), note it but don't get pulled into a migration mid-PM-pass unless Derek opts in; that's cleanup-design's conformance mode, a separate errand.
 
 ### 3. Accuracy review — the judgment cleanup-design won't make
@@ -43,6 +45,8 @@ cleanup-design is deliberately conservative ("don't be aggressive", "only obviou
 - **Is a `ready/` story actually still ready?** "Ready" means design-baked; if its open questions have quietly reopened, it belongs back in `drafts/`.
 
 Disposition each staler: **demote** (`ready/` → `drafts/`), **rewrite** (premise shifted but work still wanted), or **close** (overtaken — move to `done/` with a note, or delete a never-started draft). Strong signal → act; ambiguous → surface in the present step.
+
+**Tasks: stale in the project's own time, shown before dropped (contract D8).** A fixed clock would gut a project Derek simply has not worked on for a season, and he rarely opens the task file himself, so a task can be important and never seen. A task line is *stale* when, since the commit that last changed it, the project has had **at least 40 commits** and **at least two `/pm` passes** (the `pm-pass:` stamp dates in the file header, §2). A project with no activity ages no task. The measurement is three commands, no tool: `git blame --line-porcelain -- design/TODO.md` gives each open line's last commit; `git rev-list --count <that-sha>..HEAD` the commits since; the stamp line the passes since (count the dates later than that commit's date). List the stale ones in the present block under **"still wanted?"**, exactly as §4B does for a 30-day-old ask, each with its age in commits and passes. Propose `[-]` **only** for lines on that list, and never drop without Derek's word — under `!` too. The CPO review gets the complementary list ("tasks you have never been shown": open lines that have never appeared in a pass Derek answered); that is `cpo-portfolio-review.md`'s, not this pass's.
 
 ### 3B. Goals pass — re-confirm the block, surface emergent goals
 
@@ -96,7 +100,8 @@ Propose each as a one-line draft candidate with its evidence cited. **Do not inv
 
 Summarize the pass in one compact block, grouped:
 
-- **Tidied:** what hygiene + accuracy review changed (delegated to cleanup-design + demotes/closes). Cite counts, not a wall of detail.
+- **Tidied:** what hygiene + accuracy review changed (delegated to cleanup-design + demotes/closes, lines moved to `## Done` and pruned). Cite counts, not a wall of detail.
+- **Still wanted?** — stale tasks (§3's rule, with commits and passes since each last changed) and stale asks (§4B), as one list for Derek's yes/no per line. Nothing on it is dropped until he answers.
 - **Reprioritized:** the durable reorders made (strong-signal), and — as a compact option list — any genuine priority tradeoffs awaiting a decision.
 - **Asks:** what landed since the last pass (the lines just pruned), anything stale or pointing nowhere, and — as a compact option list — proposed admissions, reorders, and drops if the Queue is over the cap. Omit the group when the project has no ask file.
 - **Gaps:** proposed drafts with their evidence, awaiting confirm (or filed, with `!`).
