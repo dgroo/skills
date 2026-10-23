@@ -212,7 +212,17 @@ priority: medium # high | medium | low
 
 # Story Title
 
-**tl;dr:** One plain-language sentence — what this story does and why, skimmable without reading the body.
+_Authored by <model> with Derek · Last updated <YYYY-MM-DD>._
+
+## Executive summary
+
+**What:** One sentence — what this story decides or does.
+**Where it stands:** One line — open / decided <date> / built through increment N of M.
+**Needs you:** nothing — or one bullet per open decision or `derek(<source>)` mark, each starting **Decide**, **Look** or **Do** and naming its heading.
+
+## Decisions (yours first; the analysis is below)
+
+- **D1 · open** — the question, and the recommendation. [record](#d1)
 
 ## Problem
 
@@ -231,9 +241,11 @@ Technical considerations, schema sketches, ASCII diagrams, implementation detail
 - [ ] Criterion 1
 - [ ] Criterion 2
 
-## Open Questions
+## Decision records
 
-- Things this story doesn't decide and that should be resolved before or during implementation.
+### D1. <The question> · open
+
+The full argument: options, the recommendation and why, what was rejected. Headings carry the status word (`· open`, `· decided <date>`, `· built`) so the Outline shows it.
 
 ## Related
 

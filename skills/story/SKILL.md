@@ -52,6 +52,7 @@ priority: medium
 
 - `author: user` — the words are theirs; the stories convention reads that field as "intention likely correct, spec likely incomplete," which is exactly right.
 - `priority:` — take an explicit cue from the text ("critical", "someday") if present; otherwise `medium`. Don't ask.
+- No `## Executive summary` block on a stub: the marker block is its top until `/ponder` writes one (`pm/exec-summary.md`). The reader treats a stub as unsummarised, not as missing.
 
 ---
 
