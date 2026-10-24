@@ -41,6 +41,7 @@ Derek starts a lot of threads whose honest status is "we may or may not turn thi
 - **No writes outside the design corpus.** A ponder that edited `lib/` wasn't a ponder.
 - **Bound the orthogonal.** When Derek flags an adjacent axis as out of scope, give it one bounding sentence in the artifact (how the two compose) and go no further — the bounding line prevents scope-creep arguments later.
 - **Promotion is a separate act.** After Derek answers the open decisions, the story moves `drafts/ → ready/` with decisions recorded inline — that edit is in-bounds; the building it unlocks still is not, until he says go.
+- **Check for an existing answer before writing a note.** Before writing a `design/notes/` file that answers a question from a story, grep `design/notes/` for that story's name and the question's key terms; a hit means append to that note, not start a second one. Two sessions answered the spike's terms-and-cost question in parallel on 2026-10-19 and the ponder's note duplicated the spike session's own answer an hour late; Derek's yes to the check, 2026-10-24.
 - **Escalate honestly.** If mid-ponder the topic turns out to need real external evidence, a spike, or another repo's context, say which and route — don't fake it with plausible prose.
 
 ## Help
