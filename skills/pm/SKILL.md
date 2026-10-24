@@ -84,7 +84,7 @@ Start by reconciling the Queue, then take each Inbox entry, oldest first.
 
 **7. Remove the Inbox entry** once it is routed. Git keeps the history.
 
-**8. Commit.** Where the design-sync watcher is running (`launchctl list 2>/dev/null | grep -q design-sync-watch`), saves under `design/` commit themselves. Otherwise, and for a root `TODO.md` or `ASKS.md`, stage the exact files and commit with a pathspec, then push.
+**8. Commit.** Where the design-sync watcher is running, saves under `design/` commit themselves. Do not probe it with a sandboxed `launchctl list`: inside the sandbox it reads as absent every time. Wait a few seconds for `git status --short design/` to come back empty (wait on the tree, not on HEAD's subject — the watcher's pull-tick can merge a peer commit on top), and hand-commit (exact files, pathspec) only what it has not taken. A root `TODO.md` or `ASKS.md`, and any non-`design/` file, always gets the explicit commit; then push.
 
 ## The `Filed:` line
 
