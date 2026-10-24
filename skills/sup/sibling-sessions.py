@@ -177,6 +177,12 @@ def _human_prompt_times(jsonl_path: Path) -> list[float]:
                     continue
                 if obj.get("type") != "user":
                     continue
+                if obj.get("isMeta"):
+                    # A skill expansion (/sup injecting its SKILL.md) or another
+                    # injected turn, not Derek typing: counting these made every
+                    # fresh post-reboot session look long-running, so --cold never
+                    # fired in the case it was built for (changer and grove, 2026-10-23).
+                    continue
                 content = obj.get("message", {}).get("content")
                 # Skip tool-result entries — agent output, not a human turn.
                 if isinstance(content, list) and any(
