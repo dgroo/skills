@@ -525,9 +525,8 @@ hooks-install:  ## Install git hooks from hooks/ into this clone (per-clone step
 	mkdir -p "$$hooks_dir"; \
 	for h in hooks/*; do \
 		[ -f "$$h" ] || continue; \
-		cp "$$h" "$$hooks_dir/$$(basename "$$h")"; \
-		chmod +x "$$hooks_dir/$$(basename "$$h")"; \
-		echo "installed $$hooks_dir/$$(basename "$$h")"; \
+		dest="$$hooks_dir/$$(basename "$$h")"; \
+		cp "$$h" "$$dest" && chmod +x "$$dest" && echo "installed $$dest" || { echo "failed to install $$dest" >&2; exit 1; }; \
 	done
 
 help:  ## Show available targets
@@ -658,11 +657,13 @@ while read -r _ local_sha _ remote_sha; do
     [ -z "${local_sha:-}" ] && continue
     [ "$local_sha" = "0000000000000000000000000000000000000000" ] && continue   # deleting a ref
     if [ "${remote_sha:-}" = "0000000000000000000000000000000000000000" ]; then
-        range="$local_sha"            # new branch: everything on it
+        # New branch: every file on it counts. `git diff --name-only <sha>` diffs the
+        # working tree against <sha>, which is empty on a clean tree.
+        changed="$(git ls-tree -r --name-only "$local_sha" 2>/dev/null)"
     else
-        range="$remote_sha..$local_sha"
+        changed="$(git diff --name-only "$remote_sha..$local_sha" 2>/dev/null)"
     fi
-    if git diff --name-only "$range" 2>/dev/null | grep -qvE '^design/|\.md$'; then
+    if printf '%s\n' "$changed" | grep -qvE '^design/|\.md$'; then
         code_touched=1
     fi
 done
