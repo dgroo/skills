@@ -33,8 +33,16 @@ from pathlib import Path
 
 try:
     import tomllib
-except ImportError:  # pre-3.11 python — degrade silently
-    sys.exit(0)
+except ImportError:  # pre-3.11 python: never degrade silently (a silent probe reads as "no services declared")
+    try:
+        import tomli as tomllib  # type: ignore[no-redef]
+    except ImportError:
+        print(
+            f"service-check: python {sys.version.split()[0]} at {sys.executable} has no tomllib; "
+            "services NOT probed (run with python >= 3.11 or pip install tomli)",
+            file=sys.stderr,
+        )
+        sys.exit(2)
 
 CHECK_TIMEOUT_SECONDS = 10
 
