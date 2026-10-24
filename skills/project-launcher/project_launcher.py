@@ -17,8 +17,16 @@ import os
 import shutil
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
+
+try:
+    import tomllib
+except ImportError:  # pre-3.11 python: never degrade silently
+    try:
+        import tomli as tomllib  # type: ignore[no-redef]
+    except ImportError:
+        print(f"{Path(sys.argv[0]).name}: python {sys.version.split()[0]} has no tomllib; cannot read .groot-project.toml", file=sys.stderr)
+        sys.exit(2)
 
 # Per-terminal AppleScript snippet. `{cmd}` placeholder gets the absolute
 # path to the project's `.launch.sh`, which is what the new window runs.

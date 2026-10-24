@@ -38,8 +38,16 @@ import colorsys
 import json
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
+
+try:
+    import tomllib
+except ImportError:  # pre-3.11 python: never degrade silently
+    try:
+        import tomli as tomllib  # type: ignore[no-redef]
+    except ImportError:
+        print(f"{Path(sys.argv[0]).name}: python {sys.version.split()[0]} has no tomllib; cannot read .groot-project.toml", file=sys.stderr)
+        sys.exit(2)
 
 # The curated baseline. Each plugin maps a real Derek workflow (see SKILL.md
 # Phase 7A). dir name == manifest `id` (Obsidian requires the match).

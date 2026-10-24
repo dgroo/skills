@@ -31,8 +31,16 @@ import json
 import random
 import re
 import sys
-import tomllib
 from pathlib import Path
+
+try:
+    import tomllib
+except ImportError:  # pre-3.11 python: never degrade silently
+    try:
+        import tomli as tomllib  # type: ignore[no-redef]
+    except ImportError:
+        print(f"{Path(sys.argv[0]).name}: python {sys.version.split()[0]} has no tomllib; cannot read .groot-project.toml", file=sys.stderr)
+        sys.exit(2)
 
 DEFAULT_PALETTE_SIZE = 14
 VIVID_PALETTE_SIZE = 4
