@@ -50,6 +50,8 @@ Provision via `git worktree add ~/code/worktrees/<repo>/<short-slug> -b <branch>
 
 ## Sitrep mirror
 
+**Adding a gather step:** every step runs at the start of every session, in every project. A step that hits the network or takes more than about a second needs a hit rate that justifies that frequency. Otherwise scope it to one project (that project's CLAUDE.md, the way remote-coding-setup runs the upstream-issue sweep) or gate it on a cadence (`cadence-nudges`).
+
 Gather context in parallel:
 
 1. `git status` — uncommitted changes, untracked files, current branch
@@ -63,7 +65,7 @@ Gather context in parallel:
 9. If `design/relay/STATE.md` exists, run `relay-status` for a one-line relay state; silently skip if the file doesn't exist or `relay-status` isn't on PATH.
 10. Scan conversation history for what was last discussed
 11. `python3 ~/.claude/skills/sup/service-check.py` — expected-services probe, run from the repo root and **sandbox-disabled** (it probes processes/daemons/docker sockets, which all read as down from inside the sandbox — the never-diagnose-down rule). Prints nothing when the project declares no services; see "Expected services" for the mechanism and the Pick-`0` rendering.
-12. **Pending meta-feedback** — list report files (everything but `LEDGER.md`) in `design/meta-feedback/` of the remote-coding capture repo (the repo named in global CLAUDE.md's "Cross-project capture" rule). Reports are central on purpose, so this finds them from any project — including ones from projects Derek has since stopped working on. Count headline proposals still `· open`, note the oldest report's age and any `⚠` (major) item. If `REVIEW.md` is there, also count its unticked `- [ ]` item boxes (lines starting `- [ ] do`, `hand off`, `close`, `decline as`) and whether any report is newer than the page's stamp. No files → silent.
+12. **Pending meta-feedback** — list report files (everything but `LEDGER.md`) in `design/meta-feedback/` of the remote-coding capture repo (the repo named in global CLAUDE.md's "Cross-project capture" rule). Reports are central on purpose, so this finds them from any project — including ones from projects Derek has since stopped working on. Count headline proposals still `· open`, note the oldest report's age and any `⚠` (major) item. If `REVIEW.md` is there, also count its unticked `- [ ]` item boxes (lines starting `- [ ] do`, `hand off`, `close`, `decline as`) and whether any report is newer than the page's stamp. Print each count on its own labelled line (`open-proposals=N`, `review-open-boxes=M`); an unlabelled number at the end of several greps is easy to attribute to the wrong probe (grove, 2026-10-23: a `REVIEW.md:0` from one grep was reported as the page's open-box count when it had 34). No files → silent.
 13. `cadence-nudges` — the periodic-ceremonies table (read-only dotfiles wrapper over the silent-unless-due helper family: codex review, backlog staleness, beginners-mind, `## Project goals` block presence/freshness, README presence). Prints a `⏰ Cadence` header + one `↳` line per due ceremony, nothing when none due. Session start is where these actually get seen — `/wrapup` runs the same wrapper as the end-of-session backstop. Absent command (older host) → silently skip.
 
 Report structure (omit empty sections, keep each to 1–3 lines max):
@@ -152,7 +154,7 @@ This is the cross-host analogue of sibling sessions: same "don't start parallel 
 
 The failure mode this section prevents: a project has long-lived servers that are _supposed_ to be running — a prod compose stack, a tunnel, the `dev` launcher's dev server — and a reboot or crashed daemon silently took them down. `/sup` reads as "all clear, here's your next story" while prod is dark. The service check makes "do we have servers that should be running, and are they?" a standing part of the report.
 
-Source: `python3 ~/.claude/skills/sup/service-check.py`, run from the repo root **sandbox-disabled** (it probes processes/daemons/docker sockets, which all read as down from inside the sandbox — the never-diagnose-down rule from `~/.claude/CLAUDE.md`). It reads the project's `.groot-project.toml`:
+Source: `python3 ~/.claude/skills/sup/service-check.py`, run from the repo root **sandbox-disabled** (it probes processes/daemons/docker sockets, which all read as down from inside the sandbox — the never-diagnose-down rule from `~/.claude/CLAUDE.md`). A non-zero exit or a stderr line from the probe is a probe failure and is reported as one ("services NOT probed: python 3.9 has no tomllib"), never as "no services declared" — the probe exited 0 and silent on every `/sup` on Rocinante26 for days while vffins2 declared three services (2026-10-23). It reads the project's `.groot-project.toml`:
 
 - **`[[services]]` entries** declare long-lived services beyond the dev server. Each carries `name`, `check` (shell command, exit 0 = up), and `start` (the remediation command — surfaced as a hint, never executed by the probe):
 
