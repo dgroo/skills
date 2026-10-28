@@ -9,13 +9,15 @@ Every story and epic opens with this block, directly under the provenance stamp 
 ```markdown
 ## Executive summary
 
-**What:** <one sentence: what this document decides or does>
-**Where it stands:** <one line: open / decided <date> / built through increment N of M>
+**What:** <one sentence: what this document decides or does>  
+**Where it stands:** <one line: open / decided <date> / built through increment N of M>  
 **Needs you:**
+
 - **Decide** <one line, naming the heading> · **Look** <…> · **Do** <…>
 ```
 
 - `What` and `Where it stands` together: at most 40 words. Plain words, no rationale, no history.
+- The `What` and `Where it stands` lines each end in **two trailing spaces** (a Markdown hard break). Without them the three label lines are one paragraph, and the fleet's `prettier --prose-wrap never` pre-commit hook joins them into a single run-on line (Tessera, 2026-10-28).
 - `Needs you` is complete by construction: one bullet per open `<!-- derek(<source>): … -->` mark in the doc and per decision heading marked `· open`, nothing else. Each bullet at most 20 words, opening with a verb label: **Decide** (an answer is wanted), **Look** (a sign-off on something built), **Do** (his hands, a helping-hand). If nothing waits, the line is `**Needs you:** nothing`.
 - More than five bullets means the doc is the problem, not the block: write `**Needs you:** N decisions open, § Decisions` and let the one-line decisions list carry them.
 - Decision headings carry a status word (`· open`, `· decided 2026-10-19`, `· built`) so Obsidian's Outline shows the state of every decision; the `## Decisions` block is one line per decision (status, pick or recommendation, link) and the full argument lives under `## Decision records`.
@@ -36,4 +38,4 @@ Run it whenever a skill touches a story: `/ponder` (write), `/pm` (stories it re
 >
 > `## Executive summary` · `**What:**` one sentence · `**Where it stands:**` one line · `**Needs you:**` bullets.
 >
-> `What` and `Where it stands` together at most 40 words. `Needs you`: exactly one bullet for every open `<!-- derek(…): … -->` mark (a mark is closed when it reads `derek✓`) and for every decision heading marked `· open`; none for anything else. Each bullet at most 20 words, starts with **Decide**, **Look** or **Do**, names the heading it refers to. If there are none, write `**Needs you:** nothing`. If there are more than five, write `**Needs you:** N decisions open, § Decisions` instead. No rationale, no history, no hedging, no "comprehensive". Do not invent an item.
+> `What` and `Where it stands` together at most 40 words; end each of those two lines with two trailing spaces so they stay separate lines. `Needs you`: exactly one bullet for every open `<!-- derek(…): … -->` mark (a mark is closed when it reads `derek✓`) and for every decision heading marked `· open`; none for anything else. Each bullet at most 20 words, starts with **Decide**, **Look** or **Do**, names the heading it refers to. If there are none, write `**Needs you:** nothing`. If there are more than five, write `**Needs you:** N decisions open, § Decisions` instead. No rationale, no history, no hedging, no "comprehensive". Do not invent an item.
