@@ -218,8 +218,8 @@ _Authored by <model> with Derek · Last updated <YYYY-MM-DD>._
 
 ## Executive summary
 
-**What:** One sentence — what this story decides or does.
-**Where it stands:** One line — open / decided <date> / built through increment N of M.
+**What:** One sentence — what this story decides or does.  
+**Where it stands:** One line — open / decided <date> / built through increment N of M.  
 **Needs you:** nothing — or one bullet per open decision or `derek(<source>)` mark, each starting **Decide**, **Look** or **Do** and naming its heading.
 
 ## Decisions (yours first; the analysis is below)
@@ -580,8 +580,9 @@ md=$(git diff --cached --name-only --diff-filter=ACM -- '*.md' '*.markdown')
 if [ -n "$md" ]; then
   if command -v bunx >/dev/null 2>&1; then
     echo "→ pre-commit: prettier --prose-wrap never (staged Markdown)"
-    # NUL-delimited: filenames may contain spaces
-    git diff --cached --name-only -z --diff-filter=ACM -- '*.md' '*.markdown' | xargs -0 bunx --bun prettier --prose-wrap never --write
+    # NUL-delimited: filenames may contain spaces. Pinned: an unpinned bunx runs
+    # whatever npm serves as latest on every commit (supply-chain exposure).
+    git diff --cached --name-only -z --diff-filter=ACM -- '*.md' '*.markdown' | xargs -0 bunx --bun prettier@3.9.10 --prose-wrap never --write
     git diff --cached --name-only -z --diff-filter=ACM -- '*.md' '*.markdown' | xargs -0 git add
   else
     echo "⚠ pre-commit: bunx not found — skipping Markdown formatting (install bun: https://bun.sh)"
@@ -591,7 +592,7 @@ fi
 echo "✓ pre-commit checks passed"
 ```
 
-(Assumes kebab-case filenames with no spaces — the design-doc convention. `bunx --bun prettier` needs no install step; first run downloads prettier into bun's cache.) In `--auto` mode this phase runs unchanged (no prompts). In `status` mode, flag a missing `hooks/pre-commit` as drift.
+(Assumes kebab-case filenames with no spaces — the design-doc convention. `bunx --bun prettier@<version>` needs no install step; first run downloads prettier into bun's cache. The version is pinned, so a compromised or breaking npm release can't run on every commit; bump it deliberately to a release at least two weeks old.) In `--auto` mode this phase runs unchanged (no prompts). In `status` mode, flag a missing `hooks/pre-commit` as drift.
 
 ### Phase 6C: Commit-footer hook (Claude attribution)
 
