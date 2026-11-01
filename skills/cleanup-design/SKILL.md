@@ -45,6 +45,7 @@ Run focused checks per artifact category.
 - Check whether referenced files have moved to `deprecated/`.
 - For acceptance criteria: surface only obvious satisfactions (a checkbox names a file/function that grep-able-exists in the codebase). Don't be aggressive.
 - For Open Questions: check whether recently-closed helping-hands or recent commits answer them.
+- Executive summary: `backlog-scan --json` carries each story's `summary_status`; `missing` or `stale` on a `drafts/` or `ready/` story is a finding (its `summary_issues` say why). A `/story` stub (marker line `**Captured via `/story` — not yet pondered.**`) is exempt: it has no block until it is pondered.
 
 **Helping-hands**:
 
@@ -78,6 +79,7 @@ Group findings into buckets with suggested dispositions:
 - **`mark-resolved`** — helping-hand has decision elsewhere but status still open
 - **`update-reference`** — cross-reference path is stale (file moved/deprecated)
 - **`archive`** — note that should move to `deprecated/`
+- **`refresh-summary`** — the story's `## Executive summary` block is missing or stale; the pass in `~/.claude/skills/pm/exec-summary.md` § The pass rewrites it
 - **`leave`** — flagged but no action; mention only if explicitly listed
 
 ### 4. Present
@@ -93,6 +95,7 @@ Show the staged list grouped by bucket. For each item: file path, line number (i
 On approval:
 
 - Edit prose changes.
+- Run the Executive-summary pass (`~/.claude/skills/pm/exec-summary.md` § The pass: a fresh Sonnet reader per story, spawned together; read back; `backlog-scan` confirms `ok`) on each approved `refresh-summary` story and on any live story another bucket edited — last, so the block is each story's final write.
 - Move files (with `git mv` if in a git repo; otherwise Write+verify+delete).
 - Update frontmatter (status changes, deprecation flags).
 - Strip dead references or update to new paths.
@@ -144,6 +147,7 @@ This is what catches "we made decision X in a helping-hand but DESIGN.md still s
 | move-to-done     | Move story                       | yes (per item)         |
 | mark-resolved    | Update status + decision section | yes (per item or bulk) |
 | update-reference | Edit stale path                  | bulk-approve ok        |
+| refresh-summary  | Rewrite the block via the pass   | bulk-approve ok        |
 | archive          | Move to deprecated/ + flag       | yes (per item)         |
 | leave            | nothing                          | n/a                    |
 
@@ -175,7 +179,8 @@ Drift-audit phases (run in sequence):
                     canonical docs, resume pointers. Drift detection is
                     the strongest finding type.
   Triage            Group by bucket: update-section, move-to-done,
-                    mark-resolved, update-reference, archive, leave.
+                    mark-resolved, update-reference, refresh-summary
+                    (a missing or stale Executive summary), archive, leave.
   Present           Show staged list; per-item or bulk approval.
   Execute           Edit / mv / update frontmatter on approval only.
 

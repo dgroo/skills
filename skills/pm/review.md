@@ -72,6 +72,8 @@ Split by confidence, mirroring cleanup-design's move-to-done discipline:
 - **Strong signal → act.** Where the correct order is unambiguous (story A demonstrably blocks B and C; a stale draft clearly belongs at the bottom), just make the edit.
 - **Genuine tradeoff → ask.** Where priority is a real judgment call — two items of comparable value, a tradeoff only Derek can weigh (user-facing polish vs. infra debt), a bet on direction — **present it as a compact option list and let Derek decide.** Never manufacture a confident reorder out of a genuine tie. This is the one place even `/pm !` still stops.
 
+**Then the Executive-summary pass on every story this pass changed** — demoted, rewritten, or given a new `priority:` (a story closed into `done/` is skipped) — per [`exec-summary.md`](exec-summary.md) § The pass (installed at `~/.claude/skills/pm/exec-summary.md`): a fresh Sonnet reader writes the block, you read it back, `backlog-scan` confirms `ok`. Run it as the last write before the files land. Stories whose block was merely missing or stale were already swept by §2's `/cleanup-design` call; this trigger is only for the ones §3 and §4 touched. Intake (`SKILL.md`) does not run it.
+
 ### 4B. The ask queue — reconcile it, then review it with Derek
 
 `design/ASKS.md` (or root `ASKS.md`) is Derek's ask queue; intake is in [`SKILL.md`](SKILL.md). No ask file → skip this step silently.
@@ -100,7 +102,7 @@ Propose each as a one-line draft candidate with its evidence cited. **Do not inv
 
 Summarize the pass in one compact block, grouped:
 
-- **Tidied:** what hygiene + accuracy review changed (delegated to cleanup-design + demotes/closes, lines moved to `## Done` and pruned). Cite counts, not a wall of detail.
+- **Tidied:** what hygiene + accuracy review changed (delegated to cleanup-design + demotes/closes, lines moved to `## Done` and pruned, Executive summaries refreshed). Cite counts, not a wall of detail.
 - **Still wanted?** — stale tasks (§3's rule, with commits and passes since each last changed) and stale asks (§4B), as one list for Derek's yes/no per line. Nothing on it is dropped until he answers.
 - **Reprioritized:** the durable reorders made (strong-signal), and — as a compact option list — any genuine priority tradeoffs awaiting a decision.
 - **Asks:** what landed since the last pass (the lines just pruned), anything stale or pointing nowhere, and — as a compact option list — proposed admissions, reorders, and drops if the Queue is over the cap. Omit the group when the project has no ask file.
