@@ -750,14 +750,24 @@ After adopting a _new_ vault, the watcher's `WatchPaths` is a baked list that pr
 
 **Detect first (Obsidian is opt-in).** Check for `./.obsidian/`:
 
-- **Exists** → apply the baseline (idempotent merge — never clobbers user keys).
+- **Exists** → apply the baseline (idempotent merge — never clobbers user keys) and register the vault.
 - **Absent** → ask: _"Set up an Obsidian vault baseline for this project? (Y/skip)"_. Only create `.obsidian/` on an explicit yes. In `--auto` mode, **skip** when absent (don't conjure vaults unprompted); apply only when `.obsidian/` already exists.
 
 **What it does** (via the helper, which reads `[terminal].background` and derives a vivid same-hue accent):
 
 ```
-~/.claude/skills/groot-project/obsidian-setup.py [PROJECT_DIR] [--no-fetch] [--dry-run]
+~/.claude/skills/groot-project/obsidian-setup.py [PROJECT_DIR] [--no-fetch] [--no-register] [--dry-run]
 ```
+
+Run it sandbox-disabled: it writes Obsidian's vault list under `~/Library/Application Support/obsidian/`.
+
+**It registers the vault, so it shows up in the vault switcher** (no hunting for the folder with "Open folder as vault"). The script adds the project to Obsidian's own list, `obsidian.json`, keyed by path (idempotent, backup beside it). Don't try to open the vault with an `obsidian://open?vault=…` or `?path=…` URI or `open -a Obsidian <dir>`: none of them registers a vault, and against a running Obsidian they fail with "Vault not found".
+
+**A running Obsidian doesn't see the new vault until it restarts.** It loads the vault list once at launch, so the switcher lists the new vault (it reads the file) but opening it says "Vault not found" (argos, 2026-11-01). The script's last line is `obsidian-running: yes|no`. On `yes`, offer Derek the choice, restart second, since he usually has several vaults open:
+
+- **Later** (default): it opens normally after his next Obsidian restart.
+- **Now, no restart:** Obsidian → Open another vault → "Open folder as vault" → the project folder.
+- **Restart Obsidian now:** only on his explicit yes. `osascript -e 'quit app "Obsidian"'`, wait until `pgrep -x Obsidian` is empty, then `open -a Obsidian` (sandbox-disabled). Obsidian saves notes continuously and reopens its windows.
 
 - **Committed config** (declares the baseline, version-controlled): `appearance.json` (Minimal theme + derived accent), `app.json` (excluded files — `node_modules/`, `.next/`, build/test dirs — so search/graph/switcher aren't polluted; repo-root docs like `DIARY.md`/`TODO.md`/`CLAUDE.md` stay visible — plus note/attachment placement: new notes in the current note's folder, pasted attachments into an `_attachments/` subfolder beside the note), `community-plugins.json` (the curated set), `core-plugins.json` (sensible core plugins on, merged), `snippets/project-color.css` (chrome-only paint — titlebar/ribbon/status-bar; **never the note body**, so distinguishable and readable don't fight).
 - **Fetched, gitignored artifacts** (the `node_modules` half): the Minimal theme + plugin bundles are pulled into `themes/` and `plugins/` at **pinned versions** (declared in `obsidian-setup.py`). A fresh clone re-runs this phase to repopulate them. The script appends the gitignore split itself (`workspace*.json`, `plugins/`, `themes/`).

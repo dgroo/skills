@@ -28,7 +28,14 @@ Usage:
 
   PROJECT_DIR   project root (default: cwd). Must contain .groot-project.toml.
   --no-fetch    write/merge config only; skip downloading theme + plugins.
+  --no-register don't add the vault to Obsidian's vault list.
   --dry-run     print what would change; write nothing.
+
+Registration: adds the project to Obsidian's own vault list (obsidian.json), so
+it shows up in the vault switcher without a manual "Open folder as vault". A
+RUNNING Obsidian only loads that list at launch: until it restarts, opening the
+new vault from the switcher fails with "Vault not found" (argos, 2026-11-01).
+The script reports `obsidian-running: yes|no` so the caller can offer a restart.
 """
 
 from __future__ import annotations
@@ -36,7 +43,11 @@ from __future__ import annotations
 import argparse
 import colorsys
 import json
+import os
+import secrets
+import shutil
 import subprocess
+import time
 import sys
 from pathlib import Path
 
@@ -517,6 +528,50 @@ def update_gitignore(project_dir: Path, dry_run: bool) -> None:
         print(f"  added {ln}")
 
 
+# Obsidian's vault list: {"vaults": {<16-hex id>: {"path", "ts", "open"?}}}. The
+# vault switcher and ~/bin/obsidian-baseline-plugins both read it.
+VAULT_REGISTRY = (
+    Path.home() / "Library" / "Application Support" / "obsidian" / "obsidian.json"
+)
+
+
+def obsidian_running() -> bool:
+    return (
+        subprocess.run(["pgrep", "-x", "Obsidian"], capture_output=True).returncode
+        == 0
+    )
+
+
+def register_vault(project_dir: Path, dry_run: bool) -> None:
+    """Add project_dir to Obsidian's vault list, idempotently (keyed by path).
+
+    Writes the same entry shape Obsidian writes itself ({path, ts}; Obsidian adds
+    "open" when a window is open). A running Obsidian re-reads the file before
+    saving its own changes: an entry written under it survived its later writes
+    (argos, 2026-11-01), so writing while it runs is safe, just not yet visible.
+    """
+    print("register:")
+    if not VAULT_REGISTRY.exists():
+        print(f"  skipped: no vault list at {VAULT_REGISTRY} (Obsidian never run?)")
+        return
+    data = json.loads(VAULT_REGISTRY.read_text())
+    vaults = data.setdefault("vaults", {})
+    path = str(project_dir)
+    if any(v.get("path") == path for v in vaults.values()):
+        print("  already in Obsidian's vault list")
+        return
+    if dry_run:
+        print(f"  would add {path} to {VAULT_REGISTRY}")
+        return
+    backup = VAULT_REGISTRY.with_name("obsidian.json.groot-project.bak")
+    shutil.copy2(VAULT_REGISTRY, backup)
+    vaults[secrets.token_hex(8)] = {"path": path, "ts": int(time.time() * 1000)}
+    tmp = VAULT_REGISTRY.with_name("obsidian.json.tmp")
+    tmp.write_text(json.dumps(data))
+    os.replace(tmp, VAULT_REGISTRY)
+    print(f"  added to Obsidian's vault list (backup: {backup.name})")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -528,6 +583,11 @@ def main() -> None:
         "--no-fetch",
         action="store_true",
         help="write/merge config only; skip downloads",
+    )
+    parser.add_argument(
+        "--no-register",
+        action="store_true",
+        help="don't add the vault to Obsidian's vault list",
     )
     parser.add_argument(
         "--dry-run", action="store_true", help="show changes; write nothing"
@@ -553,10 +613,20 @@ def main() -> None:
         fetch_artifacts(vault, accent, args.dry_run)
     print()
     update_gitignore(project_dir, args.dry_run)
+    print()
+    if args.no_register:
+        print("register: skipped (--no-register)")
+    else:
+        register_vault(project_dir, args.dry_run)
 
+    running = obsidian_running()
     if not args.dry_run:
-        print("\ndone. Restart Obsidian (or reload the vault) to apply.")
-        print("First open may prompt once to enable community plugins.")
+        print("\ndone. First open may prompt once to enable community plugins.")
+        if running:
+            print("Obsidian is running: the vault appears in the switcher now, but")
+            print("opening it says 'Vault not found' until Obsidian restarts.")
+            print('No restart: Obsidian > Open another vault > "Open folder as vault".')
+    print(f"obsidian-running: {'yes' if running else 'no'}")
 
 
 if __name__ == "__main__":
