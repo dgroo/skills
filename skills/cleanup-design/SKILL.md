@@ -45,7 +45,7 @@ Run focused checks per artifact category.
 - Check whether referenced files have moved to `deprecated/`.
 - For acceptance criteria: surface only obvious satisfactions (a checkbox names a file/function that grep-able-exists in the codebase). Don't be aggressive.
 - For Open Questions: check whether recently-closed helping-hands or recent commits answer them.
-- Executive summary: `backlog-scan --json` carries each story's `summary_status`; `missing` or `stale` on a `drafts/` or `ready/` story is a finding (its `summary_issues` say why). An unpondered stub (marker line `**Captured via `/story` — not yet pondered.**`, or the same line with `/pm`) is exempt: it has no block until it is pondered.
+- Executive summary: `backlog-scan --json` carries each story's `summary_status`; `missing` or `stale` on a `drafts/` or `ready/` story is a finding (its `summary_issues` say why). An unpondered stub (a bold marker line ending `— not yet pondered.**`, however its first half is worded) is exempt: it has no block until it is pondered.
 
 **Helping-hands**:
 
