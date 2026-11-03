@@ -17,3 +17,4 @@ Inbox: raw asks, verbatim, oldest first, not yet triaged. New asks are appended 
 
 ## Inbox
 - 2026-10-19 05:04 — Some of this stuff may be accidental carry-over from Joe's original skill repo which we built on top of...probably worth a question of whether we have reached a point where we should break that connection, and maybe just keep an eye on his skills for useful ideas? (Derek, 2026-10-19, in grootPM's work-model-contract D2, on the (bug)/(feature)/(chore) TODO tags that came from /project-setup's template. Context: 21 of 55 skills are Joe's, upstream last merged 2026-10-01, fork 270 commits ahead.)
+- 2026-11-03 10:36 — Run the Executive-summary pass (~/.claude/skills/pm/exec-summary.md § The pass) on every story in drafts/ and ready/ that backlog-scan reports missing or stale, and add · open status words to undecided decision headings first. Medium priority; a /cleanup-design run covers it.
