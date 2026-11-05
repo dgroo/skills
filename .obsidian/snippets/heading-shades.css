@@ -8,17 +8,17 @@
 body.theme-light {
   --h1-color: #000000;
   --h2-color: #333333;
-  --h3-color: #555555;
-  --h4-color: #707070;
-  --h5-color: #878787;
-  --h6-color: #9c9c9c;
+  --h3-color: #4a4a4a;
+  --h4-color: #5a5a5a;
+  --h5-color: #686868;
+  --h6-color: #747474;
 }
 
 body.theme-dark {
   --h1-color: #ffffff;
   --h2-color: #d8d8d8;
-  --h3-color: #bcbcbc;
-  --h4-color: #a3a3a3;
-  --h5-color: #8e8e8e;
-  --h6-color: #7a7a7a;
+  --h3-color: #c6c6c6;
+  --h4-color: #b6b6b6;
+  --h5-color: #a8a8a8;
+  --h6-color: #9c9c9c;
 }
