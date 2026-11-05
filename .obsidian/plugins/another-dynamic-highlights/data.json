@@ -67,15 +67,35 @@
         "highlighterEnabled": true,
         "tag": "d-cc-comments",
         "tagEnabled": true
+      },
+      "H1": {
+        "class": "H1",
+        "staticColor": "#DD5FB540",
+        "staticDecoration": "color",
+        "staticCss": {
+          "fontWeight": "400",
+          "color": "#DD5FB540"
+        },
+        "colorIconSnippet": "font-weight: 400; color: #DD5FB540",
+        "regex": false,
+        "query": "# ",
+        "mark": [
+          "match"
+        ],
+        "highlighterEnabled": true,
+        "tag": "Headings",
+        "tagEnabled": true
       }
     },
     "queryOrder": [
+      "H1",
+      "review-from-me",
       "review-resolved",
-      "review-to-me",
-      "review-from-me"
+      "review-to-me"
     ],
     "tagOrder": [],
     "expandedTags": [
+      "Headings",
       "d-cc-comments"
     ],
     "toggleable": [
