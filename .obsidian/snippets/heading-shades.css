@@ -1,0 +1,24 @@
+/* heading-shades.css — shared across the coding vaults via obsidian-config-sync.
+   Headings step from full-contrast (#) to lighter grey (######) so adjacent
+   levels can be told apart at a glance; Minimal renders # and ## identically
+   otherwise. Minimal reads these variables for both the editor
+   (.cm-header-N) and reading view (hN), so no selector work is needed.
+   Dark mode runs the ramp the other way (white down to mid grey). */
+
+body.theme-light {
+  --h1-color: #000000;
+  --h2-color: #333333;
+  --h3-color: #555555;
+  --h4-color: #707070;
+  --h5-color: #878787;
+  --h6-color: #9c9c9c;
+}
+
+body.theme-dark {
+  --h1-color: #ffffff;
+  --h2-color: #d8d8d8;
+  --h3-color: #bcbcbc;
+  --h4-color: #a3a3a3;
+  --h5-color: #8e8e8e;
+  --h6-color: #7a7a7a;
+}
