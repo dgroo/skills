@@ -70,12 +70,13 @@
       }
     },
     "queryOrder": [
+      "review-from-me",
       "review-resolved",
-      "review-to-me",
-      "review-from-me"
+      "review-to-me"
     ],
     "tagOrder": [],
     "expandedTags": [
+      "Headings",
       "d-cc-comments"
     ],
     "toggleable": [
