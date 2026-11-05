@@ -85,10 +85,29 @@
         "highlighterEnabled": true,
         "tag": "Headings",
         "tagEnabled": true
+      },
+      "H2": {
+        "class": "H2",
+        "staticColor": "#101010C4",
+        "staticDecoration": "color",
+        "staticCss": {
+          "fontWeight": "400",
+          "color": "#101010C4"
+        },
+        "colorIconSnippet": "font-weight: 400; color: #101010C4",
+        "regex": false,
+        "query": "## ",
+        "mark": [
+          "match"
+        ],
+        "highlighterEnabled": true,
+        "tag": "Headings",
+        "tagEnabled": true
       }
     },
     "queryOrder": [
       "H1",
+      "H2",
       "review-from-me",
       "review-resolved",
       "review-to-me"
